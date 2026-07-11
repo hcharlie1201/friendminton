@@ -21,6 +21,54 @@ DATABASE_URL=postgres://friendminton:friendminton@localhost:5432/friendminton ca
 
 The app runs migrations automatically on startup.
 
+## Deploy On A VPS
+
+This repo includes a production Docker setup for a small VPS such as AWS Lightsail.
+
+On the server:
+
+```sh
+sudo apt update
+sudo apt install -y docker.io docker-compose-plugin git
+sudo usermod -aG docker ubuntu
+```
+
+Log out and back in, then:
+
+```sh
+git clone https://github.com/YOUR_USER/friendminton.git
+cd friendminton/friendminton
+cp .env.production.example .env.production
+```
+
+Edit `.env.production` and set a long random `POSTGRES_PASSWORD`. The `DATABASE_URL`
+password must match it.
+
+For a quick HTTPS test without buying a domain, keep:
+
+```env
+DOMAIN=16.146.136.68.sslip.io
+```
+
+Then deploy:
+
+```sh
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+```
+
+Check logs:
+
+```sh
+docker compose --env-file .env.production -f docker-compose.prod.yml logs -f api
+```
+
+The API should be available at:
+
+```text
+https://16.146.136.68.sslip.io/healthz
+https://16.146.136.68.sslip.io/swagger-ui
+```
+
 ## OpenAPI
 
 The generated API contract is available at:

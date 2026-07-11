@@ -27,15 +27,20 @@ pub fn router(state: AppState) -> Router {
             "/openapi.json",
             get_with(openapi_json, |op| op.hidden(true)),
         )
-        .nest("/api/auth", controller::auth::routes())
-        .nest("/api/users", controller::users::routes())
-        .nest("/api/workouts", controller::workouts::routes())
-        .nest("/api/posts", controller::posts::routes())
-        .nest("/api/game-invites", controller::game_invites::routes())
+        .nest("/api", api_routes())
         .finish_api(&mut api)
         .layer(TraceLayer::new_for_http())
         .layer(Extension(api))
         .with_state(state)
+}
+
+fn api_routes() -> ApiRouter<AppState> {
+    ApiRouter::new()
+        .nest("/auth", controller::auth::routes())
+        .nest("/users", controller::users::routes())
+        .nest("/workouts", controller::workouts::routes())
+        .nest("/posts", controller::posts::routes())
+        .nest("/game-invites", controller::game_invites::routes())
 }
 
 async fn healthz() -> &'static str {
