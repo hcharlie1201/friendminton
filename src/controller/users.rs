@@ -1,7 +1,7 @@
+use aide::axum::{ApiRouter, routing::get};
 use axum::{
-    Json, Router,
+    Json,
     extract::{Path, Query, State},
-    routing::get,
 };
 use uuid::Uuid;
 
@@ -11,13 +11,13 @@ use crate::{
     error::AppError,
 };
 
-pub fn routes() -> Router<AppState> {
-    Router::new()
-        .route("/", get(find_players))
-        .route("/{id}", get(get_user))
+pub fn routes() -> ApiRouter<AppState> {
+    ApiRouter::new()
+        .api_route("/", get(find_players))
+        .api_route("/{id}", get(get_user))
 }
 
-async fn get_user(
+pub(crate) async fn get_user(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<User>, AppError> {
@@ -25,7 +25,7 @@ async fn get_user(
     Ok(Json(user))
 }
 
-async fn find_players(
+pub(crate) async fn find_players(
     State(state): State<AppState>,
     Query(search): Query<PlayerSearch>,
 ) -> Result<Json<Vec<User>>, AppError> {

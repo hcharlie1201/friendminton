@@ -1,8 +1,8 @@
+use aide::axum::{ApiRouter, routing::post};
 use axum::{
-    Json, Router,
+    Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    routing::post,
 };
 use uuid::Uuid;
 
@@ -13,13 +13,13 @@ use crate::{
     play::{self, CreateGameInvite, GameInvite, GameInviteSearch},
 };
 
-pub fn routes() -> Router<AppState> {
-    Router::new()
-        .route("/", post(create_game_invite).get(find_game_invites))
-        .route("/{game_invite_id}/join", post(join_game_invite))
+pub fn routes() -> ApiRouter<AppState> {
+    ApiRouter::new()
+        .api_route("/", post(create_game_invite).get(find_game_invites))
+        .api_route("/{game_invite_id}/join", post(join_game_invite))
 }
 
-async fn create_game_invite(
+pub(crate) async fn create_game_invite(
     State(state): State<AppState>,
     CurrentUser { id: host_id }: CurrentUser,
     Json(payload): Json<CreateGameInvite>,
@@ -28,7 +28,7 @@ async fn create_game_invite(
     Ok(Json(invite))
 }
 
-async fn find_game_invites(
+pub(crate) async fn find_game_invites(
     State(state): State<AppState>,
     Query(search): Query<GameInviteSearch>,
 ) -> Result<Json<Vec<GameInvite>>, AppError> {
@@ -36,7 +36,7 @@ async fn find_game_invites(
     Ok(Json(invites))
 }
 
-async fn join_game_invite(
+pub(crate) async fn join_game_invite(
     State(state): State<AppState>,
     CurrentUser { id: user_id }: CurrentUser,
     Path(game_invite_id): Path<Uuid>,

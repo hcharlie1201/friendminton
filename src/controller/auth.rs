@@ -1,4 +1,5 @@
-use axum::{Json, Router, extract::State, routing::post};
+use aide::axum::{ApiRouter, routing::post};
+use axum::{Json, extract::State};
 
 use crate::{
     accounts::{self, CreateUser, User},
@@ -6,11 +7,11 @@ use crate::{
     error::AppError,
 };
 
-pub fn routes() -> Router<AppState> {
-    Router::new().route("/sign-up/email", post(sign_up_email))
+pub fn routes() -> ApiRouter<AppState> {
+    ApiRouter::new().api_route("/sign-up/email", post(sign_up_email))
 }
 
-pub async fn sign_up_email(
+pub(crate) async fn sign_up_email(
     State(state): State<AppState>,
     Json(payload): Json<CreateUser>,
 ) -> Result<Json<User>, AppError> {

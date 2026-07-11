@@ -8,6 +8,7 @@ find nearby players, create game invites, track workouts, and share workout post
 - Axum for HTTP routing.
 - SQLx for Postgres access, migrations, and dynamic SQL via `QueryBuilder`.
 - Postgres with UUID primary keys and simple discovery indexes.
+- OpenAPI via `aide` for generated mobile clients.
 - `better-auth` is kept in the dependency graph so the temporary `x-user-id` MVP auth can be replaced with a real session layer next.
 
 ## Run Locally
@@ -19,6 +20,31 @@ DATABASE_URL=postgres://friendminton:friendminton@localhost:5432/friendminton ca
 ```
 
 The app runs migrations automatically on startup.
+
+## OpenAPI
+
+The generated API contract is available at:
+
+```sh
+curl http://localhost:3000/openapi.json
+```
+
+Swagger UI is available in the browser at:
+
+```text
+http://localhost:3000/swagger-ui
+```
+
+Generate a TypeScript client for React Native:
+
+```sh
+npx @openapitools/openapi-generator-cli generate \
+  -i http://localhost:3000/openapi.json \
+  -g typescript-fetch \
+  -o mobile/src/api/generated
+```
+
+Keep generated files behind a small app-owned wrapper that adds the API base URL and auth headers.
 
 ## MVP API
 

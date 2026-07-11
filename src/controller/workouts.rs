@@ -1,7 +1,10 @@
-use axum::{
-    Json, Router,
-    extract::{Path, State},
+use aide::axum::{
+    ApiRouter,
     routing::{get, post},
+};
+use axum::{
+    Json,
+    extract::{Path, State},
 };
 use uuid::Uuid;
 
@@ -12,13 +15,13 @@ use crate::{
     error::AppError,
 };
 
-pub fn routes() -> Router<AppState> {
-    Router::new()
-        .route("/", post(create_workout))
-        .route("/users/{user_id}", get(list_user_workouts))
+pub fn routes() -> ApiRouter<AppState> {
+    ApiRouter::new()
+        .api_route("/", post(create_workout))
+        .api_route("/users/{user_id}", get(list_user_workouts))
 }
 
-async fn create_workout(
+pub(crate) async fn create_workout(
     State(state): State<AppState>,
     CurrentUser { id: user_id }: CurrentUser,
     Json(payload): Json<CreateWorkout>,
@@ -27,7 +30,7 @@ async fn create_workout(
     Ok(Json(workout))
 }
 
-async fn list_user_workouts(
+pub(crate) async fn list_user_workouts(
     State(state): State<AppState>,
     Path(user_id): Path<Uuid>,
 ) -> Result<Json<Vec<Workout>>, AppError> {

@@ -1,3 +1,4 @@
+use aide::{OperationInput, generate::GenContext, openapi::Operation};
 use axum::{
     extract::FromRequestParts,
     http::{HeaderMap, request::Parts},
@@ -29,4 +30,8 @@ fn user_id_from_headers(headers: &HeaderMap) -> Result<Uuid, AppError> {
         .and_then(|value| value.to_str().ok())
         .and_then(|value| Uuid::parse_str(value).ok())
         .ok_or(AppError::Unauthorized)
+}
+
+impl OperationInput for CurrentUser {
+    fn operation_input(_ctx: &mut GenContext, _operation: &mut Operation) {}
 }

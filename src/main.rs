@@ -5,6 +5,7 @@ mod auth;
 mod controller;
 mod db;
 mod error;
+mod openapi;
 mod play;
 
 use std::net::SocketAddr;
