@@ -16,7 +16,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/users", controller::users::routes())
         .nest("/api/workouts", controller::workouts::routes())
         .nest("/api/posts", controller::posts::routes())
-        .nest("/api/play-sessions", controller::play_sessions::routes())
+        .nest("/api/game-invites", controller::game_invites::routes())
         .layer(TraceLayer::new_for_http())
         .with_state(state)
 }

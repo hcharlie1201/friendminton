@@ -1,9 +1,11 @@
+mod accounts;
+mod activities;
 mod app;
 mod auth;
 mod controller;
 mod db;
 mod error;
-mod models;
+mod play;
 
 use std::net::SocketAddr;
 

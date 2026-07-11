@@ -34,7 +34,7 @@ CREATE TABLE posts (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE play_sessions (
+CREATE TABLE game_invites (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     host_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
@@ -48,14 +48,14 @@ CREATE TABLE play_sessions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE play_session_players (
-    session_id UUID NOT NULL REFERENCES play_sessions(id) ON DELETE CASCADE,
+CREATE TABLE game_invite_players (
+    game_invite_id UUID NOT NULL REFERENCES game_invites(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (session_id, user_id)
+    PRIMARY KEY (game_invite_id, user_id)
 );
 
 CREATE INDEX idx_users_discovery ON users (city, skill_level, created_at DESC);
 CREATE INDEX idx_workouts_user_time ON workouts (user_id, occurred_at DESC);
 CREATE INDEX idx_posts_feed ON posts (created_at DESC);
-CREATE INDEX idx_play_sessions_discovery ON play_sessions (city, skill_level, starts_at);
+CREATE INDEX idx_game_invites_discovery ON game_invites (city, skill_level, starts_at);

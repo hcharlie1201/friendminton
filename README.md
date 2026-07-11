@@ -1,7 +1,7 @@
 # Friendminton
 
 Friendminton is a Rust/Axum MVP for a badminton community app inspired by Strava:
-find nearby players, create play sessions, track workouts, and share workout posts.
+find nearby players, create game invites, track workouts, and share workout posts.
 
 ## Stack
 
@@ -60,10 +60,10 @@ curl -X POST http://localhost:3000/api/posts \
   -d '{"body":"Footwork finally clicked tonight."}'
 ```
 
-Create and join a play session:
+Create and join a game invite:
 
 ```sh
-curl -X POST http://localhost:3000/api/play-sessions \
+curl -X POST http://localhost:3000/api/game-invites \
   -H 'content-type: application/json' \
   -H 'x-user-id: USER_UUID' \
   -d '{
@@ -75,7 +75,7 @@ curl -X POST http://localhost:3000/api/play-sessions \
     "max_players":8
   }'
 
-curl -X POST http://localhost:3000/api/play-sessions/SESSION_UUID/join \
+curl -X POST http://localhost:3000/api/game-invites/GAME_INVITE_UUID/join \
   -H 'x-user-id: USER_UUID'
 ```
 
