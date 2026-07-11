@@ -1,0 +1,17 @@
+[package]
+name = "friendminton"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8.9"
+better-auth = { version = "0.6", features = ["axum", "sqlx-postgres", "derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "uuid", "time", "json", "migrate"] }
+thiserror = "2.0.17"
+time = { version = "0.3.53", features = ["serde"] }
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6.8", features = ["trace"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+uuid = { version = "1.23.4", features = ["serde", "v4"] }
