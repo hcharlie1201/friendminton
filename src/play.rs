@@ -57,16 +57,16 @@ pub async fn find_game_invites(
         "SELECT id, host_id, title, venue, city, starts_at, skill_level, max_players, notes, created_at FROM game_invites",
     );
 
-    if search.city.is_some() || search.skill_level.is_some() {
-        query.push(" WHERE ");
-        let mut separated = query.separated(" AND ");
+    let mut has_filter = false;
 
-        if let Some(city) = search.city {
-            separated.push("city ILIKE ").push_bind(format!("%{city}%"));
-        }
-        if let Some(skill_level) = search.skill_level {
-            separated.push("skill_level = ").push_bind(skill_level);
-        }
+    if let Some(city) = search.city {
+        push_filter(&mut query, &mut has_filter);
+        query.push("city ILIKE ").push_bind(format!("%{city}%"));
+    }
+
+    if let Some(skill_level) = search.skill_level {
+        push_filter(&mut query, &mut has_filter);
+        query.push("skill_level = ").push_bind(skill_level);
     }
 
     query
@@ -75,6 +75,15 @@ pub async fn find_game_invites(
 
     let invites = query.build_query_as::<GameInvite>().fetch_all(pool).await?;
     Ok(invites)
+}
+
+fn push_filter(query: &mut QueryBuilder<'_, Postgres>, has_filter: &mut bool) {
+    if *has_filter {
+        query.push(" AND ");
+    } else {
+        query.push(" WHERE ");
+        *has_filter = true;
+    }
 }
 
 pub async fn join_game_invite(

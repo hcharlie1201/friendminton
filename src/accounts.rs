@@ -52,16 +52,16 @@ pub async fn find_players(
         "SELECT id, email, display_name, city, skill_level, bio, created_at, updated_at FROM users",
     );
 
-    if search.city.is_some() || search.skill_level.is_some() {
-        query.push(" WHERE ");
-        let mut separated = query.separated(" AND ");
+    let mut has_filter = false;
 
-        if let Some(city) = search.city {
-            separated.push("city ILIKE ").push_bind(format!("%{city}%"));
-        }
-        if let Some(skill_level) = search.skill_level {
-            separated.push("skill_level = ").push_bind(skill_level);
-        }
+    if let Some(city) = search.city {
+        push_filter(&mut query, &mut has_filter);
+        query.push("city ILIKE ").push_bind(format!("%{city}%"));
+    }
+
+    if let Some(skill_level) = search.skill_level {
+        push_filter(&mut query, &mut has_filter);
+        query.push("skill_level = ").push_bind(skill_level);
     }
 
     query
@@ -70,6 +70,15 @@ pub async fn find_players(
 
     let users = query.build_query_as::<User>().fetch_all(pool).await?;
     Ok(users)
+}
+
+fn push_filter(query: &mut QueryBuilder<'_, Postgres>, has_filter: &mut bool) {
+    if *has_filter {
+        query.push(" AND ");
+    } else {
+        query.push(" WHERE ");
+        *has_filter = true;
+    }
 }
 
 fn validate_user(payload: &CreateUser) -> Result<(), AppError> {

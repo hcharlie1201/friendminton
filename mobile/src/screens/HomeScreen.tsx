@@ -1,25 +1,57 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { api } from '../api/client';
-import type { FeedPost, GameInvite, SkillLevel, User } from '../api/types';
+import {
+  getApiGameInvites,
+  getApiPostsFeed,
+  getApiUsers,
+  postApiGameInvites,
+  postApiPosts,
+  postApiWorkouts,
+  type ErrorBody,
+  type FeedPost,
+  type GameInvite,
+  type User,
+} from '../api/generated';
+import { client as generatedClient } from '../api/generated/client.gen';
 import { apiBaseUrl, devUserId } from '../config';
 import { PillButton } from '../components/PillButton';
 
 type Tab = 'discover' | 'feed' | 'workouts' | 'games';
+type SkillLevel = 'beginner' | 'intermediate' | 'advanced' | 'competitive';
+type ApiResult<T> = {
+  data?: T;
+  error?: ErrorBody;
+  response?: Response;
+};
+type WriteMutation = {
+  mutate: () => void;
+};
+
+class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
+
+generatedClient.setConfig({ baseUrl: apiBaseUrl });
 
 const tabs: Array<{ key: Tab; label: string }> = [
   { key: 'discover', label: 'Discover' },
@@ -31,117 +63,115 @@ const tabs: Array<{ key: Tab; label: string }> = [
 const skillLevels: SkillLevel[] = ['beginner', 'intermediate', 'advanced', 'competitive'];
 
 export function HomeScreen() {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<Tab>('discover');
   const [city, setCity] = useState('Oakland');
   const [skillLevel, setSkillLevel] = useState<SkillLevel>('intermediate');
-  const [players, setPlayers] = useState<User[]>([]);
-  const [feed, setFeed] = useState<FeedPost[]>([]);
-  const [gameInvites, setGameInvites] = useState<GameInvite[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [health, setHealth] = useState<'checking' | 'online' | 'offline'>('checking');
   const [workoutTitle, setWorkoutTitle] = useState('Doubles ladder night');
   const [postBody, setPostBody] = useState('Footwork finally clicked tonight.');
 
   const canWrite = Boolean(devUserId);
+  const healthQuery = useQuery({
+    queryKey: ['health'],
+    queryFn: () => fetch(`${apiBaseUrl}/healthz`).then((response) => response.ok),
+    retry: false,
+  });
+  const playersQuery = useQuery({
+    queryKey: ['players', city, skillLevel],
+    queryFn: () =>
+      getApiUsers({
+        query: {
+          city,
+          skill_level: skillLevel,
+        },
+      }).then(unwrap<User[]>),
+  });
+  const feedQuery = useQuery({
+    queryKey: ['feed'],
+    queryFn: () => getApiPostsFeed().then(unwrap<FeedPost[]>),
+  });
+  const gameInvitesQuery = useQuery({
+    queryKey: ['gameInvites', city, skillLevel],
+    queryFn: () =>
+      getApiGameInvites({
+        query: {
+          city,
+          skill_level: skillLevel,
+        },
+      }).then(unwrap<GameInvite[]>),
+  });
+  const createWorkoutMutation = useMutation({
+    mutationFn: () =>
+      postApiWorkouts({
+        body: {
+          title: workoutTitle.trim() || 'Badminton workout',
+          workout_type: 'match',
+          duration_minutes: 75,
+          calories: 430,
+          occurred_at: new Date().toISOString(),
+        },
+        headers: authHeaders(),
+      }).then(unwrap),
+    onError: showError,
+    onSuccess: async () => {
+      Alert.alert('Workout saved');
+      await queryClient.invalidateQueries({ queryKey: ['feed'] });
+    },
+  });
+  const createPostMutation = useMutation({
+    mutationFn: () =>
+      postApiPosts({
+        body: { body: postBody.trim() || 'Great hit today.' },
+        headers: authHeaders(),
+      }).then(unwrap),
+    onError: showError,
+    onSuccess: async () => {
+      setActiveTab('feed');
+      await queryClient.invalidateQueries({ queryKey: ['feed'] });
+    },
+  });
+  const createGameInviteMutation = useMutation({
+    mutationFn: () =>
+      postApiGameInvites({
+        body: {
+          title: 'Evening doubles',
+          venue: 'Downtown Rec Center',
+          city,
+          starts_at: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
+          skill_level: skillLevel,
+          max_players: 8,
+        },
+        headers: authHeaders(),
+      }).then(unwrap),
+    onError: showError,
+    onSuccess: async () => {
+      setActiveTab('games');
+      await queryClient.invalidateQueries({ queryKey: ['gameInvites'] });
+    },
+  });
+  const players = playersQuery.data ?? [];
+  const feed = feedQuery.data ?? [];
+  const gameInvites = gameInvitesQuery.data ?? [];
+  const isLoading =
+    healthQuery.isLoading ||
+    playersQuery.isFetching ||
+    feedQuery.isFetching ||
+    gameInvitesQuery.isFetching ||
+    createWorkoutMutation.isPending ||
+    createPostMutation.isPending ||
+    createGameInviteMutation.isPending;
+  const actions = useHomeActions({
+    canWrite,
+    createGameInviteMutation,
+    createPostMutation,
+    createWorkoutMutation,
+  });
 
   const statusLabel = useMemo(() => {
-    if (health === 'checking') return 'Checking API';
-    if (health === 'online') return 'API online';
+    if (healthQuery.isLoading) return 'Checking API';
+    if (healthQuery.data) return 'API online';
     return 'API offline';
-  }, [health]);
-
-  useEffect(() => {
-    void refreshAll();
-  }, []);
-
-  async function refreshAll() {
-    setIsLoading(true);
-    try {
-      const [isHealthy, playersResult, feedResult, gamesResult] = await Promise.all([
-        api.health().catch(() => false),
-        api.findPlayers({ city, skillLevel }),
-        api.feed(),
-        api.findGameInvites({ city, skillLevel }),
-      ]);
-
-      setHealth(isHealthy ? 'online' : 'offline');
-      setPlayers(playersResult);
-      setFeed(feedResult);
-      setGameInvites(gamesResult);
-    } catch (error) {
-      setHealth('offline');
-      showError(error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function createWorkout() {
-    if (!canWrite) {
-      Alert.alert('Set EXPO_PUBLIC_DEV_USER_ID to create workouts.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await api.createWorkout({
-        title: workoutTitle.trim() || 'Badminton workout',
-        workout_type: 'match',
-        duration_minutes: 75,
-        calories: 430,
-        occurred_at: new Date().toISOString(),
-      });
-      Alert.alert('Workout saved');
-      await refreshAll();
-    } catch (error) {
-      showError(error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function createPost() {
-    if (!canWrite) {
-      Alert.alert('Set EXPO_PUBLIC_DEV_USER_ID to post to the feed.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await api.createPost({ body: postBody.trim() || 'Great hit today.' });
-      setActiveTab('feed');
-      await refreshAll();
-    } catch (error) {
-      showError(error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function createGameInvite() {
-    if (!canWrite) {
-      Alert.alert('Set EXPO_PUBLIC_DEV_USER_ID to create game invites.');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await api.createGameInvite({
-        title: 'Evening doubles',
-        venue: 'Downtown Rec Center',
-        city,
-        starts_at: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
-        skill_level: skillLevel,
-        max_players: 8,
-      });
-      setActiveTab('games');
-      await refreshAll();
-    } catch (error) {
-      showError(error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  }, [healthQuery.data, healthQuery.isLoading]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -155,7 +185,7 @@ export function HomeScreen() {
             <Text style={styles.eyebrow}>Friendminton</Text>
             <Text style={styles.title}>Find your next rally.</Text>
           </View>
-          <View style={[styles.statusDot, health === 'online' && styles.statusOnline]} />
+          <View style={[styles.statusDot, healthQuery.data && styles.statusOnline]} />
         </View>
 
         <View style={styles.statusRow}>
@@ -231,7 +261,7 @@ export function HomeScreen() {
               <Composer
                 buttonLabel="Post"
                 onChangeText={setPostBody}
-                onSubmit={createPost}
+                onSubmit={actions.createPost}
                 placeholder="Share a workout note"
                 value={postBody}
               />
@@ -250,7 +280,7 @@ export function HomeScreen() {
               <Composer
                 buttonLabel="Save workout"
                 onChangeText={setWorkoutTitle}
-                onSubmit={createWorkout}
+                onSubmit={actions.createWorkout}
                 placeholder="Workout title"
                 value={workoutTitle}
               />
@@ -265,7 +295,11 @@ export function HomeScreen() {
 
           {activeTab === 'games' && (
             <Section title="Game invites" emptyText="No invites found yet." itemCount={gameInvites.length}>
-              <Pressable accessibilityRole="button" onPress={createGameInvite} style={styles.primaryButton}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={actions.createGameInvite}
+                style={styles.primaryButton}
+              >
                 <Text style={styles.primaryButtonText}>Create tomorrow's doubles invite</Text>
               </Pressable>
               {gameInvites.map((invite) => (
@@ -353,6 +387,74 @@ function formatDate(value: string) {
 function showError(error: unknown) {
   const message = error instanceof Error ? error.message : 'Something went wrong.';
   Alert.alert('Friendminton', message);
+}
+
+function useHomeActions({
+  canWrite,
+  createGameInviteMutation,
+  createPostMutation,
+  createWorkoutMutation,
+}: {
+  canWrite: boolean;
+  createGameInviteMutation: WriteMutation;
+  createPostMutation: WriteMutation;
+  createWorkoutMutation: WriteMutation;
+}) {
+  return useMemo(
+    () => ({
+      createGameInvite: () => createGameInvite({ canWrite, mutation: createGameInviteMutation }),
+      createPost: () => createPost({ canWrite, mutation: createPostMutation }),
+      createWorkout: () => createWorkout({ canWrite, mutation: createWorkoutMutation }),
+    }),
+    [canWrite, createGameInviteMutation, createPostMutation, createWorkoutMutation],
+  );
+}
+
+function createWorkout({ canWrite, mutation }: { canWrite: boolean; mutation: WriteMutation }) {
+  if (!canWrite) {
+    Alert.alert('Set EXPO_PUBLIC_DEV_USER_ID to create workouts.');
+    return;
+  }
+
+  mutation.mutate();
+}
+
+function createPost({ canWrite, mutation }: { canWrite: boolean; mutation: WriteMutation }) {
+  if (!canWrite) {
+    Alert.alert('Set EXPO_PUBLIC_DEV_USER_ID to post to the feed.');
+    return;
+  }
+
+  mutation.mutate();
+}
+
+function createGameInvite({ canWrite, mutation }: { canWrite: boolean; mutation: WriteMutation }) {
+  if (!canWrite) {
+    Alert.alert('Set EXPO_PUBLIC_DEV_USER_ID to create game invites.');
+    return;
+  }
+
+  mutation.mutate();
+}
+
+function authHeaders() {
+  return devUserId ? { 'x-user-id': devUserId } : undefined;
+}
+
+function unwrap<T>({ data, error, response }: ApiResult<T>) {
+  if (error) {
+    throw new ApiError(error.error ?? `Request failed with status ${response?.status ?? 'unknown'}`, response?.status);
+  }
+
+  if (response && !response.ok) {
+    throw new ApiError(`Request failed with status ${response.status}`, response.status);
+  }
+
+  if (data === undefined) {
+    throw new ApiError('Request did not return data', response?.status);
+  }
+
+  return data;
 }
 
 const styles = StyleSheet.create({

@@ -3,21 +3,23 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@tanstack/react-query": "^5.101.2",
     "expo": "~57.0.4",
     "expo-status-bar": "~57.0.0",
-    "openapi-fetch": "^0.17.0",
     "react": "19.2.3",
-    "react-native": "0.86.0"
+    "react-native": "0.86.0",
+    "react-native-safe-area-context": "^5.8.0"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
     "@types/react": "~19.2.2",
-    "openapi-typescript": "^7.13.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
+    "start:clear": "expo start --clear",
     "android": "expo start --android",
-    "generate:api": "openapi-typescript ${EXPO_PUBLIC_API_BASE_URL:-http://localhost:3000}/openapi.json -o src/api/generated/schema.ts",
+    "generate:api": "openapi-ts",
     "ios": "expo start --ios",
     "typecheck": "tsc --noEmit",
     "web": "expo start --web"

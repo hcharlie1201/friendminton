@@ -123,9 +123,9 @@ cd mobile
 pnpm run generate:api
 ```
 
-That command reads `${EXPO_PUBLIC_API_BASE_URL}/openapi.json` and updates
-`src/api/generated/schema.ts`. The app uses `openapi-fetch` with those generated
-types; only the small wrapper in `src/api/client.ts` is handwritten.
+That command reads `${EXPO_PUBLIC_API_BASE_URL}/openapi.json` and updates the
+Hey API generated client in `src/api/generated`. Generated files include request
+functions and types, and the app calls those generated SDK functions directly.
 
 ## MVP API
 
