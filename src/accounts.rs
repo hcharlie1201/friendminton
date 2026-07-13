@@ -14,6 +14,12 @@ pub async fn create_user(pool: &Pool<Postgres>, payload: CreateUser) -> Result<U
         r#"
         INSERT INTO users (email, display_name, city, skill_level, bio)
         VALUES ($1, $2, $3, COALESCE($4, 'beginner'), $5)
+        ON CONFLICT (email) DO UPDATE SET
+            display_name = EXCLUDED.display_name,
+            city = EXCLUDED.city,
+            skill_level = EXCLUDED.skill_level,
+            bio = EXCLUDED.bio,
+            updated_at = now()
         RETURNING id, email, display_name, city, skill_level, bio, created_at, updated_at
         "#,
     )

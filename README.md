@@ -108,13 +108,12 @@ Set the API URL for your target device:
 
 ```env
 EXPO_PUBLIC_API_BASE_URL=http://localhost:3000
-EXPO_PUBLIC_DEV_USER_ID=
 ```
 
 For iOS Simulator, `localhost` can reach your Mac. For a physical phone, use your
-computer's LAN IP or the deployed HTTPS URL instead. Set `EXPO_PUBLIC_DEV_USER_ID`
-to a real user UUID from the backend if you want to create workouts, posts, or game
-invites from the app.
+computer's LAN IP or the deployed HTTPS URL instead. The app uses Expo Router
+protected routes: signed-out users see the login screen, and signed-in users are
+stored locally with `expo-secure-store` and routed into the main app.
 
 Regenerate the mobile API types after backend route/schema changes:
 
