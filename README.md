@@ -94,6 +94,39 @@ npx @openapitools/openapi-generator-cli generate \
 
 Keep generated files behind a small app-owned wrapper that adds the API base URL and auth headers.
 
+## Mobile App
+
+The Expo app lives in `mobile/`.
+
+```sh
+cd mobile
+cp .env.example .env
+pnpm start
+```
+
+Set the API URL for your target device:
+
+```env
+EXPO_PUBLIC_API_BASE_URL=http://localhost:3000
+EXPO_PUBLIC_DEV_USER_ID=
+```
+
+For iOS Simulator, `localhost` can reach your Mac. For a physical phone, use your
+computer's LAN IP or the deployed HTTPS URL instead. Set `EXPO_PUBLIC_DEV_USER_ID`
+to a real user UUID from the backend if you want to create workouts, posts, or game
+invites from the app.
+
+Regenerate the mobile API types after backend route/schema changes:
+
+```sh
+cd mobile
+pnpm run generate:api
+```
+
+That command reads `${EXPO_PUBLIC_API_BASE_URL}/openapi.json` and updates
+`src/api/generated/schema.ts`. The app uses `openapi-fetch` with those generated
+types; only the small wrapper in `src/api/client.ts` is handwritten.
+
 ## MVP API
 
 Create a user:
