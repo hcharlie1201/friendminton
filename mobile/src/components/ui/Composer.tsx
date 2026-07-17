@@ -22,6 +22,11 @@ export function Composer({ buttonLabel, onChangeText, onSubmit, placeholder, val
 
 const styles = StyleSheet.create({
   composer: {
-    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D8E5F5',
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 10,
+    padding: 12,
   },
 });

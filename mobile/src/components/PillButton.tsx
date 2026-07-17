@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
+import { colors } from './ui';
+
 type Props = {
   children: ReactNode;
   active?: boolean;
@@ -28,17 +30,17 @@ export function PillButton({ children, active = false, disabled = false, onPress
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 40,
+    minHeight: 36,
     justifyContent: 'center',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#D6DDE6',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.card,
     paddingHorizontal: 14,
   },
   active: {
-    borderColor: '#143D33',
-    backgroundColor: '#143D33',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
   },
   disabled: {
     opacity: 0.45,
@@ -47,7 +49,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   label: {
-    color: '#263238',
+    color: colors.ink,
     fontSize: 14,
     fontWeight: '700',
   },

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { colors } from './theme';
+
 type Props = {
   children: ReactNode;
   emptyText?: string;
@@ -31,14 +33,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    color: '#101820',
+    color: colors.ink,
     fontSize: 20,
     fontWeight: '900',
   },
   count: {
-    backgroundColor: '#DCE8E2',
+    backgroundColor: colors.primarySoft,
     borderRadius: 14,
-    color: '#143D33',
+    color: colors.primaryDark,
     fontSize: 13,
     fontWeight: '900',
     minWidth: 28,
@@ -48,7 +50,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   empty: {
-    color: '#637083',
+    color: colors.muted,
     fontSize: 15,
     fontWeight: '700',
   },

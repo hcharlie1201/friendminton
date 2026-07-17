@@ -3,6 +3,8 @@ import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { colors } from './theme';
+
 type Props = {
   children: ReactNode;
   centered?: boolean;
@@ -24,7 +26,7 @@ export function Screen({ children, centered = false }: Props) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#F7F4ED',
+    backgroundColor: colors.background,
     flex: 1,
   },
   keyboardView: {

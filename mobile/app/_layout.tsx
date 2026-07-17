@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider, useSession } from '../src/auth/session';
+import { colors } from '../src/components/ui';
 
 export default function RootLayout() {
   const [queryClient] = useState(
@@ -36,7 +37,7 @@ function ProtectedRoutes() {
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#143D33" />
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
@@ -56,7 +57,7 @@ function ProtectedRoutes() {
 const styles = StyleSheet.create({
   loading: {
     alignItems: 'center',
-    backgroundColor: '#F7F4ED',
+    backgroundColor: colors.background,
     flex: 1,
     justifyContent: 'center',
   },

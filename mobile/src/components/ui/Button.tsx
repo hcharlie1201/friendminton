@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
+import { colors } from './theme';
+
 type Props = {
   children: ReactNode;
   disabled?: boolean;
@@ -25,7 +27,7 @@ export function Button({ children, disabled = false, loading = false, onPress, v
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#FFFFFF' : '#263238'} />
+        <ActivityIndicator color={variant === 'primary' ? '#FFFFFF' : colors.ink} />
       ) : (
         <Text style={[styles.label, variant === 'secondary' && styles.secondaryLabel]}>{children}</Text>
       )}
@@ -36,15 +38,15 @@ export function Button({ children, disabled = false, loading = false, onPress, v
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    backgroundColor: '#143D33',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     justifyContent: 'center',
     minHeight: 46,
     paddingHorizontal: 14,
   },
   secondary: {
-    backgroundColor: 'transparent',
-    borderColor: '#C9C2B3',
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
     minHeight: 38,
     paddingHorizontal: 12,
@@ -61,7 +63,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   secondaryLabel: {
-    color: '#263238',
+    color: colors.primaryDark,
     fontSize: 13,
   },
 });
