@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../ui';
+import { colors, fonts } from '../ui';
 
 type Props = {
   activities: number;
@@ -17,9 +17,9 @@ export function WeeklySnapshot({ activities, games, minutes }: Props) {
       </View>
 
       <View style={styles.metrics}>
-        <Metric delta="▼ 1" label="Activities" value={String(activities)} />
-        <Metric delta="▼ 18m" label="Time" value={formatMinutes(minutes)} />
-        <Metric delta="▲ 2" label="Games" value={String(games)} />
+        <Metric label="Activities" value={String(activities)} />
+        <Metric label="Time" value={formatMinutes(minutes)} />
+        <Metric label="Games" value={String(games)} />
       </View>
 
       <View style={styles.dots}>
@@ -30,12 +30,11 @@ export function WeeklySnapshot({ activities, games, minutes }: Props) {
   );
 }
 
-function Metric({ delta, label, value }: { delta: string; label: string; value: string }) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.metric}>
       <Text style={styles.metricLabel}>{label}</Text>
       <Text style={styles.metricValue}>{value}</Text>
-      <Text style={styles.delta}>{delta}</Text>
     </View>
   );
 }
@@ -65,11 +64,13 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.ink,
+    fontFamily: fonts.black,
     fontSize: 19,
     fontWeight: '900',
   },
   more: {
     color: colors.primary,
+    fontFamily: fonts.black,
     fontSize: 15,
     fontWeight: '900',
   },
@@ -82,26 +83,16 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     color: '#555555',
+    fontFamily: fonts.medium,
     fontSize: 16,
     fontWeight: '500',
   },
   metricValue: {
     color: '#050505',
+    fontFamily: fonts.black,
     fontSize: 25,
     fontWeight: '900',
     marginTop: 6,
-  },
-  delta: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F1F2F2',
-    borderRadius: 4,
-    color: '#666666',
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 10,
-    overflow: 'hidden',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
   },
   dots: {
     alignItems: 'center',

@@ -1,6 +1,7 @@
 import { StyleSheet, TextInput, type TextInputProps } from 'react-native';
 
 import { colors } from './theme';
+import { fonts } from './typography';
 
 type Props = TextInputProps & {
   variant?: 'default' | 'compact';
@@ -23,6 +24,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     color: colors.ink,
+    fontFamily: fonts.regular,
     fontSize: 16,
     minHeight: 50,
     paddingHorizontal: 14,

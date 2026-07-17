@@ -1,16 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../ui';
+import { colors, fonts } from '../ui';
 import type { Tab } from './types';
 
 type Props = {
   activeTab: Tab;
-  notificationCount?: number;
+  notificationCount: number;
+  onOpenNotifications: () => void;
   onOpenSettings: () => void;
 };
 
-export function AppHeader({ activeTab, notificationCount = 7, onOpenSettings }: Props) {
+export function AppHeader({ activeTab, notificationCount, onOpenNotifications, onOpenSettings }: Props) {
   return (
     <View style={styles.header}>
       <View style={styles.leftActions}>
@@ -24,14 +25,14 @@ export function AppHeader({ activeTab, notificationCount = 7, onOpenSettings }: 
 
       <View style={styles.rightActions}>
         <Ionicons color="#050505" name="chatbubbles-outline" size={31} />
-        <View>
+        <Pressable accessibilityRole="button" onPress={onOpenNotifications}>
           <Ionicons color="#050505" name="notifications" size={33} />
           {notificationCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{notificationCount}</Text>
             </View>
           )}
-        </View>
+        </Pressable>
       </View>
     </View>
   );
@@ -80,11 +81,13 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: '#FFFFFF',
+    fontFamily: fonts.black,
     fontSize: 20,
     fontWeight: '900',
   },
   title: {
     color: colors.ink,
+    fontFamily: fonts.black,
     fontSize: 22,
     fontWeight: '900',
   },
@@ -101,6 +104,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#FFFFFF',
+    fontFamily: fonts.black,
     fontSize: 13,
     fontWeight: '900',
   },

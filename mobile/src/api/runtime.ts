@@ -2,7 +2,7 @@ import { client as generatedClient } from './generated/client.gen';
 import type { ErrorBody } from './generated';
 import { apiBaseUrl } from '../config';
 
-type ApiResult<T> = {
+export type ApiResult<T> = {
   data?: T;
   error?: ErrorBody;
   response?: Response;
@@ -37,4 +37,14 @@ export function unwrap<T>({ data, error, response }: ApiResult<T>) {
   }
 
   return data;
+}
+
+export function unwrapEmpty({ error, response }: ApiResult<unknown>) {
+  if (error) {
+    throw new ApiError(error.error ?? `Request failed with status ${response?.status ?? 'unknown'}`, response?.status);
+  }
+
+  if (response && !response.ok) {
+    throw new ApiError(`Request failed with status ${response.status}`, response.status);
+  }
 }

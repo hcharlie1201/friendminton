@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { FeedPost } from '../../api/generated';
 import { formatDate } from '../../lib/dates';
-import { colors } from '../ui';
+import { colors, fonts } from '../ui';
 
 type Props = {
   post: FeedPost;
@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: '#FFFFFF',
+    fontFamily: fonts.black,
     fontSize: 13,
     fontWeight: '900',
   },
@@ -83,16 +84,19 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.ink,
+    fontFamily: fonts.black,
     fontSize: 16,
     fontWeight: '900',
   },
   meta: {
     color: colors.muted,
+    fontFamily: fonts.bold,
     fontSize: 12,
     fontWeight: '700',
   },
   body: {
     color: colors.ink,
+    fontFamily: fonts.bold,
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 25,
@@ -109,11 +113,13 @@ const styles = StyleSheet.create({
   },
   metricValue: {
     color: colors.primaryDark,
+    fontFamily: fonts.black,
     fontSize: 15,
     fontWeight: '900',
   },
   metricLabel: {
     color: colors.muted,
+    fontFamily: fonts.extraBold,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',

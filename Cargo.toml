@@ -11,7 +11,7 @@ schemars = { version = "0.9.0", features = ["uuid1"] }
 serde = { version = "1.0.228", features = ["derive"] }
 sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "uuid", "time", "json", "migrate"] }
 thiserror = "2.0.17"
-time = { version = "0.3.53", features = ["serde"] }
+time = { version = "0.3.53", features = ["serde", "serde-well-known"] }
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.6.8", features = ["trace"] }
 tracing = "0.1.44"

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors } from './theme';
+import { fonts } from './typography';
 
 type Props = {
   action?: ReactNode;
@@ -33,12 +34,14 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     color: colors.primary,
+    fontFamily: fonts.extraBold,
     fontSize: 13,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
   title: {
     color: colors.ink,
+    fontFamily: fonts.black,
     fontSize: 30,
     fontWeight: '900',
     lineHeight: 35,

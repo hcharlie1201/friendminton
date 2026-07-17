@@ -14,8 +14,10 @@ pub struct Workout {
     pub calories: Option<i32>,
     pub distance_meters: Option<i32>,
     pub notes: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub occurred_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub created_at: OffsetDateTime,
 }
@@ -28,6 +30,7 @@ pub struct CreateWorkout {
     pub calories: Option<i32>,
     pub distance_meters: Option<i32>,
     pub notes: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub occurred_at: OffsetDateTime,
 }

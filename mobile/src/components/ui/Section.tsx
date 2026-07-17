@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors } from './theme';
+import { fonts } from './typography';
 
 type Props = {
   children: ReactNode;
@@ -34,6 +35,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.ink,
+    fontFamily: fonts.black,
     fontSize: 20,
     fontWeight: '900',
   },
@@ -41,6 +43,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
     borderRadius: 14,
     color: colors.primaryDark,
+    fontFamily: fonts.black,
     fontSize: 13,
     fontWeight: '900',
     minWidth: 28,
@@ -51,6 +54,7 @@ const styles = StyleSheet.create({
   },
   empty: {
     color: colors.muted,
+    fontFamily: fonts.bold,
     fontSize: 15,
     fontWeight: '700',
   },

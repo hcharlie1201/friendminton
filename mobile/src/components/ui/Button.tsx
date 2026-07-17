@@ -1,18 +1,33 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import type { ComponentProps } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from './theme';
+import { fonts } from './typography';
 
 type Props = {
   children: ReactNode;
   disabled?: boolean;
+  icon?: ComponentProps<typeof Ionicons>['name'];
   loading?: boolean;
   onPress: () => void;
-  variant?: 'primary' | 'secondary';
+  size?: 'default' | 'compact';
+  variant?: 'primary' | 'secondary' | 'quiet' | 'danger';
 };
 
-export function Button({ children, disabled = false, loading = false, onPress, variant = 'primary' }: Props) {
+export function Button({
+  children,
+  disabled = false,
+  icon,
+  loading = false,
+  onPress,
+  size = 'default',
+  variant = 'primary',
+}: Props) {
   const isDisabled = disabled || loading;
+  const isPrimary = variant === 'primary';
+  const iconColor = isPrimary ? '#FFFFFF' : variant === 'danger' ? colors.danger : colors.primaryDark;
 
   return (
     <Pressable
@@ -21,15 +36,21 @@ export function Button({ children, disabled = false, loading = false, onPress, v
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        variant === 'secondary' && styles.secondary,
+        styles[variant],
+        size === 'compact' && styles.compact,
         isDisabled && styles.disabled,
-        pressed && !isDisabled && styles.pressed,
+        pressed && !isDisabled && styles[`${variant}Pressed`],
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#FFFFFF' : colors.ink} />
+        <ActivityIndicator color={isPrimary ? '#FFFFFF' : colors.primaryDark} />
       ) : (
-        <Text style={[styles.label, variant === 'secondary' && styles.secondaryLabel]}>{children}</Text>
+        <View style={styles.content}>
+          {icon && <Ionicons color={iconColor} name={icon} size={size === 'compact' ? 16 : 18} />}
+          <Text style={[styles.label, styles[`${variant}Label`], size === 'compact' && styles.compactLabel]}>
+            {children}
+          </Text>
+        </View>
       )}
     </Pressable>
   );
@@ -38,32 +59,85 @@ export function Button({ children, disabled = false, loading = false, onPress, v
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 8,
+    borderRadius: 14,
     justifyContent: 'center',
-    minHeight: 46,
-    paddingHorizontal: 14,
+    minHeight: 48,
+    paddingHorizontal: 18,
+  },
+  primary: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primaryDark,
+    borderWidth: 1,
+    shadowColor: colors.primary,
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 3,
   },
   secondary: {
+    backgroundColor: colors.primarySoft,
+    borderColor: '#B9D8FF',
+    borderWidth: 1,
+  },
+  quiet: {
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    minHeight: 38,
-    paddingHorizontal: 12,
+  },
+  danger: {
+    backgroundColor: '#FFF1F2',
+    borderColor: '#F8B4B8',
+    borderWidth: 1,
+  },
+  compact: {
+    borderRadius: 12,
+    minHeight: 40,
+    paddingHorizontal: 14,
   },
   disabled: {
-    opacity: 0.72,
+    opacity: 0.58,
   },
-  pressed: {
-    transform: [{ scale: 0.98 }],
+  primaryPressed: {
+    backgroundColor: colors.primaryDark,
+    shadowOpacity: 0.12,
+    transform: [{ translateY: 1 }, { scale: 0.99 }],
+  },
+  secondaryPressed: {
+    backgroundColor: '#D9EAFF',
+    transform: [{ translateY: 1 }, { scale: 0.99 }],
+  },
+  quietPressed: {
+    backgroundColor: colors.primarySoft,
+    transform: [{ translateY: 1 }, { scale: 0.99 }],
+  },
+  dangerPressed: {
+    backgroundColor: '#FFE4E6',
+    transform: [{ translateY: 1 }, { scale: 0.99 }],
+  },
+  content: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   label: {
     color: '#FFFFFF',
+    fontFamily: fonts.black,
     fontSize: 15,
     fontWeight: '900',
   },
+  primaryLabel: {
+    color: '#FFFFFF',
+  },
   secondaryLabel: {
     color: colors.primaryDark,
+  },
+  quietLabel: {
+    color: colors.primaryDark,
+  },
+  dangerLabel: {
+    color: colors.danger,
+  },
+  compactLabel: {
     fontSize: 13,
   },
 });

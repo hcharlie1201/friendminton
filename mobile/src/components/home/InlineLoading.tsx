@@ -1,6 +1,6 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../ui';
+import { colors, fonts } from '../ui';
 
 export function InlineLoading({ label }: { label: string }) {
   return (
@@ -20,6 +20,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.muted,
+    fontFamily: fonts.bold,
     fontSize: 14,
     fontWeight: '700',
   },

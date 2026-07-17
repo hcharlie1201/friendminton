@@ -41,6 +41,7 @@ fn api_routes() -> ApiRouter<AppState> {
         .nest("/workouts", controller::workouts::routes())
         .nest("/posts", controller::posts::routes())
         .nest("/game-invites", controller::game_invites::routes())
+        .nest("/engagement", controller::engagement::routes())
 }
 
 async fn healthz() -> &'static str {

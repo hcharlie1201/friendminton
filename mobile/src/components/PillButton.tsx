@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from './ui';
+import { colors, fonts } from './ui';
 
 type Props = {
   children: ReactNode;
@@ -23,6 +23,7 @@ export function PillButton({ children, active = false, disabled = false, onPress
         pressed && !disabled && styles.pressed,
       ]}
     >
+      <View style={[styles.dot, active && styles.activeDot]} />
       <Text style={[styles.label, active && styles.activeLabel]}>{children}</Text>
     </Pressable>
   );
@@ -30,28 +31,53 @@ export function PillButton({ children, active = false, disabled = false, onPress
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 36,
-    justifyContent: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
+    alignItems: 'center',
     backgroundColor: colors.card,
+    borderColor: '#B9D8FF',
+    borderRadius: 999,
+    borderWidth: 2,
+    flexDirection: 'row',
+    gap: 7,
+    justifyContent: 'center',
+    minHeight: 40,
     paddingHorizontal: 14,
+    shadowColor: colors.primary,
+    shadowOffset: { height: 8, width: 0 },
+    shadowOpacity: 0.14,
+    shadowRadius: 13,
+    elevation: 3,
   },
   active: {
-    borderColor: colors.primary,
     backgroundColor: colors.primary,
+    borderColor: colors.primaryDark,
+    shadowOffset: { height: 10, width: 0 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
   },
   disabled: {
     opacity: 0.45,
   },
   pressed: {
-    transform: [{ scale: 0.98 }],
+    transform: [{ translateY: 1 }, { scale: 0.98 }],
+  },
+  dot: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+    borderRadius: 6,
+    borderWidth: 2,
+    height: 12,
+    width: 12,
+  },
+  activeDot: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   label: {
-    color: colors.ink,
-    fontSize: 14,
-    fontWeight: '700',
+    color: colors.primaryDark,
+    fontFamily: fonts.black,
+    fontSize: 13,
+    fontWeight: '900',
+    textTransform: 'capitalize',
   },
   activeLabel: {
     color: '#FFFFFF',

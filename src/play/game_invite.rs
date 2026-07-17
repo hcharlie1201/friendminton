@@ -11,11 +11,13 @@ pub struct GameInvite {
     pub title: String,
     pub venue: String,
     pub city: String,
+    #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub starts_at: OffsetDateTime,
     pub skill_level: String,
     pub max_players: i32,
     pub notes: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub created_at: OffsetDateTime,
 }
@@ -25,6 +27,7 @@ pub struct CreateGameInvite {
     pub title: String,
     pub venue: String,
     pub city: String,
+    #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub starts_at: OffsetDateTime,
     pub skill_level: String,

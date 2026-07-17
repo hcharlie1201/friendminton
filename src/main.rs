@@ -4,6 +4,7 @@ mod app;
 mod auth;
 mod controller;
 mod db;
+mod engagement;
 mod error;
 mod openapi;
 mod play;

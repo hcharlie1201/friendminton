@@ -3,18 +3,25 @@ import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  getApiEngagementNotifications,
+  getApiEngagementNotificationsUnreadCount,
+  getApiEngagementWeeklySnapshot,
   getApiGameInvites,
   getApiPostsFeed,
   getApiUsers,
+  postApiEngagementNotificationsRead,
   postApiGameInvites,
   postApiPosts,
   postApiWorkouts,
   type FeedPost,
   type GameInvite,
+  type Notification,
+  type UnreadNotificationCount,
   type User,
+  type WeeklySnapshot,
 } from '../api/generated';
 import { apiBaseUrl } from '../config';
-import { authHeaders, unwrap } from '../api/runtime';
+import { authHeaders, unwrap, unwrapEmpty } from '../api/runtime';
 import { useSession } from '../auth/session';
 import {
   AppHeader,
@@ -60,6 +67,28 @@ export function HomeScreen() {
     queryKey: ['feed'],
     queryFn: () => getApiPostsFeed().then(unwrap<FeedPost[]>),
   });
+  const snapshotQuery = useQuery({
+    queryKey: ['weeklySnapshot', currentUser.id],
+    queryFn: () =>
+      getApiEngagementWeeklySnapshot({
+        headers: authHeaders(currentUser.id),
+      }).then(unwrap<WeeklySnapshot>),
+  });
+  const notificationsQuery = useQuery({
+    queryKey: ['notifications', currentUser.id],
+    queryFn: () =>
+      getApiEngagementNotifications({
+        headers: authHeaders(currentUser.id),
+      }).then(unwrap<Notification[]>),
+  });
+  const unreadNotificationsQuery = useQuery({
+    queryKey: ['notifications', 'unreadCount', currentUser.id],
+    enabled: notificationsQuery.isSuccess,
+    queryFn: () =>
+      getApiEngagementNotificationsUnreadCount({
+        headers: authHeaders(currentUser.id),
+      }).then(unwrap<UnreadNotificationCount>),
+  });
   const gameInvitesQuery = useQuery({
     queryKey: ['gameInvites', city, skillLevel],
     queryFn: () =>
@@ -85,7 +114,7 @@ export function HomeScreen() {
     onError: showError,
     onSuccess: async () => {
       Alert.alert('Workout saved');
-      await queryClient.invalidateQueries({ queryKey: ['feed'] });
+      await invalidateHomeData(queryClient, currentUser.id);
     },
   });
   const createPostMutation = useMutation({
@@ -97,7 +126,7 @@ export function HomeScreen() {
     onError: showError,
     onSuccess: async () => {
       setActiveTab('home');
-      await queryClient.invalidateQueries({ queryKey: ['feed'] });
+      await invalidateHomeData(queryClient, currentUser.id);
     },
   });
   const createGameInviteMutation = useMutation({
@@ -116,29 +145,58 @@ export function HomeScreen() {
     onError: showError,
     onSuccess: async () => {
       setActiveTab('groups');
-      await queryClient.invalidateQueries({ queryKey: ['gameInvites'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['gameInvites'] }),
+        queryClient.invalidateQueries({ queryKey: ['weeklySnapshot', currentUser.id] }),
+      ]);
+    },
+  });
+  const markNotificationsReadMutation = useMutation({
+    mutationFn: () =>
+      postApiEngagementNotificationsRead({
+        headers: authHeaders(currentUser.id),
+      }).then(unwrapEmpty),
+    onError: showError,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['notifications', currentUser.id] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications', 'unreadCount', currentUser.id] }),
+      ]);
     },
   });
   const players = playersQuery.data ?? [];
   const feed = feedQuery.data ?? [];
   const gameInvites = gameInvitesQuery.data ?? [];
+  const notifications = notificationsQuery.data ?? [];
+  const unreadNotificationCount = unreadNotificationsQuery.data?.count ?? 0;
   const isLoading =
     healthQuery.isLoading ||
     playersQuery.isFetching ||
     feedQuery.isFetching ||
+    snapshotQuery.isFetching ||
     gameInvitesQuery.isFetching ||
     createWorkoutMutation.isPending ||
     createPostMutation.isPending ||
-    createGameInviteMutation.isPending;
+    createGameInviteMutation.isPending ||
+    markNotificationsReadMutation.isPending;
   const actions = useHomeActions({
     createGameInviteMutation,
     createPostMutation,
     createWorkoutMutation,
   });
+  const headerActions = useHeaderActions({
+    markNotificationsReadMutation,
+    setActiveTab,
+  });
 
   return (
     <Screen>
-      <AppHeader activeTab={activeTab} onOpenSettings={() => setActiveTab('you')} />
+      <AppHeader
+        activeTab={activeTab}
+        notificationCount={unreadNotificationCount}
+        onOpenNotifications={headerActions.openNotifications}
+        onOpenSettings={headerActions.openSettings}
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {isLoading && <InlineLoading label="Refreshing court intel..." />}
@@ -149,6 +207,7 @@ export function HomeScreen() {
           currentUser={currentUser}
           feed={feed}
           gameInvites={gameInvites}
+          notifications={notifications}
           onCityChange={setCity}
           onSignOut={() => void signOut()}
           onSkillLevelChange={setSkillLevel}
@@ -157,11 +216,12 @@ export function HomeScreen() {
           setPostBody={setPostBody}
           setWorkoutTitle={setWorkoutTitle}
           skillLevel={skillLevel}
+          snapshot={snapshotQuery.data}
           workoutTitle={workoutTitle}
         />
       </ScrollView>
 
-      <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomTabBar activeTab={activeTab} notificationCount={unreadNotificationCount} onTabChange={setActiveTab} />
     </Screen>
   );
 }
@@ -196,6 +256,40 @@ function useHomeActions({
     }),
     [createGameInviteMutation, createPostMutation, createWorkoutMutation],
   );
+}
+
+function useHeaderActions({
+  markNotificationsReadMutation,
+  setActiveTab,
+}: {
+  markNotificationsReadMutation: WriteMutation;
+  setActiveTab: (tab: Tab) => void;
+}) {
+  return useMemo(
+    () => ({
+      openNotifications: () => openNotifications({ markNotificationsReadMutation, setActiveTab }),
+      openSettings: () => setActiveTab('you'),
+    }),
+    [markNotificationsReadMutation, setActiveTab],
+  );
+}
+
+function openNotifications({
+  markNotificationsReadMutation,
+  setActiveTab,
+}: {
+  markNotificationsReadMutation: WriteMutation;
+  setActiveTab: (tab: Tab) => void;
+}) {
+  setActiveTab('you');
+  markNotificationsReadMutation.mutate();
+}
+
+async function invalidateHomeData(queryClient: ReturnType<typeof useQueryClient>, userId: string) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['feed'] }),
+    queryClient.invalidateQueries({ queryKey: ['weeklySnapshot', userId] }),
+  ]);
 }
 
 const styles = StyleSheet.create({

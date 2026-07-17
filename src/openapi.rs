@@ -37,6 +37,11 @@ pub fn base_document() -> OpenApi {
                 description: Some("Find and join badminton games".into()),
                 ..Tag::default()
             },
+            Tag {
+                name: "engagement".into(),
+                description: Some("Weekly summaries and notifications".into()),
+                ..Tag::default()
+            },
         ],
         ..OpenApi::default()
     }

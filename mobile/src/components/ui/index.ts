@@ -6,3 +6,4 @@ export { Screen } from './Screen';
 export { Section } from './Section';
 export { TextField } from './TextField';
 export { colors } from './theme';
+export { fonts } from './typography';

@@ -1,15 +1,16 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../ui';
+import { colors, fonts } from '../ui';
 import { tabs, type Tab } from './types';
 
 type Props = {
   activeTab: Tab;
+  notificationCount: number;
   onTabChange: (tab: Tab) => void;
 };
 
-export function BottomTabBar({ activeTab, onTabChange }: Props) {
+export function BottomTabBar({ activeTab, notificationCount, onTabChange }: Props) {
   return (
     <View style={styles.tabs}>
       {tabs.map((tab) => {
@@ -23,9 +24,9 @@ export function BottomTabBar({ activeTab, onTabChange }: Props) {
           >
             <View>
               <TabIcon color={isActive ? colors.primary : '#050505'} tab={tab.key} />
-              {tab.key === 'home' && (
+              {tab.key === 'home' && notificationCount > 0 && (
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>7</Text>
+                  <Text style={styles.badgeText}>{notificationCount}</Text>
                 </View>
               )}
             </View>
@@ -65,6 +66,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: '#050505',
+    fontFamily: fonts.black,
     fontSize: 13,
     fontWeight: '900',
   },
@@ -84,6 +86,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#FFFFFF',
+    fontFamily: fonts.black,
     fontSize: 13,
     fontWeight: '900',
   },

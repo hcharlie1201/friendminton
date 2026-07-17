@@ -36,7 +36,8 @@ const styles = StyleSheet.create({
   },
   skillRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
+    paddingVertical: 2,
     paddingRight: 20,
   },
 });

@@ -12,8 +12,10 @@ pub struct User {
     pub city: Option<String>,
     pub skill_level: String,
     pub bio: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub updated_at: OffsetDateTime,
 }

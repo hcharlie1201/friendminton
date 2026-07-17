@@ -15,7 +15,9 @@ export function Composer({ buttonLabel, onChangeText, onSubmit, placeholder, val
   return (
     <View style={styles.composer}>
       <TextField onChangeText={onChangeText} placeholder={placeholder} value={value} variant="compact" />
-      <Button onPress={onSubmit}>{buttonLabel}</Button>
+      <Button icon="paper-plane" onPress={onSubmit}>
+        {buttonLabel}
+      </Button>
     </View>
   );
 }

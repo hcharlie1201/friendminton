@@ -10,6 +10,7 @@ pub struct Post {
     pub user_id: Uuid,
     pub workout_id: Option<Uuid>,
     pub body: String,
+    #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub created_at: OffsetDateTime,
 }
@@ -27,6 +28,7 @@ pub struct FeedPost {
     pub display_name: String,
     pub workout_id: Option<Uuid>,
     pub body: String,
+    #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub created_at: OffsetDateTime,
 }

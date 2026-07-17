@@ -1,4 +1,4 @@
-import type { FeedPost, GameInvite, User } from '../../api/generated';
+import type { FeedPost, GameInvite, Notification, User, WeeklySnapshot as WeeklySnapshotData } from '../../api/generated';
 import { ActivityPostCard } from '../feed/ActivityPostCard';
 import { Button, Composer, Section } from '../ui';
 import { DiscoveryFilters } from './DiscoveryFilters';
@@ -22,6 +22,7 @@ type Props = {
   gameInvites: GameInvite[];
   city: string;
   currentUser: Pick<User, 'display_name' | 'email'>;
+  notifications: Notification[];
   onCityChange: (city: string) => void;
   onSignOut: () => void;
   onSkillLevelChange: (skillLevel: SkillLevel) => void;
@@ -30,6 +31,7 @@ type Props = {
   setPostBody: (value: string) => void;
   setWorkoutTitle: (value: string) => void;
   skillLevel: SkillLevel;
+  snapshot?: WeeklySnapshotData;
   workoutTitle: string;
 };
 
@@ -40,6 +42,7 @@ export function HomeContent({
   currentUser,
   feed,
   gameInvites,
+  notifications,
   onCityChange,
   onSignOut,
   onSkillLevelChange,
@@ -48,6 +51,7 @@ export function HomeContent({
   setPostBody,
   setWorkoutTitle,
   skillLevel,
+  snapshot,
   workoutTitle,
 }: Props) {
   if (activeTab === 'discover') {
@@ -81,7 +85,9 @@ export function HomeContent({
   if (activeTab === 'groups') {
     return (
       <Section title="Game invites" emptyText="No invites found yet." itemCount={gameInvites.length}>
-        <Button onPress={actions.createGameInvite}>Create tomorrow's doubles invite</Button>
+        <Button icon="add-circle" onPress={actions.createGameInvite}>
+          Create tomorrow's doubles invite
+        </Button>
         {gameInvites.map((invite) => (
           <GameInviteCard invite={invite} key={invite.id} />
         ))}
@@ -95,6 +101,7 @@ export function HomeContent({
         city={city}
         displayName={currentUser.display_name}
         email={currentUser.email}
+        notifications={notifications}
         onCityChange={onCityChange}
         onSignOut={onSignOut}
       />
@@ -103,7 +110,11 @@ export function HomeContent({
 
   return (
     <>
-      <WeeklySnapshot activities={feed.length || 5} games={gameInvites.length || 2} minutes={204} />
+      <WeeklySnapshot
+        activities={snapshot?.activities ?? 0}
+        games={snapshot?.games ?? 0}
+        minutes={snapshot?.duration_minutes ?? 0}
+      />
       <Composer
         buttonLabel="Post"
         onChangeText={setPostBody}
