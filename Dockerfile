@@ -22,7 +22,6 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY --from=builder /app/target/release/friendminton /usr/local/bin/friendminton
-COPY --from=builder /app/migrations ./migrations
 COPY --from=builder /app/config ./config
 
 ENV SERVER_ADDR=0.0.0.0:3000

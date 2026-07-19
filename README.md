@@ -9,7 +9,6 @@ find nearby players, create game invites, track workouts, and share workout post
 - SQLx for Postgres access, migrations, and dynamic SQL via `QueryBuilder`.
 - Postgres with UUID primary keys and simple discovery indexes.
 - OpenAPI via `aide` for generated mobile clients.
-- `better-auth` is kept in the dependency graph so the temporary `x-user-id` MVP auth can be replaced with a real session layer next.
 
 ## Run Locally
 
@@ -33,69 +32,6 @@ point at the correct environment instead of always advertising localhost.
 
 See [docs/deployment.md](docs/deployment.md) for the staging/production model, GitHub Environment
 setup, CI/CD behavior, and the steps to designate the existing Lightsail instance as staging.
-
-## Deploy On A VPS
-
-This repo includes a production Docker setup for a small VPS such as AWS Lightsail.
-
-On the server:
-
-```sh
-sudo apt update
-sudo apt install -y docker.io docker-compose-plugin
-sudo usermod -aG docker ubuntu
-```
-
-Log out and back in, then create the deployment directory and environment file:
-
-```sh
-mkdir -p /home/ubuntu/friendminton
-cd /home/ubuntu/friendminton
-nano .env.staging
-```
-
-Edit `.env.staging` and set a long random `POSTGRES_PASSWORD`. The `DATABASE_URL`
-password must match it. Set `S3_BUCKET` to the private Lightsail object storage bucket
-attached to this instance.
-
-The API runs in Docker and reads temporary bucket credentials from the Lightsail
-Instance Metadata Service. Allow IMDSv2 responses to cross the container network hop:
-
-```sh
-aws lightsail update-instance-metadata-options \
-  --instance-name YOUR_INSTANCE_NAME \
-  --http-endpoint enabled \
-  --http-tokens required \
-  --http-put-response-hop-limit 2 \
-  --region us-west-2
-```
-
-For a quick HTTPS test without buying a domain, keep:
-
-```env
-DOMAIN=16.146.136.68.sslip.io
-```
-
-GitHub Actions builds the Rust image, pushes it to ECR, uploads the Compose manifest, and deploys it.
-The generated `.env.image` records the exact immutable image currently selected on this server.
-To inspect the deployment after the workflow runs:
-
-```sh
-docker compose --env-file .env.staging --env-file .env.image -f docker-compose.prod.yml ps
-```
-
-Check logs:
-
-```sh
-docker compose --env-file .env.staging --env-file .env.image -f docker-compose.prod.yml logs -f api
-```
-
-The API should be available at:
-
-```text
-https://16.146.136.68.sslip.io/healthz
-https://16.146.136.68.sslip.io/swagger-ui
-```
 
 ## OpenAPI
 
@@ -212,7 +148,7 @@ curl -X POST http://localhost:3000/api/game-invites/GAME_INVITE_UUID/join \
 
 ## Next Engineering Steps
 
-1. Replace `x-user-id` with `better-auth` session extraction.
+1. Replace `x-user-id` with signed session authentication.
 2. Add friendship/follow edges so the feed can move from global to social.
 3. Add tests using SQLx against an ephemeral Postgres database.
 4. Add richer workout stats for rallies, games, win/loss, partners, and opponents.

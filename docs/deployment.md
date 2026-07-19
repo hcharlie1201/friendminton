@@ -12,7 +12,30 @@ The TOML profiles contain non-secret defaults and third-party provider choices. 
 variables override profile values. Passwords, private keys, and provider credentials must never
 be committed.
 
-## Convert The Current Server To Staging
+## Prepare The Staging Server
+
+Install Docker and create the deployment directory:
+
+```sh
+sudo apt update
+sudo apt install -y docker.io docker-compose-plugin
+sudo usermod -aG docker ubuntu
+mkdir -p /home/ubuntu/friendminton
+```
+
+Log out and back in after changing Docker group membership.
+
+The API reads temporary Lightsail bucket credentials through the Instance Metadata Service. Permit
+IMDSv2 responses to cross the container network hop:
+
+```sh
+aws lightsail update-instance-metadata-options \
+  --instance-name YOUR_INSTANCE_NAME \
+  --http-endpoint enabled \
+  --http-tokens required \
+  --http-put-response-hop-limit 2 \
+  --region us-west-2
+```
 
 On the existing Lightsail instance, keep the environment file in the deployment directory:
 
@@ -120,5 +143,5 @@ domain, deployment SSH key, and GitHub Environment secrets. Never point producti
 database or `friendminton-media-us-west-2` bucket.
 
 On the future production host, create `.env.production` from `.env.production.example`, attach the
-production bucket, configure the same two-hop IMDS setting described in the README, and perform one
+production bucket, configure the same two-hop IMDS setting described above, and perform one
 manual deployment before enabling the GitHub workflow.

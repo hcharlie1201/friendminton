@@ -21,7 +21,7 @@ inputs:
     description: Pinned SSH known_hosts entry
     required: true
   path:
-    description: Friendminton repository path on the server
+    description: Friendminton deployment directory on the server
     required: true
   private-key:
     description: SSH private key
@@ -60,50 +60,10 @@ runs:
         printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
         chmod 600 "$HOME/.ssh/friendminton_deploy" "$HOME/.ssh/known_hosts"
 
-    - name: Upload deployment manifests
-      shell: bash
-      env:
-        DEPLOY_HOST: ${{ inputs.host }}
-        DEPLOY_PATH: ${{ inputs.path }}
-        DEPLOY_USER: ${{ inputs.user }}
-      run: |
-        set -euo pipefail
-        ssh \
-          -i "$HOME/.ssh/friendminton_deploy" \
-          -o BatchMode=yes \
-          -o StrictHostKeyChecking=yes \
-          "$DEPLOY_USER@$DEPLOY_HOST" \
-          bash -s -- "$DEPLOY_PATH" <<'REMOTE_SCRIPT'
-        set -euo pipefail
-        deploy_path="$1"
-        mkdir -p "$deploy_path"
-        REMOTE_SCRIPT
-        scp \
-          -i "$HOME/.ssh/friendminton_deploy" \
-          -o BatchMode=yes \
-          -o StrictHostKeyChecking=yes \
-          Caddyfile docker-compose.prod.yml \
-          "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
-
-    - name: Authenticate server to ECR
+    - name: Deploy immutable image to server
       shell: bash
       env:
         AWS_REGION: ${{ inputs.aws-region }}
-        DEPLOY_ECR_REGISTRY: ${{ inputs.ecr-registry }}
-        DEPLOY_HOST: ${{ inputs.host }}
-        DEPLOY_USER: ${{ inputs.user }}
-      run: |
-        set -euo pipefail
-        aws ecr get-login-password --region "$AWS_REGION" | ssh \
-          -i "$HOME/.ssh/friendminton_deploy" \
-          -o BatchMode=yes \
-          -o StrictHostKeyChecking=yes \
-          "$DEPLOY_USER@$DEPLOY_HOST" \
-          docker login --username AWS --password-stdin "$DEPLOY_ECR_REGISTRY"
-
-    - name: Deploy immutable image
-      shell: bash
-      env:
         DEPLOY_ECR_REGISTRY: ${{ inputs.ecr-registry }}
         DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
         DEPLOY_HOST: ${{ inputs.host }}
@@ -113,42 +73,7 @@ runs:
         DEPLOY_USER: ${{ inputs.user }}
       run: |
         set -euo pipefail
-        ssh \
-          -i "$HOME/.ssh/friendminton_deploy" \
-          -o BatchMode=yes \
-          -o StrictHostKeyChecking=yes \
-          "$DEPLOY_USER@$DEPLOY_HOST" \
-          bash -s -- "$DEPLOY_PATH" "$DEPLOY_SHA" "$DEPLOY_ENVIRONMENT" "$DEPLOY_IMAGE" "$DEPLOY_ECR_REGISTRY" <<'REMOTE_SCRIPT'
-        set -euo pipefail
-        deploy_path="$1"
-        deploy_sha="$2"
-        deploy_environment="$3"
-        deploy_image="$4"
-        ecr_registry="$5"
-        env_file=".env.${deploy_environment}"
-
-        fail() {
-          printf 'Deployment error: %s\n' "$1" >&2
-          exit 1
-        }
-
-        trap 'docker logout "$ecr_registry" >/dev/null 2>&1 || true' EXIT
-        printf 'Deploying %s to %s from %s\n' "$deploy_sha" "$deploy_environment" "$deploy_image"
-        cd "$deploy_path" || fail "cannot enter DEPLOY_PATH: $deploy_path"
-        test -f "$env_file" || fail "missing $deploy_path/$env_file"
-        test -f docker-compose.prod.yml || fail "missing $deploy_path/docker-compose.prod.yml"
-        command -v docker >/dev/null || fail "docker is not installed on the server"
-        docker compose version || fail "the Docker Compose plugin is unavailable"
-
-        printf 'API_IMAGE=%s\n' "$deploy_image" > .env.image.tmp
-        mv .env.image.tmp .env.image
-
-        docker compose --env-file "$env_file" --env-file .env.image -f docker-compose.prod.yml pull \
-          || fail "docker compose pull failed"
-        docker compose --env-file "$env_file" --env-file .env.image -f docker-compose.prod.yml up -d --remove-orphans \
-          || fail "docker compose deployment failed"
-        docker compose --env-file "$env_file" --env-file .env.image -f docker-compose.prod.yml ps
-        REMOTE_SCRIPT
+        ./scripts/deploy-release.sh
 
     - name: Verify health
       shell: bash

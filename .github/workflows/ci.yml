@@ -73,6 +73,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.sha }}
+      - name: Validate deployment scripts
+        run: |
+          test -x scripts/bootstrap-ecr.sh
+          test -x scripts/deploy-release.sh
+          test -x scripts/deploy-on-host.sh
+          test -x scripts/test-deploy-on-host.sh
+          bash -n scripts/*.sh
+          scripts/test-deploy-on-host.sh
       - name: Validate staging Compose configuration
         run: API_IMAGE=friendminton-api:ci docker compose --env-file .env.staging.example -f docker-compose.prod.yml config --quiet
       - name: Validate production Compose configuration
