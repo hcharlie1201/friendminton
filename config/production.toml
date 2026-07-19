@@ -1,0 +1,6 @@
+server_addr = "0.0.0.0:3000"
+upload_dir = "uploads"
+
+[third_party.object_storage]
+provider = "s3"
+aws_region = "us-west-2"

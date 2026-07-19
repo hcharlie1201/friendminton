@@ -1,6 +1,7 @@
 {
   "name": "friendminton-mobile",
   "version": "1.0.0",
+  "packageManager": "pnpm@10.13.1",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/noto-sans": "^0.4.2",

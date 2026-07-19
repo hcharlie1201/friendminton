@@ -1,0 +1,7 @@
+public_base_url = "http://localhost:3000"
+server_addr = "127.0.0.1:3000"
+upload_dir = "uploads"
+
+[third_party.object_storage]
+provider = "local"
+aws_region = "us-west-2"

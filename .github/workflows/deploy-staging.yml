@@ -1,0 +1,91 @@
+name: Deploy Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to create after staging passes (for example v0.1.0)
+        required: true
+        type: string
+      ref:
+        description: Branch, commit, or tag to stage
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Resolve release candidate
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref }}
+      - id: release
+        name: Validate tag and resolve commit
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag must look like v0.1.0 or v0.1.0-rc.1" >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag already exists: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Verify release candidate
+    needs: resolve
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.resolve.outputs.sha }}
+
+  deploy:
+    name: Deploy and tag
+    needs: [resolve, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: ${{ vars.PUBLIC_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: ./.github/actions/deploy
+        with:
+          environment: staging
+          host: ${{ secrets.DEPLOY_HOST }}
+          known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          path: ${{ vars.DEPLOY_PATH }}
+          private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          public-base-url: ${{ vars.PUBLIC_BASE_URL }}
+          sha: ${{ needs.resolve.outputs.sha }}
+          user: ${{ vars.DEPLOY_USER }}
+      - name: Tag staged release
+        env:
+          RELEASE_SHA: ${{ needs.resolve.outputs.sha }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag --annotate "$RELEASE_TAG" "$RELEASE_SHA" --message "Friendminton $RELEASE_TAG"
+          git push origin "refs/tags/$RELEASE_TAG"

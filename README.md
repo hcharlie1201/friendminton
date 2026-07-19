@@ -21,6 +21,19 @@ DATABASE_URL=postgres://friendminton:friendminton@localhost:5432/friendminton ca
 
 The app runs migrations automatically on startup.
 
+## Runtime Configuration
+
+Set `APP_ENV` to `development`, `staging`, or `production`. Non-secret defaults and third-party
+provider choices live in `config/<environment>.toml`; deploy-specific values and secrets stay in
+the matching uncommitted `.env` file. Environment variables take precedence over the profile.
+
+Staging and production fail at startup unless `DATABASE_URL`, an HTTPS `PUBLIC_BASE_URL`, and S3
+object storage are configured. The OpenAPI document uses `PUBLIC_BASE_URL`, so generated clients
+point at the correct environment instead of always advertising localhost.
+
+See [docs/deployment.md](docs/deployment.md) for the staging/production model, GitHub Environment
+setup, CI/CD behavior, and the steps to designate the existing Lightsail instance as staging.
+
 ## Deploy On A VPS
 
 This repo includes a production Docker setup for a small VPS such as AWS Lightsail.
@@ -38,10 +51,10 @@ Log out and back in, then:
 ```sh
 git clone https://github.com/YOUR_USER/friendminton.git
 cd friendminton/friendminton
-cp .env.production.example .env.production
+cp .env.staging.example .env.staging
 ```
 
-Edit `.env.production` and set a long random `POSTGRES_PASSWORD`. The `DATABASE_URL`
+Edit `.env.staging` and set a long random `POSTGRES_PASSWORD`. The `DATABASE_URL`
 password must match it. Set `S3_BUCKET` to the private Lightsail object storage bucket
 attached to this instance.
 
@@ -66,13 +79,13 @@ DOMAIN=16.146.136.68.sslip.io
 Then deploy:
 
 ```sh
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.staging -f docker-compose.prod.yml up -d --build
 ```
 
 Check logs:
 
 ```sh
-docker compose --env-file .env.production -f docker-compose.prod.yml logs -f api
+docker compose --env-file .env.staging -f docker-compose.prod.yml logs -f api
 ```
 
 The API should be available at:

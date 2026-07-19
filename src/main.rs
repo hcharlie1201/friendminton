@@ -2,6 +2,7 @@ mod accounts;
 mod activities;
 mod app;
 mod auth;
+mod config;
 mod controller;
 mod db;
 mod engagement;
@@ -24,21 +25,24 @@ async fn main() -> Result<(), error::AppError> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let config = db::Config::from_env();
+    let config = config::AppConfig::load()?;
     let pool = db::connect(&config).await?;
     sqlx::migrate!("./migrations").run(&pool).await?;
     tokio::fs::create_dir_all(&config.upload_dir).await?;
-    let media = media::MediaStorage::from_config(&config).await;
+    let media = media::MediaStorage::from_config(&config).await?;
 
-    let app = app::router(app::AppState {
-        pool,
-        upload_dir: config.upload_dir.into(),
-        media,
-    });
+    let app = app::router(
+        app::AppState {
+            pool,
+            upload_dir: config.upload_dir.clone().into(),
+            media,
+        },
+        &config,
+    );
     let addr: SocketAddr = config.server_addr.parse()?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
-    tracing::info!(%addr, "friendminton api listening");
+    tracing::info!(%addr, environment = %config.environment, "friendminton api listening");
     axum::serve(listener, app).await?;
 
     Ok(())

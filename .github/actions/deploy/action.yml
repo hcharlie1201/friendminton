@@ -1,0 +1,86 @@
+name: Deploy Friendminton
+description: Deploy an exact Friendminton commit to an existing Docker host
+
+inputs:
+  environment:
+    description: Deployment environment name
+    required: true
+  host:
+    description: SSH host
+    required: true
+  known-hosts:
+    description: Pinned SSH known_hosts entry
+    required: true
+  path:
+    description: Friendminton repository path on the server
+    required: true
+  private-key:
+    description: SSH private key
+    required: true
+  public-base-url:
+    description: Public API URL used for the post-deploy health check
+    required: true
+  sha:
+    description: Exact Git commit to deploy
+    required: true
+  user:
+    description: SSH user
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Configure SSH
+      shell: bash
+      env:
+        DEPLOY_KNOWN_HOSTS: ${{ inputs.known-hosts }}
+        DEPLOY_PRIVATE_KEY: ${{ inputs.private-key }}
+      run: |
+        set -euo pipefail
+        install -d -m 700 "$HOME/.ssh"
+        printf '%s\n' "$DEPLOY_PRIVATE_KEY" > "$HOME/.ssh/friendminton_deploy"
+        printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+        chmod 600 "$HOME/.ssh/friendminton_deploy" "$HOME/.ssh/known_hosts"
+
+    - name: Deploy exact commit
+      shell: bash
+      env:
+        DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+        DEPLOY_HOST: ${{ inputs.host }}
+        DEPLOY_PATH: ${{ inputs.path }}
+        DEPLOY_SHA: ${{ inputs.sha }}
+        DEPLOY_USER: ${{ inputs.user }}
+      run: |
+        set -euo pipefail
+        ssh \
+          -i "$HOME/.ssh/friendminton_deploy" \
+          -o BatchMode=yes \
+          -o StrictHostKeyChecking=yes \
+          "$DEPLOY_USER@$DEPLOY_HOST" \
+          bash -s -- "$DEPLOY_PATH" "$DEPLOY_SHA" "$DEPLOY_ENVIRONMENT" <<'REMOTE_SCRIPT'
+        set -euo pipefail
+        deploy_path="$1"
+        deploy_sha="$2"
+        deploy_environment="$3"
+        env_file=".env.${deploy_environment}"
+
+        cd "$deploy_path"
+        test -f "$env_file"
+        git fetch origin "$deploy_sha"
+        git checkout --detach "$deploy_sha"
+        docker compose --env-file "$env_file" -f docker-compose.prod.yml up -d --build --remove-orphans
+        REMOTE_SCRIPT
+
+    - name: Verify health
+      shell: bash
+      env:
+        PUBLIC_BASE_URL: ${{ inputs.public-base-url }}
+      run: |
+        set -euo pipefail
+        for attempt in {1..12}; do
+          if curl --fail --silent --show-error "$PUBLIC_BASE_URL/healthz"; then
+            exit 0
+          fi
+          sleep 5
+        done
+        exit 1

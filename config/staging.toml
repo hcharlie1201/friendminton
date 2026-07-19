@@ -1,0 +1,8 @@
+public_base_url = "https://16.146.136.68.sslip.io"
+server_addr = "0.0.0.0:3000"
+upload_dir = "uploads"
+
+[third_party.object_storage]
+provider = "s3"
+aws_region = "us-west-2"
+bucket = "friendminton-media-us-west-2"

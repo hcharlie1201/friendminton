@@ -7,6 +7,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY Cargo.toml Cargo.lock ./
+COPY config ./config
 COPY migrations ./migrations
 COPY src ./src
 
@@ -22,6 +23,7 @@ WORKDIR /app
 
 COPY --from=builder /app/target/release/friendminton /usr/local/bin/friendminton
 COPY --from=builder /app/migrations ./migrations
+COPY --from=builder /app/config ./config
 
 ENV SERVER_ADDR=0.0.0.0:3000
 

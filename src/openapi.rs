@@ -1,6 +1,6 @@
 use aide::openapi::{Info, OpenApi, Server, Tag};
 
-pub fn base_document() -> OpenApi {
+pub fn base_document(public_base_url: &str, environment: &str) -> OpenApi {
     OpenApi {
         info: Info {
             title: "Friendminton API".into(),
@@ -44,8 +44,8 @@ pub fn base_document() -> OpenApi {
             },
         ],
         servers: vec![Server {
-            url: "http://localhost:3000".into(),
-            description: Some("Local development".into()),
+            url: public_base_url.into(),
+            description: Some(format!("{environment} environment")),
             ..Server::default()
         }],
         ..OpenApi::default()

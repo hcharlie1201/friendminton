@@ -11,7 +11,7 @@ use sqlx::{Pool, Postgres};
 use std::path::PathBuf;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
-use crate::{controller, media::MediaStorage, openapi};
+use crate::{config::AppConfig, controller, media::MediaStorage, openapi};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -20,8 +20,8 @@ pub struct AppState {
     pub media: MediaStorage,
 }
 
-pub fn router(state: AppState) -> Router {
-    let mut api = openapi::base_document();
+pub fn router(state: AppState, config: &AppConfig) -> Router {
+    let mut api = openapi::base_document(&config.public_base_url, config.environment.as_str());
     let upload_dir = state.upload_dir.clone();
 
     ApiRouter::new()

@@ -13,6 +13,8 @@ use serde::Serialize;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
+    #[error(transparent)]
+    Config(#[from] crate::config::ConfigError),
     #[error("bad request: {0}")]
     BadRequest(String),
     #[error("unauthorized")]
@@ -64,7 +66,8 @@ impl IntoResponse for AppError {
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
             AppError::Unauthorized => StatusCode::UNAUTHORIZED,
             AppError::Sqlx(sqlx::Error::RowNotFound) => StatusCode::NOT_FOUND,
-            AppError::Sqlx(_)
+            AppError::Config(_)
+            | AppError::Sqlx(_)
             | AppError::Migration(_)
             | AppError::Io(_)
             | AppError::AddrParse(_)

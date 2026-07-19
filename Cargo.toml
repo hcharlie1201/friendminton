@@ -9,6 +9,7 @@ aws-config = { version = "1", default-features = false, features = ["rt-tokio", 
 aws-sdk-s3 = { version = "1", default-features = false, features = ["rt-tokio", "rustls"] }
 axum = "0.8.9"
 better-auth = { version = "0.6", features = ["axum", "sqlx-postgres", "derive"] }
+config = { version = "0.15", default-features = false, features = ["toml"] }
 schemars = { version = "0.9.0", features = ["uuid1"] }
 serde = { version = "1.0.228", features = ["derive"] }
 sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "uuid", "time", "json", "migrate"] }

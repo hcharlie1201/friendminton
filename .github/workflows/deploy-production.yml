@@ -1,0 +1,68 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing staging-approved release tag (for example v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Resolve tagged release
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: release
+        name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag must look like v0.1.0 or v0.1.0-rc.1" >&2
+            exit 1
+          fi
+          git fetch --force origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          if [[ "$(git cat-file -t "refs/tags/$RELEASE_TAG")" != "tag" ]]; then
+            echo "Production requires an annotated staging release tag" >&2
+            exit 1
+          fi
+          echo "sha=$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" >> "$GITHUB_OUTPUT"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy tagged release
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.PUBLIC_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: ./.github/actions/deploy
+        with:
+          environment: production
+          host: ${{ secrets.DEPLOY_HOST }}
+          known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          path: ${{ vars.DEPLOY_PATH }}
+          private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          public-base-url: ${{ vars.PUBLIC_BASE_URL }}
+          sha: ${{ needs.resolve.outputs.sha }}
+          user: ${{ vars.DEPLOY_USER }}

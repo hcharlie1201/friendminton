@@ -8,7 +8,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{db::Config, error::AppError};
+use crate::{
+    config::{AppConfig, ObjectStorageProvider},
+    error::AppError,
+};
 
 const UPLOAD_URL_TTL: Duration = Duration::from_secs(5 * 60);
 const READ_URL_TTL: Duration = Duration::from_secs(60 * 60);
@@ -101,24 +104,28 @@ pub struct UploadTarget {
 }
 
 impl MediaStorage {
-    pub async fn from_config(config: &Config) -> Self {
-        let Some(bucket) = &config.s3_bucket else {
-            return Self::Local {
+    pub async fn from_config(config: &AppConfig) -> Result<Self, AppError> {
+        let object_storage = &config.third_party.object_storage;
+        if object_storage.provider == ObjectStorageProvider::Local {
+            return Ok(Self::Local {
                 upload_dir: config.upload_dir.clone().into(),
-            };
-        };
+            });
+        }
+        let bucket = object_storage.bucket.as_ref().ok_or_else(|| {
+            AppError::Media("S3 object storage requires a configured bucket".to_owned())
+        })?;
 
         let sdk_config = aws_config::defaults(BehaviorVersion::latest())
-            .region(Region::new(config.aws_region.clone()))
+            .region(Region::new(object_storage.aws_region.clone()))
             .load()
             .await;
 
-        Self::S3 {
+        Ok(Self::S3 {
             store: Arc::new(AwsS3Store {
                 bucket: bucket.clone(),
                 client: Client::new(&sdk_config),
             }),
-        }
+        })
     }
 
     pub async fn create_upload_target(
