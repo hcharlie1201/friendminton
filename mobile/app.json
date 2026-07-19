@@ -42,6 +42,12 @@
           "locationWhenInUsePermission": "Friendminton uses your location to find nearby players and game invites."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Friendminton lets you choose photos to share with your badminton posts."
+        }
+      ],
       "expo-font",
       "expo-status-bar"
     ]

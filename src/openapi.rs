@@ -1,4 +1,4 @@
-use aide::openapi::{Info, OpenApi, Tag};
+use aide::openapi::{Info, OpenApi, Server, Tag};
 
 pub fn base_document() -> OpenApi {
     OpenApi {
@@ -43,6 +43,11 @@ pub fn base_document() -> OpenApi {
                 ..Tag::default()
             },
         ],
+        servers: vec![Server {
+            url: "http://localhost:3000".into(),
+            description: Some("Local development".into()),
+            ..Server::default()
+        }],
         ..OpenApi::default()
     }
 }

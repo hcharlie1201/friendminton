@@ -8,17 +8,21 @@ use aide::{
 };
 use axum::{Extension, Json, Router};
 use sqlx::{Pool, Postgres};
-use tower_http::trace::TraceLayer;
+use std::path::PathBuf;
+use tower_http::{services::ServeDir, trace::TraceLayer};
 
-use crate::{controller, openapi};
+use crate::{controller, media::MediaStorage, openapi};
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: Pool<Postgres>,
+    pub upload_dir: PathBuf,
+    pub media: MediaStorage,
 }
 
 pub fn router(state: AppState) -> Router {
     let mut api = openapi::base_document();
+    let upload_dir = state.upload_dir.clone();
 
     ApiRouter::new()
         .route("/healthz", get(healthz))
@@ -28,6 +32,7 @@ pub fn router(state: AppState) -> Router {
             get_with(openapi_json, |op| op.hidden(true)),
         )
         .nest("/api", api_routes())
+        .nest_service("/uploads", ServeDir::new(upload_dir))
         .finish_api(&mut api)
         .layer(TraceLayer::new_for_http())
         .layer(Extension(api))
@@ -42,6 +47,7 @@ fn api_routes() -> ApiRouter<AppState> {
         .nest("/posts", controller::posts::routes())
         .nest("/game-invites", controller::game_invites::routes())
         .nest("/engagement", controller::engagement::routes())
+        .nest("/uploads", controller::uploads::routes())
 }
 
 async fn healthz() -> &'static str {

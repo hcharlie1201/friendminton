@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiEngagementNotificationsData, GetApiEngagementNotificationsErrors, GetApiEngagementNotificationsResponses, GetApiEngagementNotificationsUnreadCountData, GetApiEngagementNotificationsUnreadCountErrors, GetApiEngagementNotificationsUnreadCountResponses, GetApiEngagementWeeklySnapshotData, GetApiEngagementWeeklySnapshotErrors, GetApiEngagementWeeklySnapshotResponses, GetApiGameInvitesData, GetApiGameInvitesErrors, GetApiGameInvitesResponses, GetApiPostsFeedData, GetApiPostsFeedErrors, GetApiPostsFeedResponses, GetApiUsersByIdData, GetApiUsersByIdErrors, GetApiUsersByIdResponses, GetApiUsersData, GetApiUsersErrors, GetApiUsersResponses, GetApiWorkoutsUsersByUserIdData, GetApiWorkoutsUsersByUserIdErrors, GetApiWorkoutsUsersByUserIdResponses, PostApiAuthSignUpEmailData, PostApiAuthSignUpEmailErrors, PostApiAuthSignUpEmailResponses, PostApiEngagementNotificationsReadData, PostApiEngagementNotificationsReadErrors, PostApiGameInvitesByGameInviteIdJoinData, PostApiGameInvitesByGameInviteIdJoinErrors, PostApiGameInvitesData, PostApiGameInvitesErrors, PostApiGameInvitesResponses, PostApiPostsData, PostApiPostsErrors, PostApiPostsResponses, PostApiWorkoutsData, PostApiWorkoutsErrors, PostApiWorkoutsResponses } from './types.gen';
+import type { GetApiEngagementNotificationsData, GetApiEngagementNotificationsErrors, GetApiEngagementNotificationsResponses, GetApiEngagementNotificationsUnreadCountData, GetApiEngagementNotificationsUnreadCountErrors, GetApiEngagementNotificationsUnreadCountResponses, GetApiEngagementWeeklySnapshotData, GetApiEngagementWeeklySnapshotErrors, GetApiEngagementWeeklySnapshotResponses, GetApiGameInvitesData, GetApiGameInvitesErrors, GetApiGameInvitesResponses, GetApiPostsFeedData, GetApiPostsFeedErrors, GetApiPostsFeedResponses, GetApiUsersByIdData, GetApiUsersByIdErrors, GetApiUsersByIdResponses, GetApiUsersData, GetApiUsersErrors, GetApiUsersResponses, GetApiWorkoutsUsersByUserIdData, GetApiWorkoutsUsersByUserIdErrors, GetApiWorkoutsUsersByUserIdResponses, PostApiAuthSignUpEmailData, PostApiAuthSignUpEmailErrors, PostApiAuthSignUpEmailResponses, PostApiEngagementNotificationsReadData, PostApiEngagementNotificationsReadErrors, PostApiGameInvitesByGameInviteIdJoinData, PostApiGameInvitesByGameInviteIdJoinErrors, PostApiGameInvitesData, PostApiGameInvitesErrors, PostApiGameInvitesResponses, PostApiPostsData, PostApiPostsErrors, PostApiPostsResponses, PostApiUploadsPresignData, PostApiUploadsPresignErrors, PostApiUploadsPresignResponses, PostApiWorkoutsData, PostApiWorkoutsErrors, PostApiWorkoutsResponses, PutApiPostsData, PutApiPostsErrors, PutApiPostsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -51,6 +51,15 @@ export const postApiPosts = <ThrowOnError extends boolean = false>(options: Opti
     }
 });
 
+export const putApiPosts = <ThrowOnError extends boolean = false>(options: Options<PutApiPostsData, ThrowOnError>): RequestResult<PutApiPostsResponses, PutApiPostsErrors, ThrowOnError> => (options.client ?? client).put<PutApiPostsResponses, PutApiPostsErrors, ThrowOnError>({
+    url: '/api/posts',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
 export const getApiPostsFeed = <ThrowOnError extends boolean = false>(options?: Options<GetApiPostsFeedData, ThrowOnError>): RequestResult<GetApiPostsFeedResponses, GetApiPostsFeedErrors, ThrowOnError> => (options?.client ?? client).get<GetApiPostsFeedResponses, GetApiPostsFeedErrors, ThrowOnError>({ url: '/api/posts/feed', ...options });
 
 export const getApiGameInvites = <ThrowOnError extends boolean = false>(options?: Options<GetApiGameInvitesData, ThrowOnError>): RequestResult<GetApiGameInvitesResponses, GetApiGameInvitesErrors, ThrowOnError> => (options?.client ?? client).get<GetApiGameInvitesResponses, GetApiGameInvitesErrors, ThrowOnError>({ url: '/api/game-invites', ...options });
@@ -73,3 +82,12 @@ export const getApiEngagementNotifications = <ThrowOnError extends boolean = fal
 export const getApiEngagementNotificationsUnreadCount = <ThrowOnError extends boolean = false>(options?: Options<GetApiEngagementNotificationsUnreadCountData, ThrowOnError>): RequestResult<GetApiEngagementNotificationsUnreadCountResponses, GetApiEngagementNotificationsUnreadCountErrors, ThrowOnError> => (options?.client ?? client).get<GetApiEngagementNotificationsUnreadCountResponses, GetApiEngagementNotificationsUnreadCountErrors, ThrowOnError>({ url: '/api/engagement/notifications/unread-count', ...options });
 
 export const postApiEngagementNotificationsRead = <ThrowOnError extends boolean = false>(options?: Options<PostApiEngagementNotificationsReadData, ThrowOnError>): RequestResult<unknown, PostApiEngagementNotificationsReadErrors, ThrowOnError> => (options?.client ?? client).post<unknown, PostApiEngagementNotificationsReadErrors, ThrowOnError>({ url: '/api/engagement/notifications/read', ...options });
+
+export const postApiUploadsPresign = <ThrowOnError extends boolean = false>(options: Options<PostApiUploadsPresignData, ThrowOnError>): RequestResult<PostApiUploadsPresignResponses, PostApiUploadsPresignErrors, ThrowOnError> => (options.client ?? client).post<PostApiUploadsPresignResponses, PostApiUploadsPresignErrors, ThrowOnError>({
+    url: '/api/uploads/presign',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});

@@ -6,6 +6,7 @@ mod controller;
 mod db;
 mod engagement;
 mod error;
+mod media;
 mod openapi;
 mod play;
 
@@ -26,8 +27,14 @@ async fn main() -> Result<(), error::AppError> {
     let config = db::Config::from_env();
     let pool = db::connect(&config).await?;
     sqlx::migrate!("./migrations").run(&pool).await?;
+    tokio::fs::create_dir_all(&config.upload_dir).await?;
+    let media = media::MediaStorage::from_config(&config).await;
 
-    let app = app::router(app::AppState { pool });
+    let app = app::router(app::AppState {
+        pool,
+        upload_dir: config.upload_dir.into(),
+        media,
+    });
     let addr: SocketAddr = config.server_addr.parse()?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
 

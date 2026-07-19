@@ -5,7 +5,7 @@ use aide::axum::{
 use axum::{Json, extract::State};
 
 use crate::{
-    activities::{self, CreatePost, FeedPost, Post},
+    activities::{self, CreatePost, FeedPost, Post, UpdatePost},
     app::AppState,
     auth::CurrentUser,
     error::AppError,
@@ -13,8 +13,17 @@ use crate::{
 
 pub fn routes() -> ApiRouter<AppState> {
     ApiRouter::new()
-        .api_route("/", post(create_post))
+        .api_route("/", post(create_post).put(update_post))
         .api_route("/feed", get(feed))
+}
+
+pub(crate) async fn update_post(
+    State(state): State<AppState>,
+    CurrentUser { id: user_id }: CurrentUser,
+    Json(payload): Json<UpdatePost>,
+) -> Result<Json<Post>, AppError> {
+    let post = activities::update_post(&state.pool, &state.media, user_id, payload).await?;
+    Ok(Json(post))
 }
 
 pub(crate) async fn create_post(
@@ -22,11 +31,11 @@ pub(crate) async fn create_post(
     CurrentUser { id: user_id }: CurrentUser,
     Json(payload): Json<CreatePost>,
 ) -> Result<Json<Post>, AppError> {
-    let post = activities::create_post(&state.pool, user_id, payload).await?;
+    let post = activities::create_post(&state.pool, &state.media, user_id, payload).await?;
     Ok(Json(post))
 }
 
 pub(crate) async fn feed(State(state): State<AppState>) -> Result<Json<Vec<FeedPost>>, AppError> {
-    let posts = activities::feed(&state.pool).await?;
+    let posts = activities::feed(&state.pool, &state.media).await?;
     Ok(Json(posts))
 }

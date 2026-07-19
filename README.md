@@ -42,7 +42,20 @@ cp .env.production.example .env.production
 ```
 
 Edit `.env.production` and set a long random `POSTGRES_PASSWORD`. The `DATABASE_URL`
-password must match it.
+password must match it. Set `S3_BUCKET` to the private Lightsail object storage bucket
+attached to this instance.
+
+The API runs in Docker and reads temporary bucket credentials from the Lightsail
+Instance Metadata Service. Allow IMDSv2 responses to cross the container network hop:
+
+```sh
+aws lightsail update-instance-metadata-options \
+  --instance-name YOUR_INSTANCE_NAME \
+  --http-endpoint enabled \
+  --http-tokens required \
+  --http-put-response-hop-limit 2 \
+  --region us-west-2
+```
 
 For a quick HTTPS test without buying a domain, keep:
 
@@ -83,16 +96,8 @@ Swagger UI is available in the browser at:
 http://localhost:3000/swagger-ui
 ```
 
-Generate a TypeScript client for React Native:
-
-```sh
-npx @openapitools/openapi-generator-cli generate \
-  -i http://localhost:3000/openapi.json \
-  -g typescript-fetch \
-  -o mobile/src/api/generated
-```
-
-Keep generated files behind a small app-owned wrapper that adds the API base URL and auth headers.
+Generate the Hey API TypeScript client with `pnpm run generate:api` from `mobile/`.
+The app-owned runtime config adds the API base URL and auth headers.
 
 ## Mobile App
 
@@ -114,6 +119,11 @@ For iOS Simulator, `localhost` can reach your Mac. For a physical phone, use you
 computer's LAN IP or the deployed HTTPS URL instead. The app uses Expo Router
 protected routes: signed-out users see the login screen, and signed-in users are
 stored locally with `expo-secure-store` and routed into the main app.
+
+Photo uploads use the same typed flow in both environments. Local development stores
+files under `uploads/`; production asks the Rust API for a five-minute presigned S3
+`PUT` URL. Postgres stores stable object keys, and feed responses contain one-hour
+presigned read URLs. AWS credentials are never sent to the mobile app.
 
 Regenerate the mobile API types after backend route/schema changes:
 

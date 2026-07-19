@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -13,6 +13,7 @@ import {
   postApiGameInvites,
   postApiPosts,
   postApiWorkouts,
+  putApiPosts,
   type FeedPost,
   type GameInvite,
   type Notification,
@@ -33,6 +34,8 @@ import {
   type Tab,
 } from '../components/home';
 import { Screen } from '../components/ui';
+import { draftFromPost, emptyPostDraft, type PostDraft } from '../features/posts/postDraft';
+import { uploadPostPhotos } from '../features/posts/uploads';
 
 type WriteMutation = {
   mutate: () => void;
@@ -40,13 +43,15 @@ type WriteMutation = {
 
 export function HomeScreen() {
   const queryClient = useQueryClient();
+  const homeScrollRef = useRef<ScrollView>(null);
   const { signOut, user } = useSession();
   const currentUser = requireSessionUser(user);
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [city, setCity] = useState('Oakland');
   const [skillLevel, setSkillLevel] = useState<SkillLevel>('intermediate');
   const [workoutTitle, setWorkoutTitle] = useState('Doubles ladder night');
-  const [postBody, setPostBody] = useState('Footwork finally clicked tonight.');
+  const [postDraft, setPostDraft] = useState<PostDraft>(emptyPostDraft);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
 
   const healthQuery = useQuery({
     queryKey: ['health'],
@@ -119,12 +124,10 @@ export function HomeScreen() {
   });
   const createPostMutation = useMutation({
     mutationFn: () =>
-      postApiPosts({
-        body: { body: postBody.trim() || 'Great hit today.' },
-        headers: authHeaders(currentUser.id),
-      }).then(unwrap),
+      savePost({ draft: postDraft, postId: editingPostId, userId: currentUser.id }),
     onError: showError,
     onSuccess: async () => {
+      resetPostEditor(setPostDraft, setEditingPostId);
       setActiveTab('home');
       await invalidateHomeData(queryClient, currentUser.id);
     },
@@ -183,6 +186,10 @@ export function HomeScreen() {
     createGameInviteMutation,
     createPostMutation,
     createWorkoutMutation,
+    setActiveTab,
+    setEditingPostId,
+    setPostDraft,
+    homeScrollRef,
   });
   const headerActions = useHeaderActions({
     markNotificationsReadMutation,
@@ -198,22 +205,25 @@ export function HomeScreen() {
         onOpenSettings={headerActions.openSettings}
       />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={homeScrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {isLoading && <InlineLoading label="Refreshing court intel..." />}
         <HomeContent
           actions={actions}
           activeTab={activeTab}
           city={city}
           currentUser={currentUser}
+          editingPostId={editingPostId}
           feed={feed}
           gameInvites={gameInvites}
           notifications={notifications}
           onCityChange={setCity}
+          onCancelPostEdit={() => resetPostEditor(setPostDraft, setEditingPostId)}
+          onPostDraftChange={setPostDraft}
           onSignOut={() => void signOut()}
           onSkillLevelChange={setSkillLevel}
           players={players}
-          postBody={postBody}
-          setPostBody={setPostBody}
+          postDraft={postDraft}
+          postIsSaving={createPostMutation.isPending}
           setWorkoutTitle={setWorkoutTitle}
           skillLevel={skillLevel}
           snapshot={snapshotQuery.data}
@@ -243,19 +253,75 @@ function useHomeActions({
   createGameInviteMutation,
   createPostMutation,
   createWorkoutMutation,
+  setActiveTab,
+  setEditingPostId,
+  setPostDraft,
+  homeScrollRef,
 }: {
   createGameInviteMutation: WriteMutation;
   createPostMutation: WriteMutation;
   createWorkoutMutation: WriteMutation;
+  setActiveTab: (tab: Tab) => void;
+  setEditingPostId: (postId: string | null) => void;
+  setPostDraft: (draft: PostDraft) => void;
+  homeScrollRef: React.RefObject<ScrollView | null>;
 }) {
   return useMemo(
     () => ({
       createGameInvite: () => createGameInviteMutation.mutate(),
       createPost: () => createPostMutation.mutate(),
       createWorkout: () => createWorkoutMutation.mutate(),
+      editPost: (post: FeedPost) =>
+        beginPostEdit(post, setPostDraft, setEditingPostId, setActiveTab, homeScrollRef),
     }),
-    [createGameInviteMutation, createPostMutation, createWorkoutMutation],
+    [
+      createGameInviteMutation,
+      createPostMutation,
+      createWorkoutMutation,
+      setActiveTab,
+      setEditingPostId,
+      setPostDraft,
+      homeScrollRef,
+    ],
   );
+}
+
+async function savePost({ draft, postId, userId }: { draft: PostDraft; postId: string | null; userId: string }) {
+  const imageKeys = await uploadPostPhotos(userId, draft.photos);
+  const body = {
+    body: draft.body.trim(),
+    effort: draft.effort,
+    image_keys: imageKeys,
+    location: draft.location.trim() || null,
+  };
+  const headers = authHeaders(userId);
+
+  if (postId) {
+    return putApiPosts({ body: { ...body, id: postId }, headers }).then(unwrap);
+  }
+
+  return postApiPosts({ body, headers }).then(unwrap);
+}
+
+function beginPostEdit(
+  post: FeedPost,
+  setPostDraft: (draft: PostDraft) => void,
+  setEditingPostId: (postId: string | null) => void,
+  setActiveTab: (tab: Tab) => void,
+  homeScrollRef: React.RefObject<ScrollView | null>,
+) {
+  setPostDraft(draftFromPost(post));
+  setEditingPostId(post.id);
+  setActiveTab('home');
+  requestAnimationFrame(() => homeScrollRef.current?.scrollTo({ animated: true, y: 120 }));
+}
+
+function resetPostEditor(
+  setPostDraft: (draft: PostDraft) => void,
+  setEditingPostId: (postId: string | null) => void,
+) {
+  setPostDraft(emptyPostDraft);
+  setEditingPostId(null);
 }
 
 function useHeaderActions({

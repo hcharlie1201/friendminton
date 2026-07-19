@@ -25,6 +25,8 @@ pub enum AppError {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     AddrParse(#[from] std::net::AddrParseError),
+    #[error("media storage error: {0}")]
+    Media(String),
 }
 
 #[derive(Serialize, JsonSchema)]
@@ -65,7 +67,8 @@ impl IntoResponse for AppError {
             AppError::Sqlx(_)
             | AppError::Migration(_)
             | AppError::Io(_)
-            | AppError::AddrParse(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            | AppError::AddrParse(_)
+            | AppError::Media(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         let body = Json(ErrorBody {

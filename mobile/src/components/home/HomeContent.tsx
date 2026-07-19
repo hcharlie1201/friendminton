@@ -1,5 +1,7 @@
 import type { FeedPost, GameInvite, Notification, User, WeeklySnapshot as WeeklySnapshotData } from '../../api/generated';
 import { ActivityPostCard } from '../feed/ActivityPostCard';
+import { PostComposer } from '../feed/PostComposer';
+import type { PostDraft } from '../../features/posts/postDraft';
 import { Button, Composer, Section } from '../ui';
 import { DiscoveryFilters } from './DiscoveryFilters';
 import { GameInviteCard } from './GameInviteCard';
@@ -13,6 +15,7 @@ export type HomeActions = {
   createGameInvite: () => void;
   createPost: () => void;
   createWorkout: () => void;
+  editPost: (post: FeedPost) => void;
 };
 
 type Props = {
@@ -21,14 +24,17 @@ type Props = {
   feed: FeedPost[];
   gameInvites: GameInvite[];
   city: string;
-  currentUser: Pick<User, 'display_name' | 'email'>;
+  currentUser: Pick<User, 'id' | 'display_name' | 'email'>;
+  editingPostId: string | null;
   notifications: Notification[];
   onCityChange: (city: string) => void;
   onSignOut: () => void;
   onSkillLevelChange: (skillLevel: SkillLevel) => void;
   players: User[];
-  postBody: string;
-  setPostBody: (value: string) => void;
+  onCancelPostEdit: () => void;
+  onPostDraftChange: (draft: PostDraft) => void;
+  postDraft: PostDraft;
+  postIsSaving: boolean;
   setWorkoutTitle: (value: string) => void;
   skillLevel: SkillLevel;
   snapshot?: WeeklySnapshotData;
@@ -40,6 +46,7 @@ export function HomeContent({
   activeTab,
   city,
   currentUser,
+  editingPostId,
   feed,
   gameInvites,
   notifications,
@@ -47,8 +54,10 @@ export function HomeContent({
   onSignOut,
   onSkillLevelChange,
   players,
-  postBody,
-  setPostBody,
+  onCancelPostEdit,
+  onPostDraftChange,
+  postDraft,
+  postIsSaving,
   setWorkoutTitle,
   skillLevel,
   snapshot,
@@ -115,15 +124,21 @@ export function HomeContent({
         games={snapshot?.games ?? 0}
         minutes={snapshot?.duration_minutes ?? 0}
       />
-      <Composer
-        buttonLabel="Post"
-        onChangeText={setPostBody}
+      <PostComposer
+        draft={postDraft}
+        isEditing={editingPostId !== null}
+        isSaving={postIsSaving}
+        onCancelEdit={onCancelPostEdit}
+        onChange={onPostDraftChange}
         onSubmit={actions.createPost}
-        placeholder="Share a workout note"
-        value={postBody}
       />
       {feed.map((post) => (
-        <ActivityPostCard key={post.id} post={post} />
+        <ActivityPostCard
+          canEdit={post.user_id === currentUser.id}
+          key={post.id}
+          onEdit={actions.editPost}
+          post={post}
+        />
       ))}
     </>
   );

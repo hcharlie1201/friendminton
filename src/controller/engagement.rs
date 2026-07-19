@@ -15,7 +15,10 @@ pub fn routes() -> ApiRouter<AppState> {
     ApiRouter::new()
         .api_route("/weekly-snapshot", get(weekly_snapshot))
         .api_route("/notifications", get(notifications))
-        .api_route("/notifications/unread-count", get(unread_notification_count))
+        .api_route(
+            "/notifications/unread-count",
+            get(unread_notification_count),
+        )
         .api_route("/notifications/read", post(mark_notifications_read))
 }
 

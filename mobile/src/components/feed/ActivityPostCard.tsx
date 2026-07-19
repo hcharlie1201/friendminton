@@ -1,14 +1,21 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { FeedPost } from '../../api/generated';
 import { formatDate } from '../../lib/dates';
+import { postImageUrl } from '../../features/posts/postDraft';
 import { colors, fonts } from '../ui';
 
 type Props = {
+  canEdit: boolean;
+  onEdit: (post: FeedPost) => void;
   post: FeedPost;
 };
 
-export function ActivityPostCard({ post }: Props) {
+export function ActivityPostCard({ canEdit, onEdit, post }: Props) {
+  const body = post.body ?? '';
+  const imageUrls = post.image_urls ?? [];
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -17,28 +24,57 @@ export function ActivityPostCard({ post }: Props) {
         </View>
         <View style={styles.headerCopy}>
           <Text style={styles.name}>{post.display_name}</Text>
-          <Text style={styles.meta}>{formatDate(post.created_at)} · Badminton workout</Text>
+          <Text style={styles.meta}>{post.location ? `${post.location} · ` : ''}{formatDate(post.created_at)}</Text>
         </View>
+        {canEdit && (
+          <Pressable accessibilityLabel="Edit post" hitSlop={10} onPress={() => onEdit(post)} style={styles.editButton}>
+            <Ionicons color={colors.muted} name="ellipsis-horizontal" size={22} />
+          </Pressable>
+        )}
       </View>
 
-      <Text style={styles.body}>{post.body}</Text>
+      {body.length > 0 && <Text style={styles.body}>{body}</Text>}
 
-      <View style={styles.stats}>
-        <Metric label="Effort" value="Match" />
-        <Metric label="Focus" value="Footwork" />
-        <Metric label="Court" value="Indoor" />
-      </View>
+      {imageUrls.length > 0 && (
+        <View style={styles.photos}>
+          {imageUrls.map((url, index) => (
+            <Image
+              key={url}
+              source={{ uri: postImageUrl(url) }}
+              style={[
+                styles.photo,
+                imageUrls.length > 1 && styles.photoGrid,
+                index === 0 && imageUrls.length === 3 && styles.photoWide,
+              ]}
+            />
+          ))}
+        </View>
+      )}
+
+      {post.effort && <Effort value={post.effort} />}
     </View>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Effort({ value }: { value: number }) {
   return (
-    <View style={styles.metric}>
-      <Text style={styles.metricValue}>{value}</Text>
-      <Text style={styles.metricLabel}>{label}</Text>
+    <View style={styles.effort}>
+      <Text style={styles.effortLabel}>MATCH EFFORT</Text>
+      <View style={styles.effortBars}>
+        {[2, 4, 6, 8, 10].map((threshold) => (
+          <View key={threshold} style={[styles.effortBar, value >= threshold && styles.effortBarActive]} />
+        ))}
+      </View>
+      <Text style={styles.effortValue}>{effortLabel(value)}</Text>
     </View>
   );
+}
+
+function effortLabel(value: number) {
+  if (value >= 9) return 'All out';
+  if (value >= 7) return 'Hard';
+  if (value >= 5) return 'Steady';
+  return 'Easy';
 }
 
 function initials(name: string) {
@@ -101,27 +137,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 25,
   },
-  stats: {
+  editButton: { alignItems: 'center', height: 36, justifyContent: 'center', width: 36 },
+  photos: { borderRadius: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 3, overflow: 'hidden' },
+  photo: { aspectRatio: 4 / 3, backgroundColor: colors.primarySoft, width: '100%' },
+  photoGrid: { aspectRatio: 1, flexGrow: 1, width: '48%' },
+  photoWide: { aspectRatio: 2, width: '100%' },
+  effort: {
+    alignItems: 'center',
     borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: 'row',
+    gap: 10,
     paddingTop: 12,
   },
-  metric: {
-    flex: 1,
-    gap: 2,
-  },
-  metricValue: {
-    color: colors.primaryDark,
+  effortLabel: {
+    color: colors.muted,
     fontFamily: fonts.black,
-    fontSize: 15,
+    fontSize: 10,
     fontWeight: '900',
   },
-  metricLabel: {
-    color: colors.muted,
-    fontFamily: fonts.extraBold,
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
+  effortBars: { flex: 1, flexDirection: 'row', gap: 3 },
+  effortBar: { backgroundColor: colors.border, borderRadius: 2, flex: 1, height: 5 },
+  effortBarActive: { backgroundColor: colors.primary },
+  effortValue: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' },
 });

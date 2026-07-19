@@ -4,6 +4,9 @@ use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
 pub struct Config {
     pub database_url: String,
     pub server_addr: String,
+    pub upload_dir: String,
+    pub s3_bucket: Option<String>,
+    pub aws_region: String,
 }
 
 impl Config {
@@ -14,6 +17,11 @@ impl Config {
             }),
             server_addr: std::env::var("SERVER_ADDR")
                 .unwrap_or_else(|_| "127.0.0.1:3000".to_owned()),
+            upload_dir: std::env::var("UPLOAD_DIR").unwrap_or_else(|_| "uploads".to_owned()),
+            s3_bucket: std::env::var("S3_BUCKET")
+                .ok()
+                .filter(|value| !value.is_empty()),
+            aws_region: std::env::var("AWS_REGION").unwrap_or_else(|_| "us-west-2".to_owned()),
         }
     }
 }
