@@ -64,11 +64,29 @@ runs:
         deploy_environment="$3"
         env_file=".env.${deploy_environment}"
 
-        cd "$deploy_path"
-        test -f "$env_file"
-        git fetch origin "$deploy_sha"
-        git checkout --detach "$deploy_sha"
-        docker compose --env-file "$env_file" -f docker-compose.prod.yml up -d --build --remove-orphans
+        fail() {
+          printf 'Deployment error: %s\n' "$1" >&2
+          exit 1
+        }
+
+        printf 'Deploying %s to %s on %s\n' "$deploy_sha" "$deploy_environment" "$deploy_path"
+        test -d "$deploy_path" || fail "DEPLOY_PATH does not exist: $deploy_path"
+        cd "$deploy_path" || fail "cannot enter DEPLOY_PATH: $deploy_path"
+        test -d .git || fail "DEPLOY_PATH is not a Git repository: $deploy_path"
+        test -f "$env_file" || fail "missing $deploy_path/$env_file"
+        test -f docker-compose.prod.yml || fail "missing $deploy_path/docker-compose.prod.yml"
+        command -v git >/dev/null || fail "git is not installed on the server"
+        command -v docker >/dev/null || fail "docker is not installed on the server"
+        docker compose version || fail "the Docker Compose plugin is unavailable"
+
+        printf 'Fetching commit from origin...\n'
+        git fetch origin "$deploy_sha" || fail "git fetch failed; verify the origin URL and server GitHub credentials"
+        git checkout --detach "$deploy_sha" || fail "could not check out commit $deploy_sha"
+
+        printf 'Building and starting services...\n'
+        docker compose --env-file "$env_file" -f docker-compose.prod.yml up -d --build --remove-orphans \
+          || fail "docker compose deployment failed"
+        docker compose --env-file "$env_file" -f docker-compose.prod.yml ps
         REMOTE_SCRIPT
 
     - name: Verify health
