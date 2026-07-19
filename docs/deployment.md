@@ -14,10 +14,10 @@ be committed.
 
 ## Convert The Current Server To Staging
 
-On the existing Lightsail instance:
+On the existing Lightsail instance, keep the environment file in the deployment directory:
 
 ```sh
-cd /path/to/friendminton/friendminton
+cd /home/ubuntu/friendminton
 mv .env.production .env.staging
 ```
 
@@ -34,12 +34,33 @@ S3_BUCKET=friendminton-media-us-west-2
 Keep the existing database password and matching `DATABASE_URL`. Renaming the env file does not
 change or reset the Docker `postgres_data` volume.
 
-After pulling this configuration change, verify it manually once:
+The workflow uploads `docker-compose.prod.yml` and `Caddyfile` into this directory. The server
+does not build Rust or need GitHub repository credentials. It receives a temporary ECR login,
+pulls the immutable image, starts Compose, and then discards the registry login.
+
+## AWS OIDC And ECR
+
+Run the bootstrap from an AWS CLI session with IAM and ECR administration access and a GitHub CLI
+session authenticated for `hcharlie1201/friendminton`:
 
 ```sh
-docker compose --env-file .env.staging -f docker-compose.prod.yml up -d --build
-curl --fail https://16.146.136.68.sslip.io/healthz
+aws sts get-caller-identity
+gh auth status
+AWS_REGION=us-west-2 ./scripts/bootstrap-ecr.sh
 ```
+
+The script creates or updates:
+
+- The GitHub Actions OIDC provider in IAM.
+- The staging-only `friendminton-github-publish` role with push and pull access.
+- The `friendminton-github-deploy` role, restricted to this repository's `staging` and `production`
+  GitHub Environments, with pull-only access.
+- The immutable `friendminton-api` ECR repository with push scanning enabled.
+- Repository variables `AWS_REGION`, `AWS_PUBLISH_ROLE_ARN`, `AWS_DEPLOY_ROLE_ARN`, `ECR_REGISTRY`,
+  and `ECR_REPOSITORY`.
+
+The role can push and pull only this ECR repository. No permanent AWS access key is stored in
+GitHub or on Lightsail.
 
 ## GitHub Environments
 
@@ -49,7 +70,7 @@ Configure these variables in each environment:
 
 | Variable | Staging example | Production example |
 | --- | --- | --- |
-| `DEPLOY_PATH` | `/home/ubuntu/friendminton/friendminton` | Production checkout path |
+| `DEPLOY_PATH` | `/home/ubuntu/friendminton` | Production deployment path |
 | `DEPLOY_USER` | `ubuntu` | `ubuntu` |
 | `PUBLIC_BASE_URL` | `https://16.146.136.68.sslip.io` | `https://api.friendminton.com` |
 
@@ -70,8 +91,7 @@ ssh-keyscan -H STAGING_HOST
 ```
 
 Store the private key contents as `DEPLOY_SSH_KEY` and the reviewed `ssh-keyscan` output as
-`DEPLOY_KNOWN_HOSTS`. Do not commit either file. The server checkout must already have read access
-to this GitHub repository so `git fetch` works during deployment.
+`DEPLOY_KNOWN_HOSTS`. Do not commit either file.
 
 For `production`, configure required reviewers in the GitHub Environment.
 
@@ -79,10 +99,11 @@ For `production`, configure required reviewers in the GitHub Environment.
 
 - `CI` runs Rust formatting, Clippy, tests, mobile TypeScript, Compose validation, and a Docker build.
 - `Deploy Staging` is manually dispatched with a source ref and a new version tag such as `v0.1.0`.
-  It runs CI against the resolved commit, deploys that exact SHA, checks health, and only then creates
-  the annotated Git tag.
+  It runs CI, builds the image on GitHub's runner, pushes an immutable SHA tag to ECR, deploys it,
+  checks health, and only then creates the annotated Git tag.
 - `Deploy Production` is manually dispatched with an existing version tag. It accepts annotated tags,
-  resolves the immutable tagged commit, and pauses for GitHub Environment approval before deployment.
+  resolves the immutable tagged commit, verifies its ECR image exists, and pauses for GitHub
+  Environment approval before deploying the exact image already tested on staging.
 - Both deployment workflows run an HTTPS health check after Compose starts the new API.
 
 GitHub does not support dynamically populated workflow `choice` inputs, so the production workflow

@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: deploy-production
@@ -56,8 +57,25 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.resolve.outputs.sha }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+      - id: image
+        name: Verify release image
+        env:
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ needs.resolve.outputs.sha }}
+        run: |
+          set -euo pipefail
+          aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids "imageTag=$IMAGE_TAG" >/dev/null
       - uses: ./.github/actions/deploy
         with:
+          aws-region: ${{ vars.AWS_REGION }}
+          aws-role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          ecr-registry: ${{ vars.ECR_REGISTRY }}
           environment: production
           host: ${{ secrets.DEPLOY_HOST }}
           known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
@@ -65,4 +83,5 @@ jobs:
           private-key: ${{ secrets.DEPLOY_SSH_KEY }}
           public-base-url: ${{ vars.PUBLIC_BASE_URL }}
           sha: ${{ needs.resolve.outputs.sha }}
+          image: ${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPOSITORY }}:${{ needs.resolve.outputs.sha }}
           user: ${{ vars.DEPLOY_USER }}

@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: deploy-staging
@@ -56,9 +57,51 @@ jobs:
     with:
       ref: ${{ needs.resolve.outputs.sha }}
 
+  publish:
+    name: Publish release image
+    needs: [resolve, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ vars.AWS_PUBLISH_ROLE_ARN }}
+      - id: image
+        name: Check for existing image
+        env:
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ needs.resolve.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if aws ecr describe-images \
+            --repository-name "$ECR_REPOSITORY" \
+            --image-ids "imageTag=$IMAGE_TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.image.outputs.exists != 'true'
+        uses: aws-actions/amazon-ecr-login@v2
+      - if: steps.image.outputs.exists != 'true'
+        uses: docker/setup-buildx-action@v3
+      - if: steps.image.outputs.exists != 'true'
+        name: Build and push immutable image
+        uses: docker/build-push-action@v6
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          context: .
+          push: true
+          tags: ${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPOSITORY }}:${{ needs.resolve.outputs.sha }}
+
   deploy:
     name: Deploy and tag
-    needs: [resolve, verify]
+    needs: [resolve, publish]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -71,6 +114,9 @@ jobs:
           ref: ${{ needs.resolve.outputs.sha }}
       - uses: ./.github/actions/deploy
         with:
+          aws-region: ${{ vars.AWS_REGION }}
+          aws-role-arn: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          ecr-registry: ${{ vars.ECR_REGISTRY }}
           environment: staging
           host: ${{ secrets.DEPLOY_HOST }}
           known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
@@ -78,6 +124,7 @@ jobs:
           private-key: ${{ secrets.DEPLOY_SSH_KEY }}
           public-base-url: ${{ vars.PUBLIC_BASE_URL }}
           sha: ${{ needs.resolve.outputs.sha }}
+          image: ${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPOSITORY }}:${{ needs.resolve.outputs.sha }}
           user: ${{ vars.DEPLOY_USER }}
       - name: Tag staged release
         env:

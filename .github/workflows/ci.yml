@@ -74,8 +74,8 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.sha }}
       - name: Validate staging Compose configuration
-        run: docker compose --env-file .env.staging.example -f docker-compose.prod.yml config --quiet
+        run: API_IMAGE=friendminton-api:ci docker compose --env-file .env.staging.example -f docker-compose.prod.yml config --quiet
       - name: Validate production Compose configuration
-        run: docker compose --env-file .env.production.example -f docker-compose.prod.yml config --quiet
+        run: API_IMAGE=friendminton-api:ci docker compose --env-file .env.production.example -f docker-compose.prod.yml config --quiet
       - name: Build API image
         run: docker build --tag friendminton-api:ci .

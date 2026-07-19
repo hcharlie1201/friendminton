@@ -42,16 +42,16 @@ On the server:
 
 ```sh
 sudo apt update
-sudo apt install -y docker.io docker-compose-plugin git
+sudo apt install -y docker.io docker-compose-plugin
 sudo usermod -aG docker ubuntu
 ```
 
-Log out and back in, then:
+Log out and back in, then create the deployment directory and environment file:
 
 ```sh
-git clone https://github.com/YOUR_USER/friendminton.git
-cd friendminton/friendminton
-cp .env.staging.example .env.staging
+mkdir -p /home/ubuntu/friendminton
+cd /home/ubuntu/friendminton
+nano .env.staging
 ```
 
 Edit `.env.staging` and set a long random `POSTGRES_PASSWORD`. The `DATABASE_URL`
@@ -76,16 +76,18 @@ For a quick HTTPS test without buying a domain, keep:
 DOMAIN=16.146.136.68.sslip.io
 ```
 
-Then deploy:
+GitHub Actions builds the Rust image, pushes it to ECR, uploads the Compose manifest, and deploys it.
+The generated `.env.image` records the exact immutable image currently selected on this server.
+To inspect the deployment after the workflow runs:
 
 ```sh
-docker compose --env-file .env.staging -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.staging --env-file .env.image -f docker-compose.prod.yml ps
 ```
 
 Check logs:
 
 ```sh
-docker compose --env-file .env.staging -f docker-compose.prod.yml logs -f api
+docker compose --env-file .env.staging --env-file .env.image -f docker-compose.prod.yml logs -f api
 ```
 
 The API should be available at:

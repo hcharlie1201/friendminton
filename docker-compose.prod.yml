@@ -1,8 +1,6 @@
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${API_IMAGE:?API_IMAGE is required}
     restart: unless-stopped
     environment:
       APP_ENV: ${APP_ENV:?APP_ENV is required}
