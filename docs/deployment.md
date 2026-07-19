@@ -116,6 +116,12 @@ ssh-keyscan -H STAGING_HOST
 Store the private key contents as `DEPLOY_SSH_KEY` and the reviewed `ssh-keyscan` output as
 `DEPLOY_KNOWN_HOSTS`. Do not commit either file.
 
+`DEPLOY_SSH_KEY` authenticates Actions to the Lightsail server. The staging workflow uses a separate
+write-enabled GitHub deploy key, stored as the staging-only `RELEASE_SSH_KEY` secret, to authenticate
+back to this repository and create annotated release tags. This avoids a broad personal access token
+and is necessary when the tagged commit changes files in `.github/workflows`, which GitHub's built-in
+Actions token cannot push. The release key is scoped only to this repository.
+
 For `production`, configure required reviewers in the GitHub Environment.
 
 ## Workflow Behavior

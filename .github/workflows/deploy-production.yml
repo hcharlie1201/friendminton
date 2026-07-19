@@ -24,7 +24,7 @@ jobs:
       sha: ${{ steps.release.outputs.sha }}
       tag: ${{ steps.release.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - id: release
@@ -54,10 +54,10 @@ jobs:
       name: production
       url: ${{ vars.PUBLIC_BASE_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ needs.resolve.outputs.sha }}
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: ${{ vars.AWS_REGION }}
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}

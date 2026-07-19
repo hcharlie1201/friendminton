@@ -29,7 +29,7 @@ jobs:
       sha: ${{ steps.release.outputs.sha }}
       tag: ${{ steps.release.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref }}
@@ -64,10 +64,10 @@ jobs:
     timeout-minutes: 30
     environment: staging
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ needs.resolve.outputs.sha }}
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: ${{ vars.AWS_REGION }}
           role-to-assume: ${{ vars.AWS_PUBLISH_ROLE_ARN }}
@@ -88,7 +88,7 @@ jobs:
       - if: steps.image.outputs.exists != 'true'
         uses: aws-actions/amazon-ecr-login@v2
       - if: steps.image.outputs.exists != 'true'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - if: steps.image.outputs.exists != 'true'
         name: Build and push immutable image
         uses: docker/build-push-action@v6
@@ -108,10 +108,11 @@ jobs:
       name: staging
       url: ${{ vars.PUBLIC_BASE_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ needs.resolve.outputs.sha }}
+          ssh-key: ${{ secrets.RELEASE_SSH_KEY }}
       - uses: ./.github/actions/deploy
         with:
           aws-region: ${{ vars.AWS_REGION }}
