@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -28,11 +28,13 @@ import {
   BottomTabBar,
   HomeContent,
   InlineLoading,
+  type DiscoveryPreferences,
   type HomeActions,
   type SkillLevel,
   type Tab,
 } from '../components/home';
 import { Screen } from '../components/ui';
+import { buildDefaultGameInvite } from '../features/gameInvites/defaultGameInvite';
 import { draftFromPost, emptyPostDraft, type PostDraft } from '../features/posts/postDraft';
 import { uploadPostPhotos } from '../features/posts/uploads';
 import { usePlayerSearch } from '../features/players/usePlayerSearch';
@@ -41,14 +43,25 @@ type WriteMutation = {
   mutate: () => void;
 };
 
+function useDiscoveryPreferences() {
+  const [city, setCity] = useState('Oakland');
+  const [skillLevel, setSkillLevel] = useState<SkillLevel | null>(null);
+  const apply = useCallback((preferences: DiscoveryPreferences) => {
+    setCity(preferences.city);
+    setSkillLevel(preferences.skillLevel);
+  }, []);
+
+  return { apply, city, setCity, skillLevel };
+}
+
 export function HomeScreen() {
   const queryClient = useQueryClient();
   const homeScrollRef = useRef<ScrollView>(null);
   const { signOut, user } = useSession();
   const currentUser = requireSessionUser(user);
   const [activeTab, setActiveTab] = useState<Tab>('home');
-  const [city, setCity] = useState('Oakland');
-  const [skillLevel, setSkillLevel] = useState<SkillLevel>('intermediate');
+  const discoveryPreferences = useDiscoveryPreferences();
+  const { city, skillLevel } = discoveryPreferences;
   const [playerSearch, setPlayerSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [workoutTitle, setWorkoutTitle] = useState('Doubles ladder night');
@@ -98,7 +111,7 @@ export function HomeScreen() {
       getApiGameInvites({
         query: {
           city,
-          skill_level: skillLevel,
+          skill_level: skillLevel ?? undefined,
         },
       }).then(unwrap<GameInvite[]>),
   });
@@ -133,14 +146,7 @@ export function HomeScreen() {
   const createGameInviteMutation = useMutation({
     mutationFn: () =>
       postApiGameInvites({
-        body: {
-          title: 'Evening doubles',
-          venue: 'Downtown Rec Center',
-          city,
-          starts_at: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
-          skill_level: skillLevel,
-          max_players: 8,
-        },
+        body: buildDefaultGameInvite(city),
         headers: authHeaders(currentUser.id),
       }).then(unwrap),
     onError: showError,
@@ -187,6 +193,7 @@ export function HomeScreen() {
     setActiveTab,
     setEditingPostId,
     setPostDraft,
+    signOut,
     homeScrollRef,
   });
   const headerActions = useHeaderActions({
@@ -223,12 +230,10 @@ export function HomeScreen() {
           feed={feed}
           gameInvites={gameInvites}
           notifications={notifications}
-          onCityChange={setCity}
-          onCancelPostEdit={() => resetPostEditor(setPostDraft, setEditingPostId)}
+          onCityChange={discoveryPreferences.setCity}
+          onDiscoveryPreferencesChange={discoveryPreferences.apply}
           onPostDraftChange={setPostDraft}
           onRetryPlayerSearch={playersQuery.refetch}
-          onSignOut={() => void signOut()}
-          onSkillLevelChange={setSkillLevel}
           players={players}
           playerSearchQuery={playersQuery.effectiveQuery}
           playerSearchHasError={playersQuery.isError}
@@ -270,6 +275,7 @@ function useHomeActions({
   setActiveTab,
   setEditingPostId,
   setPostDraft,
+  signOut,
   homeScrollRef,
 }: {
   createGameInviteMutation: WriteMutation;
@@ -278,15 +284,18 @@ function useHomeActions({
   setActiveTab: (tab: Tab) => void;
   setEditingPostId: (postId: string | null) => void;
   setPostDraft: (draft: PostDraft) => void;
+  signOut: () => Promise<void>;
   homeScrollRef: React.RefObject<ScrollView | null>;
 }) {
   return useMemo(
     () => ({
+      cancelPostEdit: () => resetPostEditor(setPostDraft, setEditingPostId),
       createGameInvite: () => createGameInviteMutation.mutate(),
       createPost: () => createPostMutation.mutate(),
       createWorkout: () => createWorkoutMutation.mutate(),
       editPost: (post: FeedPost) =>
         beginPostEdit(post, setPostDraft, setEditingPostId, setActiveTab, homeScrollRef),
+      signOut: () => void signOut(),
     }),
     [
       createGameInviteMutation,
@@ -295,6 +304,7 @@ function useHomeActions({
       setActiveTab,
       setEditingPostId,
       setPostDraft,
+      signOut,
       homeScrollRef,
     ],
   );

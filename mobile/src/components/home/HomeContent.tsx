@@ -14,15 +14,17 @@ import { DiscoveryFilters } from './DiscoveryFilters';
 import { GameInviteCard } from './GameInviteCard';
 import { PlayerSearchResults } from './PlayerSearchResults';
 import { SettingsPanel } from './SettingsPanel';
-import type { SkillLevel, Tab } from './types';
+import type { DiscoveryPreferences, SkillLevel, Tab } from './types';
 import { WeeklySnapshot } from './WeeklySnapshot';
 import { WorkoutQuickLogCard } from './WorkoutQuickLogCard';
 
 export type HomeActions = {
+  cancelPostEdit: () => void;
   createGameInvite: () => void;
   createPost: () => void;
   createWorkout: () => void;
   editPost: (post: FeedPost) => void;
+  signOut: () => void;
 };
 
 type Props = {
@@ -35,10 +37,8 @@ type Props = {
   editingPostId: string | null;
   notifications: Notification[];
   onCityChange: (city: string) => void;
-  onSignOut: () => void;
-  onSkillLevelChange: (skillLevel: SkillLevel) => void;
+  onDiscoveryPreferencesChange: (preferences: DiscoveryPreferences) => void;
   players: Player[];
-  onCancelPostEdit: () => void;
   onPostDraftChange: (draft: PostDraft) => void;
   onRetryPlayerSearch: () => void;
   postDraft: PostDraft;
@@ -46,7 +46,7 @@ type Props = {
   playerSearchQuery: string;
   playerSearchHasError: boolean;
   setWorkoutTitle: (value: string) => void;
-  skillLevel: SkillLevel;
+  skillLevel: SkillLevel | null;
   snapshot?: WeeklySnapshotData;
   workoutTitle: string;
 };
@@ -61,10 +61,8 @@ export function HomeContent({
   gameInvites,
   notifications,
   onCityChange,
-  onSignOut,
-  onSkillLevelChange,
+  onDiscoveryPreferencesChange,
   players,
-  onCancelPostEdit,
   onPostDraftChange,
   onRetryPlayerSearch,
   postDraft,
@@ -79,7 +77,7 @@ export function HomeContent({
   if (activeTab === 'discover') {
     return (
       <>
-        <DiscoveryFilters onSkillLevelChange={onSkillLevelChange} skillLevel={skillLevel} />
+        <DiscoveryFilters city={city} onApply={onDiscoveryPreferencesChange} skillLevel={skillLevel} />
         <PlayerSearchResults
           hasError={playerSearchHasError}
           onRetry={onRetryPlayerSearch}
@@ -126,7 +124,7 @@ export function HomeContent({
         email={currentUser.email}
         notifications={notifications}
         onCityChange={onCityChange}
-        onSignOut={onSignOut}
+        onSignOut={actions.signOut}
       />
     );
   }
@@ -142,7 +140,7 @@ export function HomeContent({
         draft={postDraft}
         isEditing={editingPostId !== null}
         isSaving={postIsSaving}
-        onCancelEdit={onCancelPostEdit}
+        onCancelEdit={actions.cancelPostEdit}
         onChange={onPostDraftChange}
         onSubmit={actions.createPost}
       />

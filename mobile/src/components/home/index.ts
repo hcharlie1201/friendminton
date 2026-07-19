@@ -9,4 +9,4 @@ export { PlayerSearchResults } from './PlayerSearchResults';
 export { SettingsPanel } from './SettingsPanel';
 export { WeeklySnapshot } from './WeeklySnapshot';
 export { WorkoutQuickLogCard } from './WorkoutQuickLogCard';
-export type { SkillLevel, Tab } from './types';
+export type { DiscoveryPreferences, SkillLevel, Tab } from './types';

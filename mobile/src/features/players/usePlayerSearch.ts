@@ -10,7 +10,7 @@ type PlayerSearchOptions = {
   city: string;
   enabled: boolean;
   query: string;
-  skillLevel: string;
+  skillLevel: string | null;
 };
 
 export function usePlayerSearch({ city, enabled, query, skillLevel }: PlayerSearchOptions) {
@@ -26,7 +26,7 @@ export function usePlayerSearch({ city, enabled, query, skillLevel }: PlayerSear
         query: {
           city,
           query: effectiveQuery || undefined,
-          skill_level: skillLevel,
+          skill_level: skillLevel ?? undefined,
         },
         signal,
       }).then(unwrap<Player[]>),

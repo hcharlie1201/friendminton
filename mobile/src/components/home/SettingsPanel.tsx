@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import * as Location from 'expo-location';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import type { Notification } from '../../api/generated';
+import { getCurrentCity, LocationPermissionError } from '../../features/location/currentCity';
 import { formatDate } from '../../lib/dates';
 import { Button, Card, TextField, colors, fonts } from '../ui';
 
@@ -78,36 +78,18 @@ async function applyCurrentLocation({
   setIsLocating(true);
 
   try {
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (permission.status !== Location.PermissionStatus.GRANTED) {
-      Alert.alert('Friendminton', 'Location permission is needed to use your current city.');
-      return;
-    }
-
-    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    const [place] = await Location.reverseGeocodeAsync(position.coords);
-    const city = formatLocation(place);
-
-    if (!city) {
-      Alert.alert('Friendminton', 'Could not find a city for your current location.');
-      return;
-    }
-
-    onCityChange(city);
+    onCityChange(await getCurrentCity());
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Could not read your location.';
+    const message =
+      error instanceof LocationPermissionError
+        ? 'Location permission is needed to use your current city.'
+        : error instanceof Error
+          ? error.message
+          : 'Could not read your location.';
     Alert.alert('Friendminton', message);
   } finally {
     setIsLocating(false);
   }
-}
-
-function formatLocation(place?: Location.LocationGeocodedAddress) {
-  if (!place) return '';
-
-  const city = place.city ?? place.subregion ?? place.region;
-  const region = place.region && place.region !== city ? place.region : undefined;
-  return [city, region].filter(Boolean).join(', ');
 }
 
 const styles = StyleSheet.create({
