@@ -1,9 +1,9 @@
 import { StyleSheet, Text } from 'react-native';
 
-import type { User } from '../../api/generated';
+import type { Player } from '../../api/generated';
 import { Card, colors, fonts } from '../ui';
 
-export function PlayerCard({ player }: { player: User }) {
+export function PlayerCard({ player }: { player: Player }) {
   return (
     <Card>
       <Text style={styles.title}>{player.display_name}</Text>

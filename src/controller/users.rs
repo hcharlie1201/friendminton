@@ -6,7 +6,7 @@ use axum::{
 use uuid::Uuid;
 
 use crate::{
-    accounts::{self, PlayerSearch, User},
+    accounts::{self, Player, PlayerSearch, User},
     app::AppState,
     error::AppError,
 };
@@ -28,7 +28,7 @@ pub(crate) async fn get_user(
 pub(crate) async fn find_players(
     State(state): State<AppState>,
     Query(search): Query<PlayerSearch>,
-) -> Result<Json<Vec<User>>, AppError> {
+) -> Result<Json<Vec<Player>>, AppError> {
     let users = accounts::find_players(&state.pool, search).await?;
     Ok(Json(users))
 }

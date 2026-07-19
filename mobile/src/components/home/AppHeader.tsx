@@ -1,24 +1,60 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, fonts } from '../ui';
+import { colors, fonts, SearchBar } from '../ui';
 import type { Tab } from './types';
 
 type Props = {
   activeTab: Tab;
   notificationCount: number;
+  onClearSearch: () => void;
+  onCloseSearch: () => void;
   onOpenNotifications: () => void;
+  onOpenSearch: () => void;
   onOpenSettings: () => void;
+  onSearchChange: (value: string) => void;
+  searchOpen: boolean;
+  searchIsLoading: boolean;
+  searchValue: string;
 };
 
-export function AppHeader({ activeTab, notificationCount, onOpenNotifications, onOpenSettings }: Props) {
+export function AppHeader({
+  activeTab,
+  notificationCount,
+  onClearSearch,
+  onCloseSearch,
+  onOpenNotifications,
+  onOpenSearch,
+  onOpenSettings,
+  onSearchChange,
+  searchOpen,
+  searchIsLoading,
+  searchValue,
+}: Props) {
+  if (searchOpen) {
+    return (
+      <View style={styles.header}>
+        <SearchBar
+          autoFocus
+          isLoading={searchIsLoading}
+          onChangeText={onSearchChange}
+          onClear={onClearSearch}
+          onClose={onCloseSearch}
+          value={searchValue}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.header}>
       <View style={styles.leftActions}>
         <Pressable accessibilityRole="button" onPress={onOpenSettings} style={styles.avatar}>
           <Text style={styles.avatarText}>F</Text>
         </Pressable>
-        <Ionicons color="#050505" name="search" size={34} />
+        <Pressable accessibilityLabel="Search players" accessibilityRole="button" hitSlop={8} onPress={onOpenSearch}>
+          <Ionicons color="#050505" name="search" size={32} />
+        </Pressable>
       </View>
 
       <Text style={styles.title}>{titleForTab(activeTab)}</Text>

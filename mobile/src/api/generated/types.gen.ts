@@ -1012,9 +1012,18 @@ export type Paths = {
     [key: string]: ReferenceOrForPathItem;
 };
 
+export type Player = {
+    bio?: string | null;
+    city?: string | null;
+    display_name: string;
+    id: string;
+    skill_level: string;
+};
+
 export type PlayerSearch = {
     city?: string | null;
     limit?: number | null;
+    query?: string | null;
     skill_level?: string | null;
 };
 
@@ -1503,6 +1512,7 @@ export type GetApiUsersData = {
     query?: {
         city?: string | null;
         limit?: number | null;
+        query?: string | null;
         skill_level?: string | null;
     };
     url: '/api/users';
@@ -1518,7 +1528,7 @@ export type GetApiUsersErrors = {
 export type GetApiUsersError = GetApiUsersErrors[keyof GetApiUsersErrors];
 
 export type GetApiUsersResponses = {
-    200: Array<User>;
+    200: Array<Player>;
 };
 
 export type GetApiUsersResponse = GetApiUsersResponses[keyof GetApiUsersResponses];

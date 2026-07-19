@@ -1,11 +1,18 @@
-import type { FeedPost, GameInvite, Notification, User, WeeklySnapshot as WeeklySnapshotData } from '../../api/generated';
+import type {
+  FeedPost,
+  GameInvite,
+  Notification,
+  Player,
+  User,
+  WeeklySnapshot as WeeklySnapshotData,
+} from '../../api/generated';
 import { ActivityPostCard } from '../feed/ActivityPostCard';
 import { PostComposer } from '../feed/PostComposer';
 import type { PostDraft } from '../../features/posts/postDraft';
 import { Button, Composer, Section } from '../ui';
 import { DiscoveryFilters } from './DiscoveryFilters';
 import { GameInviteCard } from './GameInviteCard';
-import { PlayerCard } from './PlayerCard';
+import { PlayerSearchResults } from './PlayerSearchResults';
 import { SettingsPanel } from './SettingsPanel';
 import type { SkillLevel, Tab } from './types';
 import { WeeklySnapshot } from './WeeklySnapshot';
@@ -30,11 +37,14 @@ type Props = {
   onCityChange: (city: string) => void;
   onSignOut: () => void;
   onSkillLevelChange: (skillLevel: SkillLevel) => void;
-  players: User[];
+  players: Player[];
   onCancelPostEdit: () => void;
   onPostDraftChange: (draft: PostDraft) => void;
+  onRetryPlayerSearch: () => void;
   postDraft: PostDraft;
   postIsSaving: boolean;
+  playerSearchQuery: string;
+  playerSearchHasError: boolean;
   setWorkoutTitle: (value: string) => void;
   skillLevel: SkillLevel;
   snapshot?: WeeklySnapshotData;
@@ -56,8 +66,11 @@ export function HomeContent({
   players,
   onCancelPostEdit,
   onPostDraftChange,
+  onRetryPlayerSearch,
   postDraft,
   postIsSaving,
+  playerSearchQuery,
+  playerSearchHasError,
   setWorkoutTitle,
   skillLevel,
   snapshot,
@@ -67,11 +80,12 @@ export function HomeContent({
     return (
       <>
         <DiscoveryFilters onSkillLevelChange={onSkillLevelChange} skillLevel={skillLevel} />
-        <Section title="Players nearby" emptyText="No players found yet." itemCount={players.length}>
-          {players.map((player) => (
-            <PlayerCard key={player.id} player={player} />
-          ))}
-        </Section>
+        <PlayerSearchResults
+          hasError={playerSearchHasError}
+          onRetry={onRetryPlayerSearch}
+          players={players}
+          query={playerSearchQuery}
+        />
       </>
     );
   }

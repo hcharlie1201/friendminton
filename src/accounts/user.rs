@@ -20,6 +20,15 @@ pub struct User {
     pub updated_at: OffsetDateTime,
 }
 
+#[derive(Debug, Serialize, FromRow, JsonSchema)]
+pub struct Player {
+    pub id: Uuid,
+    pub display_name: String,
+    pub city: Option<String>,
+    pub skill_level: String,
+    pub bio: Option<String>,
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CreateUser {
     pub email: String,
@@ -33,5 +42,6 @@ pub struct CreateUser {
 pub struct PlayerSearch {
     pub city: Option<String>,
     pub skill_level: Option<String>,
+    pub query: Option<String>,
     pub limit: Option<i64>,
 }

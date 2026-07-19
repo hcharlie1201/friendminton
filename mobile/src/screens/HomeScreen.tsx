@@ -8,7 +8,6 @@ import {
   getApiEngagementWeeklySnapshot,
   getApiGameInvites,
   getApiPostsFeed,
-  getApiUsers,
   postApiEngagementNotificationsRead,
   postApiGameInvites,
   postApiPosts,
@@ -36,6 +35,7 @@ import {
 import { Screen } from '../components/ui';
 import { draftFromPost, emptyPostDraft, type PostDraft } from '../features/posts/postDraft';
 import { uploadPostPhotos } from '../features/posts/uploads';
+import { usePlayerSearch } from '../features/players/usePlayerSearch';
 
 type WriteMutation = {
   mutate: () => void;
@@ -49,6 +49,8 @@ export function HomeScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [city, setCity] = useState('Oakland');
   const [skillLevel, setSkillLevel] = useState<SkillLevel>('intermediate');
+  const [playerSearch, setPlayerSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [workoutTitle, setWorkoutTitle] = useState('Doubles ladder night');
   const [postDraft, setPostDraft] = useState<PostDraft>(emptyPostDraft);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
@@ -58,15 +60,11 @@ export function HomeScreen() {
     queryFn: () => fetch(`${apiBaseUrl}/healthz`).then((response) => response.ok),
     retry: false,
   });
-  const playersQuery = useQuery({
-    queryKey: ['players', city, skillLevel],
-    queryFn: () =>
-      getApiUsers({
-        query: {
-          city,
-          skill_level: skillLevel,
-        },
-      }).then(unwrap<User[]>),
+  const playersQuery = usePlayerSearch({
+    city,
+    enabled: activeTab === 'discover',
+    query: playerSearch,
+    skillLevel,
   });
   const feedQuery = useQuery({
     queryKey: ['feed'],
@@ -194,6 +192,8 @@ export function HomeScreen() {
   const headerActions = useHeaderActions({
     markNotificationsReadMutation,
     setActiveTab,
+    setPlayerSearch,
+    setSearchOpen,
   });
 
   return (
@@ -201,8 +201,15 @@ export function HomeScreen() {
       <AppHeader
         activeTab={activeTab}
         notificationCount={unreadNotificationCount}
+        onClearSearch={headerActions.clearSearch}
+        onCloseSearch={headerActions.closeSearch}
         onOpenNotifications={headerActions.openNotifications}
+        onOpenSearch={headerActions.openSearch}
         onOpenSettings={headerActions.openSettings}
+        onSearchChange={setPlayerSearch}
+        searchOpen={searchOpen}
+        searchIsLoading={playersQuery.isSearching}
+        searchValue={playerSearch}
       />
 
       <ScrollView ref={homeScrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -219,9 +226,12 @@ export function HomeScreen() {
           onCityChange={setCity}
           onCancelPostEdit={() => resetPostEditor(setPostDraft, setEditingPostId)}
           onPostDraftChange={setPostDraft}
+          onRetryPlayerSearch={playersQuery.refetch}
           onSignOut={() => void signOut()}
           onSkillLevelChange={setSkillLevel}
           players={players}
+          playerSearchQuery={playersQuery.effectiveQuery}
+          playerSearchHasError={playersQuery.isError}
           postDraft={postDraft}
           postIsSaving={createPostMutation.isPending}
           setWorkoutTitle={setWorkoutTitle}
@@ -231,7 +241,11 @@ export function HomeScreen() {
         />
       </ScrollView>
 
-      <BottomTabBar activeTab={activeTab} notificationCount={unreadNotificationCount} onTabChange={setActiveTab} />
+      <BottomTabBar
+        activeTab={activeTab}
+        notificationCount={unreadNotificationCount}
+        onTabChange={headerActions.changeTab}
+      />
     </Screen>
   );
 }
@@ -286,6 +300,17 @@ function useHomeActions({
   );
 }
 
+function changeTab(
+  tab: Tab,
+  setActiveTab: (tab: Tab) => void,
+  setPlayerSearch: (query: string) => void,
+  setSearchOpen: (open: boolean) => void,
+) {
+  setActiveTab(tab);
+  setPlayerSearch('');
+  setSearchOpen(false);
+}
+
 async function savePost({ draft, postId, userId }: { draft: PostDraft; postId: string | null; userId: string }) {
   const imageKeys = await uploadPostPhotos(userId, draft.photos);
   const body = {
@@ -327,17 +352,35 @@ function resetPostEditor(
 function useHeaderActions({
   markNotificationsReadMutation,
   setActiveTab,
+  setPlayerSearch,
+  setSearchOpen,
 }: {
   markNotificationsReadMutation: WriteMutation;
   setActiveTab: (tab: Tab) => void;
+  setPlayerSearch: (query: string) => void;
+  setSearchOpen: (open: boolean) => void;
 }) {
   return useMemo(
     () => ({
+      changeTab: (tab: Tab) => changeTab(tab, setActiveTab, setPlayerSearch, setSearchOpen),
+      clearSearch: () => setPlayerSearch(''),
+      closeSearch: () => closePlayerSearch(setPlayerSearch, setSearchOpen),
       openNotifications: () => openNotifications({ markNotificationsReadMutation, setActiveTab }),
+      openSearch: () => openPlayerSearch(setActiveTab, setSearchOpen),
       openSettings: () => setActiveTab('you'),
     }),
-    [markNotificationsReadMutation, setActiveTab],
+    [markNotificationsReadMutation, setActiveTab, setPlayerSearch, setSearchOpen],
   );
+}
+
+function openPlayerSearch(setActiveTab: (tab: Tab) => void, setSearchOpen: (open: boolean) => void) {
+  setActiveTab('discover');
+  setSearchOpen(true);
+}
+
+function closePlayerSearch(setPlayerSearch: (query: string) => void, setSearchOpen: (open: boolean) => void) {
+  setPlayerSearch('');
+  setSearchOpen(false);
 }
 
 function openNotifications({

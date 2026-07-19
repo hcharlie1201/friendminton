@@ -5,6 +5,7 @@ export { GameInviteCard } from './GameInviteCard';
 export { HomeContent, type HomeActions } from './HomeContent';
 export { InlineLoading } from './InlineLoading';
 export { PlayerCard } from './PlayerCard';
+export { PlayerSearchResults } from './PlayerSearchResults';
 export { SettingsPanel } from './SettingsPanel';
 export { WeeklySnapshot } from './WeeklySnapshot';
 export { WorkoutQuickLogCard } from './WorkoutQuickLogCard';
