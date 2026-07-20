@@ -11,7 +11,7 @@ export async function uploadPostPhotos(userId: string, photos: DraftPhoto[]) {
 
 async function uploadPostPhoto(userId: string, photo: DraftPhoto) {
   const file = new File(photo.uri);
-  const contentType = photo.mimeType || file.type || contentTypeFromName(photo.fileName || file.name);
+  const contentType = file.type || contentTypeFromName(file.name || photo.uri, photo.mimeType);
   const target = await postApiUploadsPresign({
     body: { content_type: contentType, size_bytes: file.size },
     headers: authHeaders(userId),
@@ -33,7 +33,7 @@ async function uploadPostPhoto(userId: string, photo: DraftPhoto) {
   return target.object_key;
 }
 
-function contentTypeFromName(fileName: string) {
+function contentTypeFromName(fileName: string, fallback?: string | null) {
   const extension = fileName.split('.').pop()?.toLowerCase();
   switch (extension) {
     case 'png':
@@ -44,6 +44,6 @@ function contentTypeFromName(fileName: string) {
     case 'heif':
       return 'image/heic';
     default:
-      return 'image/jpeg';
+      return fallback?.startsWith('image/') ? fallback : 'image/jpeg';
   }
 }

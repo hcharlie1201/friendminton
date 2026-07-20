@@ -21,7 +21,7 @@ pub struct Post {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CreatePost {
-    pub workout_id: Option<Uuid>,
+    pub workout_id: Uuid,
     pub body: String,
     pub location: Option<String>,
     pub effort: Option<i16>,
@@ -32,7 +32,7 @@ pub struct CreatePost {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct UpdatePost {
     pub id: Uuid,
-    pub workout_id: Option<Uuid>,
+    pub workout_id: Uuid,
     pub body: String,
     pub location: Option<String>,
     pub effort: Option<i16>,
@@ -46,6 +46,8 @@ pub struct FeedPost {
     pub user_id: Uuid,
     pub display_name: String,
     pub workout_id: Option<Uuid>,
+    pub workout_title: Option<String>,
+    pub workout_duration_milliseconds: Option<i64>,
     pub body: String,
     pub location: Option<String>,
     pub effort: Option<i16>,
@@ -54,6 +56,18 @@ pub struct FeedPost {
     #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub created_at: OffsetDateTime,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct FeedQuery {
+    pub cursor: Option<String>,
+    pub limit: Option<i64>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct FeedPage {
+    pub items: Vec<FeedPost>,
+    pub next_cursor: Option<String>,
 }
 
 #[derive(Debug, FromRow)]
@@ -74,6 +88,8 @@ pub(super) struct StoredFeedPost {
     pub user_id: Uuid,
     pub display_name: String,
     pub workout_id: Option<Uuid>,
+    pub workout_title: Option<String>,
+    pub workout_duration_milliseconds: Option<i64>,
     pub body: String,
     pub location: Option<String>,
     pub effort: Option<i16>,

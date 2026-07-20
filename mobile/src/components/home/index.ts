@@ -8,5 +8,5 @@ export { PlayerCard } from './PlayerCard';
 export { PlayerSearchResults } from './PlayerSearchResults';
 export { SettingsPanel } from './SettingsPanel';
 export { WeeklySnapshot } from './WeeklySnapshot';
-export { WorkoutQuickLogCard } from './WorkoutQuickLogCard';
+export { WorkoutRecorder } from './WorkoutRecorder';
 export type { DiscoveryPreferences, SkillLevel, Tab } from './types';

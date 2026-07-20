@@ -9,28 +9,34 @@ import type {
 import { ActivityPostCard } from '../feed/ActivityPostCard';
 import { PostComposer } from '../feed/PostComposer';
 import type { PostDraft } from '../../features/posts/postDraft';
-import { Button, Composer, Section } from '../ui';
+import { formatElapsedTime, type WorkoutRecorderPhase } from '../../features/workouts/useWorkoutRecorder';
+import { Button, Section } from '../ui';
 import { DiscoveryFilters } from './DiscoveryFilters';
 import { GameInviteCard } from './GameInviteCard';
 import { PlayerSearchResults } from './PlayerSearchResults';
 import { SettingsPanel } from './SettingsPanel';
 import type { DiscoveryPreferences, SkillLevel, Tab } from './types';
 import { WeeklySnapshot } from './WeeklySnapshot';
-import { WorkoutQuickLogCard } from './WorkoutQuickLogCard';
+import { WorkoutRecorder } from './WorkoutRecorder';
 
 export type HomeActions = {
   cancelPostEdit: () => void;
   createGameInvite: () => void;
   createPost: () => void;
-  createWorkout: () => void;
+  discardWorkout: () => void;
   editPost: (post: FeedPost) => void;
+  endWorkout: () => void;
+  pauseWorkout: () => void;
+  resumeWorkout: () => void;
   signOut: () => void;
+  startWorkout: () => void;
 };
 
 type Props = {
   actions: HomeActions;
   activeTab: Tab;
   feed: FeedPost[];
+  feedRefreshToken: number;
   gameInvites: GameInvite[];
   city: string;
   currentUser: Pick<User, 'id' | 'display_name' | 'email'>;
@@ -48,6 +54,8 @@ type Props = {
   setWorkoutTitle: (value: string) => void;
   skillLevel: SkillLevel | null;
   snapshot?: WeeklySnapshotData;
+  workoutElapsedMilliseconds: number;
+  workoutPhase: WorkoutRecorderPhase;
   workoutTitle: string;
 };
 
@@ -58,6 +66,7 @@ export function HomeContent({
   currentUser,
   editingPostId,
   feed,
+  feedRefreshToken,
   gameInvites,
   notifications,
   onCityChange,
@@ -72,6 +81,8 @@ export function HomeContent({
   setWorkoutTitle,
   skillLevel,
   snapshot,
+  workoutElapsedMilliseconds,
+  workoutPhase,
   workoutTitle,
 }: Props) {
   if (activeTab === 'discover') {
@@ -90,15 +101,33 @@ export function HomeContent({
 
   if (activeTab === 'record') {
     return (
-      <Section title="Track workout" itemCount={1}>
-        <Composer
-          buttonLabel="Save workout"
-          onChangeText={setWorkoutTitle}
-          onSubmit={actions.createWorkout}
-          placeholder="Workout title"
-          value={workoutTitle}
+      <Section title={workoutPhase === 'review' ? 'Save activity' : 'Record activity'} itemCount={workoutPhase === 'review' ? 2 : 1}>
+        <WorkoutRecorder
+          elapsedMilliseconds={workoutElapsedMilliseconds}
+          onDiscard={actions.discardWorkout}
+          onEnd={actions.endWorkout}
+          onPause={actions.pauseWorkout}
+          onResume={actions.resumeWorkout}
+          onStart={actions.startWorkout}
+          onTitleChange={setWorkoutTitle}
+          phase={workoutPhase}
+          title={workoutTitle}
         />
-        <WorkoutQuickLogCard />
+        {workoutPhase === 'review' && (
+          <PostComposer
+            allowEmpty
+            contextLabel={`${formatElapsedTime(workoutElapsedMilliseconds)} recorded`}
+            draft={postDraft}
+            eyebrow="SAVE ACTIVITY"
+            isEditing={false}
+            isSaving={postIsSaving}
+            onCancelEdit={actions.cancelPostEdit}
+            onChange={onPostDraftChange}
+            onSubmit={actions.createPost}
+            submitLabel="Save & post activity"
+            title="How did it go?"
+          />
+        )}
       </Section>
     );
   }
@@ -136,17 +165,20 @@ export function HomeContent({
         games={snapshot?.games ?? 0}
         minutes={snapshot?.duration_minutes ?? 0}
       />
-      <PostComposer
-        draft={postDraft}
-        isEditing={editingPostId !== null}
-        isSaving={postIsSaving}
-        onCancelEdit={actions.cancelPostEdit}
-        onChange={onPostDraftChange}
-        onSubmit={actions.createPost}
-      />
+      {editingPostId !== null && (
+        <PostComposer
+          draft={postDraft}
+          isEditing
+          isSaving={postIsSaving}
+          onCancelEdit={actions.cancelPostEdit}
+          onChange={onPostDraftChange}
+          onSubmit={actions.createPost}
+        />
+      )}
       {feed.map((post) => (
         <ActivityPostCard
           canEdit={post.user_id === currentUser.id}
+          imageRefreshToken={feedRefreshToken}
           key={post.id}
           onEdit={actions.editPost}
           post={post}

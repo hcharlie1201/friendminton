@@ -20,6 +20,16 @@ DATABASE_URL=postgres://friendminton:friendminton@localhost:5432/friendminton ca
 
 The app runs migrations automatically on startup.
 
+Load three idempotent demo users, recorded workouts, and posts that exercise the
+one-, two-, and three-photo layouts:
+
+```sh
+./scripts/seed-development.sh
+```
+
+This command only accepts a local development database. It copies the tracked demo
+images into the ignored local `uploads/` directory and does not delete existing data.
+
 ## Runtime Configuration
 
 Set `APP_ENV` to `development`, `staging`, or `production`. Non-secret defaults and third-party
@@ -112,7 +122,7 @@ curl -X POST http://localhost:3000/api/workouts \
   -d '{
     "title":"Doubles ladder night",
     "workout_type":"match",
-    "duration_minutes":90,
+    "duration_milliseconds":5400000,
     "calories":520,
     "occurred_at":"2026-07-11T19:30:00Z"
   }'
@@ -124,7 +134,7 @@ Post to the feed:
 curl -X POST http://localhost:3000/api/posts \
   -H 'content-type: application/json' \
   -H 'x-user-id: USER_UUID' \
-  -d '{"body":"Footwork finally clicked tonight."}'
+  -d '{"workout_id":"WORKOUT_UUID","body":"Footwork finally clicked tonight."}'
 ```
 
 Create and join a game invite:

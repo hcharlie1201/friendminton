@@ -2,10 +2,13 @@ use aide::axum::{
     ApiRouter,
     routing::{get, post},
 };
-use axum::{Json, extract::State};
+use axum::{
+    Json,
+    extract::{Query, State},
+};
 
 use crate::{
-    activities::{self, CreatePost, FeedPost, Post, UpdatePost},
+    activities::{self, CreatePost, FeedPage, FeedQuery, Post, UpdatePost},
     app::AppState,
     auth::CurrentUser,
     error::AppError,
@@ -35,7 +38,10 @@ pub(crate) async fn create_post(
     Ok(Json(post))
 }
 
-pub(crate) async fn feed(State(state): State<AppState>) -> Result<Json<Vec<FeedPost>>, AppError> {
-    let posts = activities::feed(&state.pool, &state.media).await?;
-    Ok(Json(posts))
+pub(crate) async fn feed(
+    State(state): State<AppState>,
+    Query(query): Query<FeedQuery>,
+) -> Result<Json<FeedPage>, AppError> {
+    let page = activities::feed(&state.pool, &state.media, query).await?;
+    Ok(Json(page))
 }

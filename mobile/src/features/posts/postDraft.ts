@@ -13,6 +13,7 @@ export type PostDraft = {
   effort: number | null;
   location: string;
   photos: DraftPhoto[];
+  workoutId: string | null;
 };
 
 export const emptyPostDraft: PostDraft = {
@@ -20,6 +21,7 @@ export const emptyPostDraft: PostDraft = {
   effort: null,
   location: '',
   photos: [],
+  workoutId: null,
 };
 
 export function draftFromPost(post: FeedPost): PostDraft {
@@ -31,9 +33,19 @@ export function draftFromPost(post: FeedPost): PostDraft {
       objectKey: post.image_keys?.[index],
       uri: postImageUrl(imageUrl),
     })),
+    workoutId: post.workout_id ?? null,
   };
 }
 
 export function postImageUrl(value: string) {
   return value.startsWith('http://') || value.startsWith('https://') ? value : `${apiBaseUrl}${value}`;
+}
+
+export function imageUrlForLogs(value: string) {
+  try {
+    const parsed = new URL(value, apiBaseUrl);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return value.split('?')[0];
+  }
 }

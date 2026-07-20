@@ -14,23 +14,41 @@ const effortOptions = [
 ] as const;
 
 type Props = {
+  allowEmpty?: boolean;
+  contextLabel?: string;
   draft: PostDraft;
+  eyebrow?: string;
   isEditing: boolean;
   isSaving: boolean;
   onCancelEdit: () => void;
   onChange: (draft: PostDraft) => void;
   onSubmit: () => void;
+  submitLabel?: string;
+  title?: string;
 };
 
-export function PostComposer({ draft, isEditing, isSaving, onCancelEdit, onChange, onSubmit }: Props) {
-  const canSubmit = Boolean(draft.body.trim() || draft.photos.length);
+export function PostComposer({
+  allowEmpty = false,
+  contextLabel,
+  draft,
+  eyebrow,
+  isEditing,
+  isSaving,
+  onCancelEdit,
+  onChange,
+  onSubmit,
+  submitLabel,
+  title,
+}: Props) {
+  const canSubmit = allowEmpty || Boolean(draft.body.trim() || draft.photos.length);
 
   return (
     <View style={styles.composer}>
       <View style={styles.headingRow}>
         <View>
-          <Text style={styles.eyebrow}>{isEditing ? 'EDIT ACTIVITY' : 'NEW ACTIVITY'}</Text>
-          <Text style={styles.title}>{isEditing ? 'Make it feel right' : 'How did you play?'}</Text>
+          <Text style={styles.eyebrow}>{eyebrow ?? (isEditing ? 'EDIT ACTIVITY' : 'NEW ACTIVITY')}</Text>
+          <Text style={styles.title}>{title ?? (isEditing ? 'Make it feel right' : 'How did you play?')}</Text>
+          {contextLabel && <Text style={styles.context}>{contextLabel}</Text>}
         </View>
         {isEditing && (
           <Pressable accessibilityLabel="Cancel editing" hitSlop={10} onPress={onCancelEdit}>
@@ -111,7 +129,7 @@ export function PostComposer({ draft, isEditing, isSaving, onCancelEdit, onChang
       </View>
 
       <Button disabled={!canSubmit} icon={isEditing ? 'checkmark' : 'paper-plane'} loading={isSaving} onPress={onSubmit}>
-        {isEditing ? 'Save changes' : 'Post activity'}
+        {submitLabel ?? (isEditing ? 'Save changes' : 'Post activity')}
       </Button>
     </View>
   );
@@ -136,6 +154,7 @@ async function pickPhotos(draft: PostDraft, onChange: (draft: PostDraft) => void
   const result = await ImagePicker.launchImageLibraryAsync({
     allowsMultipleSelection: true,
     mediaTypes: ['images'],
+    preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     quality: 0.85,
     selectionLimit: 4 - draft.photos.length,
   });
@@ -187,6 +206,7 @@ const styles = StyleSheet.create({
   headingRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   eyebrow: { color: colors.primary, fontFamily: fonts.black, fontSize: 10, fontWeight: '900' },
   title: { color: colors.ink, fontFamily: fonts.black, fontSize: 20, fontWeight: '900' },
+  context: { color: colors.muted, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700', marginTop: 2 },
   bodyInput: { fontSize: 16, lineHeight: 23, minHeight: 88, paddingTop: 8 },
   photoStrip: { gap: 8 },
   photoFrame: { borderRadius: 8, height: 116, overflow: 'hidden', width: 116 },

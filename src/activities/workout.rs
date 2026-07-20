@@ -11,6 +11,7 @@ pub struct Workout {
     pub title: String,
     pub workout_type: String,
     pub duration_minutes: i32,
+    pub duration_milliseconds: i64,
     pub calories: Option<i32>,
     pub distance_meters: Option<i32>,
     pub notes: Option<String>,
@@ -26,7 +27,7 @@ pub struct Workout {
 pub struct CreateWorkout {
     pub title: String,
     pub workout_type: String,
-    pub duration_minutes: i32,
+    pub duration_milliseconds: i64,
     pub calories: Option<i32>,
     pub distance_meters: Option<i32>,
     pub notes: Option<String>,

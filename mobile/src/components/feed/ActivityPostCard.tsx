@@ -1,18 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { FeedPost } from '../../api/generated';
 import { formatDate } from '../../lib/dates';
-import { postImageUrl } from '../../features/posts/postDraft';
+import { formatElapsedTime } from '../../features/workouts/useWorkoutRecorder';
 import { colors, fonts } from '../ui';
+import { PostPhotoGallery } from './PostPhotoGallery';
 
 type Props = {
   canEdit: boolean;
+  imageRefreshToken: number;
   onEdit: (post: FeedPost) => void;
   post: FeedPost;
 };
 
-export function ActivityPostCard({ canEdit, onEdit, post }: Props) {
+export function ActivityPostCard({ canEdit, imageRefreshToken, onEdit, post }: Props) {
   const body = post.body ?? '';
   const imageUrls = post.image_urls ?? [];
 
@@ -27,33 +30,46 @@ export function ActivityPostCard({ canEdit, onEdit, post }: Props) {
           <Text style={styles.meta}>{post.location ? `${post.location} · ` : ''}{formatDate(post.created_at)}</Text>
         </View>
         {canEdit && (
-          <Pressable accessibilityLabel="Edit post" hitSlop={10} onPress={() => onEdit(post)} style={styles.editButton}>
-            <Ionicons color={colors.muted} name="ellipsis-horizontal" size={22} />
-          </Pressable>
+          <EditPostButton onEdit={onEdit} post={post} />
         )}
       </View>
+
+      {post.workout_id && (
+        <View style={styles.workoutSummary}>
+          <Ionicons color={colors.primary} name="stopwatch" size={19} />
+          <View style={styles.workoutCopy}>
+            <Text style={styles.workoutTitle}>{post.workout_title ?? 'Recorded activity'}</Text>
+            {post.workout_duration_milliseconds && (
+              <Text style={styles.workoutDuration}>{formatElapsedTime(post.workout_duration_milliseconds)} recorded</Text>
+            )}
+          </View>
+        </View>
+      )}
 
       {body.length > 0 && <Text style={styles.body}>{body}</Text>}
 
       {imageUrls.length > 0 && (
-        <View style={styles.photos}>
-          {imageUrls.map((url, index) => (
-            <Image
-              key={url}
-              source={{ uri: postImageUrl(url) }}
-              style={[
-                styles.photo,
-                imageUrls.length > 1 && styles.photoGrid,
-                index === 0 && imageUrls.length === 3 && styles.photoWide,
-              ]}
-            />
-          ))}
-        </View>
+        <PostPhotoGallery imageRefreshToken={imageRefreshToken} imageUrls={imageUrls} />
       )}
 
       {post.effort && <Effort value={post.effort} />}
     </View>
   );
+}
+
+function EditPostButton({ onEdit, post }: { onEdit: (post: FeedPost) => void; post: FeedPost }) {
+  const edit = useEditPostAction(onEdit, post);
+  return (
+    <Pressable accessibilityLabel="Edit post" hitSlop={10} onPress={edit} style={styles.editButton}>
+      <Ionicons color={colors.muted} name="ellipsis-horizontal" size={22} />
+    </Pressable>
+  );
+}
+
+function useEditPostAction(onEdit: (post: FeedPost) => void, post: FeedPost) {
+  return useCallback(() => {
+    onEdit(post);
+  }, [onEdit, post]);
 }
 
 function Effort({ value }: { value: number }) {
@@ -137,11 +153,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 25,
   },
+  workoutSummary: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 8, flexDirection: 'row', gap: 10, padding: 11 },
+  workoutCopy: { flex: 1 },
+  workoutTitle: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 14, fontWeight: '900' },
+  workoutDuration: { color: colors.muted, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
   editButton: { alignItems: 'center', height: 36, justifyContent: 'center', width: 36 },
-  photos: { borderRadius: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 3, overflow: 'hidden' },
-  photo: { aspectRatio: 4 / 3, backgroundColor: colors.primarySoft, width: '100%' },
-  photoGrid: { aspectRatio: 1, flexGrow: 1, width: '48%' },
-  photoWide: { aspectRatio: 2, width: '100%' },
   effort: {
     alignItems: 'center',
     borderTopColor: colors.border,

@@ -114,7 +114,7 @@ export type CreatePost = {
     effort?: number | null;
     image_keys?: Array<string>;
     location?: string | null;
-    workout_id?: string | null;
+    workout_id: string;
 };
 
 export type CreateUploadTarget = {
@@ -134,7 +134,7 @@ export type CreateWorkout = {
     title: string;
     calories?: number | null;
     distance_meters?: number | null;
-    duration_minutes: number;
+    duration_milliseconds: number;
     notes?: string | null;
     occurred_at: string;
     workout_type: string;
@@ -251,6 +251,11 @@ export type ExternalDocumentation = {
     [key: string]: unknown;
 };
 
+export type FeedPage = {
+    items: Array<FeedPost>;
+    next_cursor?: string | null;
+};
+
 export type FeedPost = {
     body: string;
     created_at: string;
@@ -261,7 +266,14 @@ export type FeedPost = {
     image_urls: Array<string>;
     location?: string | null;
     user_id: string;
+    workout_duration_milliseconds?: number | null;
     workout_id?: string | null;
+    workout_title?: string | null;
+};
+
+export type FeedQuery = {
+    cursor?: string | null;
+    limit?: number | null;
 };
 
 export type GameInvite = {
@@ -1442,7 +1454,7 @@ export type UpdatePost = {
     id: string;
     image_keys?: Array<string>;
     location?: string | null;
-    workout_id?: string | null;
+    workout_id: string;
 };
 
 export type UploadTarget = {
@@ -1476,6 +1488,7 @@ export type Workout = {
     calories?: number | null;
     created_at: string;
     distance_meters?: number | null;
+    duration_milliseconds: number;
     duration_minutes: number;
     id: string;
     notes?: string | null;
@@ -1646,7 +1659,10 @@ export type PutApiPostsResponse = PutApiPostsResponses[keyof PutApiPostsResponse
 export type GetApiPostsFeedData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        cursor?: string | null;
+        limit?: number | null;
+    };
     url: '/api/posts/feed';
 };
 
@@ -1660,7 +1676,7 @@ export type GetApiPostsFeedErrors = {
 export type GetApiPostsFeedError = GetApiPostsFeedErrors[keyof GetApiPostsFeedErrors];
 
 export type GetApiPostsFeedResponses = {
-    200: Array<FeedPost>;
+    200: FeedPage;
 };
 
 export type GetApiPostsFeedResponse = GetApiPostsFeedResponses[keyof GetApiPostsFeedResponses];
