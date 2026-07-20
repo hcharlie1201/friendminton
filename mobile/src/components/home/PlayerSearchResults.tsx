@@ -1,17 +1,19 @@
 import { StyleSheet, Text } from 'react-native';
 
 import type { Player } from '../../api/generated';
+import { DiscoveryCarousel } from '../discovery';
 import { Button, Card, colors, fonts, Section } from '../ui';
 import { PlayerCard } from './PlayerCard';
 
 type Props = {
   hasError: boolean;
+  onOpenPlayer: (playerId: string) => void;
   onRetry: () => void;
   players: Player[];
   query: string;
 };
 
-export function PlayerSearchResults({ hasError, onRetry, players, query }: Props) {
+export function PlayerSearchResults({ hasError, onOpenPlayer, onRetry, players, query }: Props) {
   const title = query ? `Results for "${query}"` : 'Players nearby';
 
   if (hasError && players.length === 0) {
@@ -29,15 +31,14 @@ export function PlayerSearchResults({ hasError, onRetry, players, query }: Props
   }
 
   return (
-    <Section
+    <DiscoveryCarousel
       emptyText={query ? 'No matching players found.' : 'No players found yet.'}
-      itemCount={players.length}
       title={title}
     >
       {players.map((player) => (
-        <PlayerCard key={player.id} player={player} />
+        <PlayerCard key={player.id} onOpenPlayer={onOpenPlayer} player={player} />
       ))}
-    </Section>
+    </DiscoveryCarousel>
   );
 }
 

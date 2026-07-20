@@ -17,7 +17,7 @@ export const DiscoveryFilters = memo(function DiscoveryFilters({ city, onApply, 
     <>
       <View style={styles.summary}>
         <View style={styles.locationSummary}>
-          <Text style={styles.eyebrow}>PLAYERS NEAR</Text>
+          <Text style={styles.eyebrow}>DISCOVER NEAR</Text>
           <View style={styles.locationRow}>
             <Ionicons color={colors.primary} name="location" size={19} />
             <Text numberOfLines={1} style={styles.locationText}>
@@ -27,7 +27,7 @@ export const DiscoveryFilters = memo(function DiscoveryFilters({ city, onApply, 
           <Text style={styles.preferenceText}>{levelLabel(skillLevel)}</Text>
         </View>
         <Pressable
-          accessibilityHint="Change discovery location and playing level"
+          accessibilityHint="Change the location and playing level used for discovery"
           accessibilityLabel="Open discovery filters"
           accessibilityRole="button"
           onPress={filterSheet.open}

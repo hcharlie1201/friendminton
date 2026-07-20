@@ -7,6 +7,7 @@ mod controller;
 mod db;
 mod engagement;
 mod error;
+mod gatherings;
 mod media;
 mod openapi;
 mod play;

@@ -36,10 +36,10 @@ pub async fn create_user(pool: &Pool<Postgres>, payload: CreateUser) -> Result<U
     Ok(user)
 }
 
-pub async fn get_user(pool: &Pool<Postgres>, id: Uuid) -> Result<User, AppError> {
-    let user = sqlx::query_as::<_, User>(
+pub async fn get_player(pool: &Pool<Postgres>, id: Uuid) -> Result<Player, AppError> {
+    let player = sqlx::query_as::<_, Player>(
         r#"
-        SELECT id, email, display_name, city, skill_level, bio, created_at, updated_at
+        SELECT id, display_name, city, skill_level, bio
         FROM users
         WHERE id = $1
         "#,
@@ -48,7 +48,7 @@ pub async fn get_user(pool: &Pool<Postgres>, id: Uuid) -> Result<User, AppError>
     .fetch_one(pool)
     .await?;
 
-    Ok(user)
+    Ok(player)
 }
 
 pub async fn find_players(

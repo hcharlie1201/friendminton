@@ -3,10 +3,12 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
+use schemars::JsonSchema;
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
-    accounts::{self, Player, PlayerSearch, User},
+    accounts::{self, Player, PlayerSearch},
     app::AppState,
     error::AppError,
 };
@@ -17,12 +19,17 @@ pub fn routes() -> ApiRouter<AppState> {
         .api_route("/{id}", get(get_user))
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub(crate) struct UserPath {
+    id: Uuid,
+}
+
 pub(crate) async fn get_user(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
-) -> Result<Json<User>, AppError> {
-    let user = accounts::get_user(&state.pool, id).await?;
-    Ok(Json(user))
+    Path(path): Path<UserPath>,
+) -> Result<Json<Player>, AppError> {
+    let player = accounts::get_player(&state.pool, path.id).await?;
+    Ok(Json(player))
 }
 
 pub(crate) async fn find_players(

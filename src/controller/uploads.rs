@@ -27,7 +27,12 @@ async fn create_upload_target(
 ) -> Result<Json<UploadTarget>, AppError> {
     let target = state
         .media
-        .create_upload_target(user_id, &payload.content_type, payload.size_bytes)
+        .create_upload_target_for(
+            user_id,
+            &payload.content_type,
+            payload.size_bytes,
+            payload.purpose,
+        )
         .await?;
     Ok(Json(target))
 }
@@ -50,4 +55,122 @@ async fn upload_local_image(
         .await?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::http::{Method, StatusCode};
+    use serde_json::json;
+
+    use crate::{controller::test_support::TestApi, media::MAX_IMAGE_BYTES};
+
+    #[tokio::test]
+    async fn upload_routes_authenticate_scope_validate_and_store_each_purpose() {
+        let api = TestApi::new().await;
+        let user_id = api.insert_user("upload-owner").await;
+
+        let unauthorized = api
+            .json(
+                Method::POST,
+                "/api/uploads/presign",
+                None,
+                Some(json!({
+                    "content_type": "image/png",
+                    "size_bytes": 4
+                })),
+            )
+            .await;
+        assert_eq!(unauthorized.status, StatusCode::UNAUTHORIZED);
+
+        let post_target = api
+            .json(
+                Method::POST,
+                "/api/uploads/presign",
+                Some(user_id),
+                Some(json!({
+                    "content_type": "image/png",
+                    "size_bytes": 4
+                })),
+            )
+            .await;
+        assert_eq!(post_target.status, StatusCode::OK, "{}", post_target.body);
+        assert!(
+            post_target.body["object_key"]
+                .as_str()
+                .expect("post object key")
+                .starts_with(&format!("posts/{user_id}/"))
+        );
+
+        let gathering_target = api
+            .json(
+                Method::POST,
+                "/api/uploads/presign",
+                Some(user_id),
+                Some(json!({
+                    "content_type": "image/png",
+                    "size_bytes": 4,
+                    "purpose": "gathering_cover"
+                })),
+            )
+            .await;
+        assert_eq!(
+            gathering_target.status,
+            StatusCode::OK,
+            "{}",
+            gathering_target.body
+        );
+        let object_key = gathering_target.body["object_key"]
+            .as_str()
+            .expect("gathering object key");
+        assert!(object_key.starts_with(&format!("gatherings/{user_id}/")));
+
+        let upload_url = gathering_target.body["upload_url"]
+            .as_str()
+            .expect("local upload URL");
+        let uploaded = api
+            .request(
+                Method::PUT,
+                upload_url,
+                Some(user_id),
+                Some("image/png"),
+                b"test".to_vec(),
+            )
+            .await;
+        assert_eq!(uploaded.status, StatusCode::NO_CONTENT, "{}", uploaded.body);
+        assert_eq!(
+            tokio::fs::read(api.upload_dir.join(object_key))
+                .await
+                .expect("read locally uploaded gathering cover"),
+            b"test"
+        );
+
+        let invalid_type = api
+            .json(
+                Method::POST,
+                "/api/uploads/presign",
+                Some(user_id),
+                Some(json!({
+                    "content_type": "application/pdf",
+                    "size_bytes": 4,
+                    "purpose": "gathering_cover"
+                })),
+            )
+            .await;
+        assert_eq!(invalid_type.status, StatusCode::BAD_REQUEST);
+
+        let invalid_size = api
+            .json(
+                Method::POST,
+                "/api/uploads/presign",
+                Some(user_id),
+                Some(json!({
+                    "content_type": "image/jpeg",
+                    "size_bytes": MAX_IMAGE_BYTES as i64 + 1
+                })),
+            )
+            .await;
+        assert_eq!(invalid_size.status, StatusCode::BAD_REQUEST);
+
+        api.cleanup_users(&[user_id]).await;
+    }
 }

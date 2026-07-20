@@ -64,6 +64,9 @@ function ProtectedRoutes() {
       </Stack.Protected>
       <Stack.Protected guard={Boolean(user)}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="gatherings/new" options={{ gestureEnabled: false, presentation: 'modal' }} />
+        <Stack.Screen name="gatherings/[gatheringId]" />
+        <Stack.Screen name="players/[playerId]" />
         <Stack.Screen name="posts/[postId]" />
       </Stack.Protected>
     </Stack>

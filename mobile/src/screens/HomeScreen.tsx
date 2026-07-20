@@ -23,7 +23,6 @@ import {
   getApiGameInvites,
   getApiPostsFeed,
   postApiEngagementNotificationsRead,
-  postApiGameInvites,
   postApiPosts,
   postApiWorkouts,
   putApiPosts,
@@ -50,7 +49,6 @@ import {
   type Tab,
 } from '../components/home';
 import { Screen, colors } from '../components/ui';
-import { buildDefaultGameInvite } from '../features/gameInvites/defaultGameInvite';
 import {
   draftFromPost,
   emptyPostDraft,
@@ -62,6 +60,7 @@ import { uploadPostPhotos } from '../features/posts/uploads';
 import { feedQueryKey } from '../features/posts/feed';
 import { type RecordedWorkout, useWorkoutRecorder } from '../features/workouts/useWorkoutRecorder';
 import { usePlayerSearch } from '../features/players/usePlayerSearch';
+import { useGatheringDiscovery } from '../features/gatherings/useGatheringDiscovery';
 
 type WriteMutation = {
   mutate: () => void;
@@ -146,6 +145,9 @@ export function HomeScreen() {
   const workoutRecorder = useWorkoutRecorder();
   const homeRefresh = useHomeRefresh(queryClient, currentUser.id);
   const openPost = usePostNavigation();
+  const openGathering = useGatheringDetailNavigation();
+  const openPlayer = usePlayerProfileNavigation();
+  const openGatheringCreator = useGatheringCreatorNavigation(city);
 
   const healthQuery = useQuery({
     queryKey: ['health'],
@@ -157,6 +159,12 @@ export function HomeScreen() {
     enabled: activeTab === 'discover',
     query: playerSearch,
     skillLevel,
+  });
+  const gatheringsQuery = useGatheringDiscovery({
+    city,
+    enabled: activeTab === 'discover' || activeTab === 'groups',
+    skillLevel,
+    userId: currentUser.id,
   });
   const feedQuery = useInfiniteQuery({
     queryKey: feedQueryKey,
@@ -216,21 +224,6 @@ export function HomeScreen() {
       await invalidateHomeData(queryClient, currentUser.id);
     },
   });
-  const createGameInviteMutation = useMutation({
-    mutationFn: () =>
-      postApiGameInvites({
-        body: buildDefaultGameInvite(city),
-        headers: authHeaders(currentUser.id),
-      }).then(unwrap),
-    onError: showError,
-    onSuccess: async () => {
-      setActiveTab('groups');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['gameInvites'] }),
-        queryClient.invalidateQueries({ queryKey: ['weeklySnapshot', currentUser.id] }),
-      ]);
-    },
-  });
   const markNotificationsReadMutation = useMutation({
     mutationFn: () =>
       postApiEngagementNotificationsRead({
@@ -252,19 +245,21 @@ export function HomeScreen() {
   const isLoading =
     healthQuery.isLoading ||
     playersQuery.isFetching ||
+    gatheringsQuery.isFetching ||
     (feedQuery.isFetching && !feedQuery.isFetchingNextPage) ||
     snapshotQuery.isFetching ||
     gameInvitesQuery.isFetching ||
     createPostMutation.isPending ||
-    createGameInviteMutation.isPending ||
     markNotificationsReadMutation.isPending;
   const actions = useHomeActions({
-    createGameInviteMutation,
     createPostMutation,
     discardWorkout: workoutRecorder.reset,
     endWorkout: workoutRecorder.end,
     pauseWorkout: workoutRecorder.pause,
+    openGathering,
+    openPlayer,
     openPost,
+    openGatheringCreator,
     resumeWorkout: workoutRecorder.resume,
     setActiveTab,
     setEditingPostId,
@@ -307,13 +302,13 @@ export function HomeScreen() {
         ref={homeScrollRef}
         contentContainerStyle={styles.content}
         onScroll={onFeedScroll}
-        refreshControl={activeTab === 'home' ? (
+        refreshControl={supportsPullToRefresh(activeTab) ? (
           <RefreshControl
             colors={[colors.primary]}
             onRefresh={homeRefresh.refresh}
             refreshing={homeRefresh.isRefreshing}
             tintColor={colors.primary}
-            title="Refreshing activity..."
+            title={pullToRefreshTitle(activeTab)}
             titleColor={colors.muted}
           />
         ) : undefined}
@@ -330,6 +325,7 @@ export function HomeScreen() {
           feed={feed}
           feedRefreshToken={homeRefresh.imageRefreshToken}
           gameInvites={gameInvites}
+          gatherings={gatheringsQuery.gatherings}
           notifications={notifications}
           onCityChange={discoveryPreferences.setCity}
           onDiscoveryPreferencesChange={discoveryPreferences.apply}
@@ -404,12 +400,14 @@ function requireSessionUser(user: ReturnType<typeof useSession>['user']) {
 }
 
 function useHomeActions({
-  createGameInviteMutation,
   createPostMutation,
   discardWorkout,
   endWorkout,
   pauseWorkout,
+  openGathering,
+  openPlayer,
   openPost,
+  openGatheringCreator,
   resumeWorkout,
   setActiveTab,
   setEditingPostId,
@@ -419,12 +417,14 @@ function useHomeActions({
   startWorkout,
   homeScrollRef,
 }: {
-  createGameInviteMutation: WriteMutation;
   createPostMutation: WriteMutation;
   discardWorkout: () => void;
   endWorkout: () => void;
   pauseWorkout: () => void;
+  openGathering: (gatheringId: string) => void;
+  openPlayer: (playerId: string) => void;
   openPost: (post: FeedPost) => void;
+  openGatheringCreator: () => void;
   resumeWorkout: () => void;
   setActiveTab: (tab: Tab) => void;
   setEditingPostId: (postId: string | null) => void;
@@ -437,12 +437,14 @@ function useHomeActions({
   return useMemo(
     () => ({
       cancelPostEdit: () => resetPostEditor(setPostDraft, setEditingPostId),
-      createGameInvite: () => createGameInviteMutation.mutate(),
+      createGathering: openGatheringCreator,
       createPost: () => createPostMutation.mutate(),
       discardWorkout: () => resetWorkoutDraft(discardWorkout, setPostDraft, setRecordedWorkoutId),
       editPost: (post: FeedPost) =>
         beginPostEdit(post, setPostDraft, setEditingPostId, setActiveTab, homeScrollRef),
       endWorkout,
+      openGathering,
+      openPlayer,
       openPost,
       pauseWorkout,
       resumeWorkout,
@@ -450,11 +452,13 @@ function useHomeActions({
       startWorkout: () => beginWorkout(startWorkout, setPostDraft, setEditingPostId, setRecordedWorkoutId),
     }),
     [
-      createGameInviteMutation,
       createPostMutation,
       discardWorkout,
       endWorkout,
+      openGathering,
+      openPlayer,
       openPost,
+      openGatheringCreator,
       pauseWorkout,
       resumeWorkout,
       setActiveTab,
@@ -466,6 +470,27 @@ function useHomeActions({
       homeScrollRef,
     ],
   );
+}
+
+function useGatheringCreatorNavigation(city: string) {
+  const router = useRouter();
+  return useCallback(() => {
+    router.push({ pathname: '/gatherings/new', params: { city } });
+  }, [city, router]);
+}
+
+function useGatheringDetailNavigation() {
+  const router = useRouter();
+  return useCallback((gatheringId: string) => {
+    router.push({ pathname: '/gatherings/[gatheringId]', params: { gatheringId } });
+  }, [router]);
+}
+
+function usePlayerProfileNavigation() {
+  const router = useRouter();
+  return useCallback((playerId: string) => {
+    router.push({ pathname: '/players/[playerId]', params: { playerId } });
+  }, [router]);
 }
 
 function usePostNavigation() {
@@ -639,7 +664,20 @@ async function invalidateHomeData(queryClient: ReturnType<typeof useQueryClient>
 }
 
 async function refreshHomeData(queryClient: ReturnType<typeof useQueryClient>, userId: string) {
-  await invalidateHomeData(queryClient, userId);
+  await Promise.all([
+    invalidateHomeData(queryClient, userId),
+    queryClient.invalidateQueries({ queryKey: ['players'] }),
+    queryClient.invalidateQueries({ queryKey: ['gatherings'] }),
+    queryClient.invalidateQueries({ queryKey: ['gameInvites'] }),
+  ]);
+}
+
+function supportsPullToRefresh(tab: Tab) {
+  return tab === 'home' || tab === 'discover';
+}
+
+function pullToRefreshTitle(tab: Tab) {
+  return tab === 'discover' ? 'Refreshing discoveries...' : 'Refreshing activity...';
 }
 
 const styles = StyleSheet.create({

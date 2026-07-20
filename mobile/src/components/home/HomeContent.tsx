@@ -1,6 +1,7 @@
 import type {
   FeedPost,
   GameInvite,
+  Gathering,
   Notification,
   Player,
   User,
@@ -8,12 +9,15 @@ import type {
 } from '../../api/generated';
 import { StyleSheet, View } from 'react-native';
 import { ActivityPostCard } from '../feed/ActivityPostCard';
+import { DiscoverCarousels } from '../discovery';
+import { DiscoverGatheringSections } from '../gatherings';
 import { PostComposer } from '../feed/PostComposer';
 import type { PostDraft } from '../../features/posts/postDraft';
 import { formatElapsedTime, type WorkoutRecorderPhase } from '../../features/workouts/useWorkoutRecorder';
 import { Button, Section } from '../ui';
 import { DiscoveryFilters } from './DiscoveryFilters';
 import { GameInviteCard } from './GameInviteCard';
+import { HostGatheringBanner } from './HostGatheringBanner';
 import { PlayerSearchResults } from './PlayerSearchResults';
 import { SettingsPanel } from './SettingsPanel';
 import type { DiscoveryPreferences, SkillLevel, Tab } from './types';
@@ -22,11 +26,13 @@ import { WorkoutRecorder } from './WorkoutRecorder';
 
 export type HomeActions = {
   cancelPostEdit: () => void;
-  createGameInvite: () => void;
+  createGathering: () => void;
   createPost: () => void;
   discardWorkout: () => void;
   editPost: (post: FeedPost) => void;
   endWorkout: () => void;
+  openGathering: (gatheringId: string) => void;
+  openPlayer: (playerId: string) => void;
   openPost: (post: FeedPost) => void;
   pauseWorkout: () => void;
   resumeWorkout: () => void;
@@ -40,6 +46,7 @@ type Props = {
   feed: FeedPost[];
   feedRefreshToken: number;
   gameInvites: GameInvite[];
+  gatherings: Gathering[];
   city: string;
   currentUser: Pick<User, 'id' | 'display_name' | 'email'>;
   editingPostId: string | null;
@@ -70,6 +77,7 @@ export function HomeContent({
   feed,
   feedRefreshToken,
   gameInvites,
+  gatherings,
   notifications,
   onCityChange,
   onDiscoveryPreferencesChange,
@@ -91,12 +99,17 @@ export function HomeContent({
     return (
       <>
         <DiscoveryFilters city={city} onApply={onDiscoveryPreferencesChange} skillLevel={skillLevel} />
-        <PlayerSearchResults
-          hasError={playerSearchHasError}
-          onRetry={onRetryPlayerSearch}
-          players={players}
-          query={playerSearchQuery}
-        />
+        <HostGatheringBanner onCreate={actions.createGathering} />
+        <DiscoverCarousels gatherings={gatherings} onOpenGathering={actions.openGathering} />
+        {playerSearchQuery.length > 0 && (
+          <PlayerSearchResults
+            hasError={playerSearchHasError}
+            onOpenPlayer={actions.openPlayer}
+            onRetry={onRetryPlayerSearch}
+            players={players}
+            query={playerSearchQuery}
+          />
+        )}
       </>
     );
   }
@@ -136,14 +149,25 @@ export function HomeContent({
 
   if (activeTab === 'groups') {
     return (
-      <Section title="Game invites" emptyText="No invites found yet." itemCount={gameInvites.length}>
-        <Button icon="add-circle" onPress={actions.createGameInvite}>
-          Create tomorrow's doubles invite
-        </Button>
-        {gameInvites.map((invite) => (
-          <GameInviteCard invite={invite} key={invite.id} />
-        ))}
-      </Section>
+      <>
+        <Section
+          title="Sessions & socials"
+          emptyText="Nothing nearby yet. Host the first gathering."
+          itemCount={gatherings.length}
+        >
+          <Button icon="add-circle" onPress={actions.createGathering}>
+            Host a session or social
+          </Button>
+          <DiscoverGatheringSections gatherings={gatherings} onOpenGathering={actions.openGathering} />
+        </Section>
+        {gameInvites.length > 0 && (
+          <Section title="Game invites" itemCount={gameInvites.length}>
+            {gameInvites.map((invite) => (
+              <GameInviteCard invite={invite} key={invite.id} />
+            ))}
+          </Section>
+        )}
+      </>
     );
   }
 

@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Friendminton uses your location to find nearby players and game invites."
+        "NSLocationWhenInUseUsageDescription": "Friendminton uses your location to find nearby players, sessions, and socials."
       },
       "bundleIdentifier": "com.anonymous.friendminton-mobile"
     },
@@ -39,17 +39,18 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Friendminton uses your location to find nearby players and game invites."
+          "locationWhenInUsePermission": "Friendminton uses your location to find nearby players, sessions, and socials."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Friendminton lets you choose photos to share with your badminton posts."
+          "photosPermission": "Friendminton lets you choose photos for badminton posts and gathering covers."
         }
       ],
       "expo-font",
-      "expo-status-bar"
+      "expo-status-bar",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

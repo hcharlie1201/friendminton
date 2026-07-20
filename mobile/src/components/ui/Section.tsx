@@ -15,7 +15,7 @@ export function Section({ children, emptyText, itemCount, title }: Props) {
   return (
     <View style={styles.section}>
       <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
+        <Text accessibilityRole="header" style={styles.title}>{title}</Text>
         <Text style={styles.count}>{itemCount}</Text>
       </View>
       {itemCount === 0 && emptyText ? <Text style={styles.empty}>{emptyText}</Text> : null}

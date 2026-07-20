@@ -94,6 +94,16 @@ pub enum MediaStorage {
 pub struct CreateUploadTarget {
     pub content_type: String,
     pub size_bytes: i64,
+    #[serde(default)]
+    pub purpose: UploadPurpose,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UploadPurpose {
+    #[default]
+    Post,
+    GatheringCover,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -128,11 +138,12 @@ impl MediaStorage {
         })
     }
 
-    pub async fn create_upload_target(
+    pub async fn create_upload_target_for(
         &self,
         user_id: Uuid,
         content_type: &str,
         size_bytes: i64,
+        purpose: UploadPurpose,
     ) -> Result<UploadTarget, AppError> {
         if !(1..=MAX_IMAGE_BYTES as i64).contains(&size_bytes) {
             return Err(AppError::BadRequest(
@@ -140,7 +151,11 @@ impl MediaStorage {
             ));
         }
         let extension = image_extension(content_type)?;
-        let object_key = format!("posts/{user_id}/{}.{}", Uuid::new_v4(), extension);
+        let namespace = match purpose {
+            UploadPurpose::Post => "posts",
+            UploadPurpose::GatheringCover => "gatherings",
+        };
+        let object_key = format!("{namespace}/{user_id}/{}.{}", Uuid::new_v4(), extension);
         let (upload_url, headers) = match self {
             Self::Local { .. } => (
                 format!("/api/uploads/{object_key}"),
@@ -169,7 +184,7 @@ impl MediaStorage {
         bytes: &[u8],
     ) -> Result<(), AppError> {
         image_extension(content_type)?;
-        validate_object_key(user_id, object_key)?;
+        validate_upload_object_key(user_id, object_key)?;
 
         let Self::Local { upload_dir } = self else {
             return Err(AppError::BadRequest(
@@ -209,21 +224,43 @@ pub fn validate_object_keys(user_id: Uuid, object_keys: &[String]) -> Result<(),
     }
 
     for object_key in object_keys {
-        validate_object_key(user_id, object_key)?;
+        validate_post_object_key(user_id, object_key)?;
     }
 
     Ok(())
 }
 
-fn validate_object_key(user_id: Uuid, object_key: &str) -> Result<(), AppError> {
-    let expected_prefix = format!("posts/{user_id}/");
-    if !object_key.starts_with(&expected_prefix)
-        || object_key.contains("..")
-        || object_key.contains('\\')
+pub fn validate_gathering_cover_key(user_id: Uuid, object_key: &str) -> Result<(), AppError> {
+    if !is_scoped_object_key(user_id, object_key, "gatherings") {
+        return Err(AppError::BadRequest(
+            "invalid gathering cover object key".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_post_object_key(user_id: Uuid, object_key: &str) -> Result<(), AppError> {
+    if !is_scoped_object_key(user_id, object_key, "posts") {
+        return Err(AppError::BadRequest("invalid photo object key".to_owned()));
+    }
+    Ok(())
+}
+
+fn validate_upload_object_key(user_id: Uuid, object_key: &str) -> Result<(), AppError> {
+    if !is_scoped_object_key(user_id, object_key, "posts")
+        && !is_scoped_object_key(user_id, object_key, "gatherings")
     {
         return Err(AppError::BadRequest("invalid photo object key".to_owned()));
     }
     Ok(())
+}
+
+fn is_scoped_object_key(user_id: Uuid, object_key: &str, namespace: &str) -> bool {
+    let expected_prefix = format!("{namespace}/{user_id}/");
+    object_key.starts_with(&expected_prefix)
+        && object_key.len() > expected_prefix.len()
+        && !object_key.contains("..")
+        && !object_key.contains('\\')
 }
 
 fn image_extension(content_type: &str) -> Result<&'static str, AppError> {
@@ -248,8 +285,8 @@ fn presigning_config(expires_in: Duration) -> Result<PresigningConfig, AppError>
 #[cfg(test)]
 mod tests {
     use super::{
-        MAX_IMAGE_BYTES, MediaStorage, ObjectStore, SignedUpload, StorageFuture,
-        validate_object_keys,
+        MAX_IMAGE_BYTES, MediaStorage, ObjectStore, SignedUpload, StorageFuture, UploadPurpose,
+        validate_gathering_cover_key, validate_object_keys,
     };
     use std::{collections::HashMap, path::PathBuf, sync::Arc};
     use uuid::Uuid;
@@ -297,6 +334,13 @@ mod tests {
             validate_object_keys(user_id, &[format!("posts/{other_user_id}/photo.jpg")]).is_err()
         );
         assert!(validate_object_keys(user_id, &[format!("posts/{user_id}/../photo.jpg")]).is_err());
+        assert!(
+            validate_gathering_cover_key(user_id, &format!("gatherings/{user_id}/cover.jpg"))
+                .is_ok()
+        );
+        assert!(
+            validate_gathering_cover_key(user_id, &format!("posts/{user_id}/cover.jpg")).is_err()
+        );
     }
 
     #[tokio::test]
@@ -306,7 +350,7 @@ mod tests {
         };
         let user_id = Uuid::new_v4();
         let target = storage
-            .create_upload_target(user_id, "image/png", 1024)
+            .create_upload_target_for(user_id, "image/png", 1024, UploadPurpose::Post)
             .await
             .expect("valid upload target");
 
@@ -315,21 +359,36 @@ mod tests {
             target.headers.get("content-type"),
             Some(&"image/png".to_owned())
         );
+
+        let gathering_cover = storage
+            .create_upload_target_for(user_id, "image/png", 1024, UploadPurpose::GatheringCover)
+            .await
+            .expect("valid gathering cover target");
+        assert!(
+            gathering_cover
+                .object_key
+                .starts_with(&format!("gatherings/{user_id}/"))
+        );
         assert!(
             storage
-                .create_upload_target(user_id, "image/png", MAX_IMAGE_BYTES as i64 + 1)
+                .create_upload_target_for(
+                    user_id,
+                    "image/png",
+                    MAX_IMAGE_BYTES as i64 + 1,
+                    UploadPurpose::Post,
+                )
                 .await
                 .is_err()
         );
         assert!(
             storage
-                .create_upload_target(user_id, "image/png", 0)
+                .create_upload_target_for(user_id, "image/png", 0, UploadPurpose::Post)
                 .await
                 .is_err()
         );
         assert!(
             storage
-                .create_upload_target(user_id, "application/pdf", 1024)
+                .create_upload_target_for(user_id, "application/pdf", 1024, UploadPurpose::Post,)
                 .await
                 .is_err()
         );
@@ -395,7 +454,7 @@ mod tests {
         let user_id = Uuid::new_v4();
 
         let target = storage
-            .create_upload_target(user_id, "image/webp", 2048)
+            .create_upload_target_for(user_id, "image/webp", 2048, UploadPurpose::Post)
             .await
             .expect("presign S3 upload");
 
