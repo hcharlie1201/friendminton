@@ -1,10 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { postApiAuthSignUpEmail } from '../src/api/generated';
-import { unwrap } from '../src/api/runtime';
+import { apiData } from '../src/api/runtime';
 import { useSession } from '../src/auth/session';
+import { errorMessage } from '../src/common/errors';
 import { Button, PageHeader, Screen, TextField } from '../src/components/ui';
 
 export default function LoginScreen() {
@@ -15,19 +16,20 @@ export default function LoginScreen() {
 
   const signUpMutation = useMutation({
     mutationFn: () =>
-      postApiAuthSignUpEmail({
+      apiData(postApiAuthSignUpEmail({
         body: {
           email: email.trim(),
           display_name: displayName.trim(),
           city: city.trim() || null,
           skill_level: 'intermediate',
         },
-      }).then(unwrap),
+      })),
     onError: showError,
     onSuccess: async (user) => {
       await signIn(user);
     },
   });
+  const submit = useSubmitLogin(signUpMutation.mutate);
 
   return (
     <Screen centered>
@@ -50,7 +52,7 @@ export default function LoginScreen() {
           value={displayName}
         />
         <TextField autoCapitalize="words" onChangeText={setCity} placeholder="City" value={city} />
-        <Button loading={signUpMutation.isPending} onPress={() => signUpMutation.mutate()}>
+        <Button loading={signUpMutation.isPending} onPress={submit}>
           Continue
         </Button>
       </View>
@@ -59,8 +61,13 @@ export default function LoginScreen() {
 }
 
 function showError(error: unknown) {
-  const message = error instanceof Error ? error.message : 'Something went wrong.';
-  Alert.alert('Friendminton', message);
+  Alert.alert('Friendminton', errorMessage(error));
+}
+
+function useSubmitLogin(submit: () => void) {
+  return useCallback(() => {
+    submit();
+  }, [submit]);
 }
 
 const styles = StyleSheet.create({

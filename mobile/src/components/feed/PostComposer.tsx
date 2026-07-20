@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { PostDraft } from '../../features/posts/postDraft';
 import { Button, TextField, colors, fonts } from '../ui';
+import { PostLocationPicker } from './PostLocationPicker';
 
 const effortOptions = [
   { label: 'Easy', value: 3 },
@@ -91,24 +91,8 @@ export function PostComposer({
           label={draft.photos.length ? `${draft.photos.length}/4 photos` : 'Add photos'}
           onPress={() => void pickPhotos(draft, onChange)}
         />
-        <ToolButton icon="location-outline" label="Add location" onPress={() => void useCurrentLocation(draft, onChange)} />
       </View>
-
-      {draft.location.length > 0 && (
-        <View style={styles.locationRow}>
-          <Ionicons color={colors.primary} name="location" size={18} />
-          <TextField
-            onChangeText={(location) => onChange({ ...draft, location })}
-            placeholder="Court or neighborhood"
-            style={styles.locationInput}
-            value={draft.location}
-            variant="compact"
-          />
-          <Pressable accessibilityLabel="Remove location" hitSlop={8} onPress={() => onChange({ ...draft, location: '' })}>
-            <Ionicons color={colors.muted} name="close-circle" size={20} />
-          </Pressable>
-        </View>
-      )}
+      <PostLocationPicker draft={draft} onChange={onChange} />
 
       <View style={styles.effortSection}>
         <Text style={styles.fieldLabel}>MATCH EFFORT</Text>
@@ -170,25 +154,6 @@ async function pickPhotos(draft: PostDraft, onChange: (draft: PostDraft) => void
   }
 }
 
-async function useCurrentLocation(draft: PostDraft, onChange: (draft: PostDraft) => void) {
-  try {
-    const permission = await Location.requestForegroundPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Location access needed', 'Allow location access or type a location manually.');
-      onChange({ ...draft, location: ' ' });
-      return;
-    }
-
-    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-    const [place] = await Location.reverseGeocodeAsync(position.coords);
-    const label = [place?.name, place?.city ?? place?.subregion].filter(Boolean).join(', ');
-    onChange({ ...draft, location: label || 'Current location' });
-  } catch {
-    Alert.alert('Friendminton', 'Could not read your current location. You can type it instead.');
-    onChange({ ...draft, location: ' ' });
-  }
-}
-
 const styles = StyleSheet.create({
   composer: {
     backgroundColor: colors.card,
@@ -217,8 +182,6 @@ const styles = StyleSheet.create({
   toolPressed: { backgroundColor: '#D9EAFF' },
   toolDisabled: { opacity: 0.45 },
   toolLabel: { color: colors.primaryDark, fontFamily: fonts.extraBold, fontSize: 12, fontWeight: '800' },
-  locationRow: { alignItems: 'center', backgroundColor: colors.background, borderRadius: 8, flexDirection: 'row', gap: 6, paddingHorizontal: 10 },
-  locationInput: { backgroundColor: 'transparent', flex: 1, paddingHorizontal: 4 },
   effortSection: { gap: 7 },
   fieldLabel: { color: colors.muted, fontFamily: fonts.black, fontSize: 10, fontWeight: '900' },
   effortControl: { backgroundColor: colors.background, borderRadius: 8, flexDirection: 'row', padding: 3 },

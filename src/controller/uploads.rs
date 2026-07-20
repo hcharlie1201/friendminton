@@ -157,6 +157,7 @@ mod tests {
             )
             .await;
         assert_eq!(invalid_type.status, StatusCode::BAD_REQUEST);
+        assert_eq!(invalid_type.body["code"], "bad_request");
 
         let invalid_size = api
             .json(

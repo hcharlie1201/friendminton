@@ -16,6 +16,7 @@ use crate::{
         AppConfig, Environment, ObjectStorageConfig, ObjectStorageProvider, ThirdPartyConfig,
     },
     media::MediaStorage,
+    places::GooglePlaces,
 };
 
 const LOCAL_TEST_DATABASE_URL: &str =
@@ -45,6 +46,7 @@ impl TestApi {
                 media: MediaStorage::Local {
                     upload_dir: upload_dir.clone(),
                 },
+                places: GooglePlaces::new(None),
             },
             &config,
         );
@@ -178,6 +180,7 @@ fn test_config(upload_dir: &std::path::Path) -> AppConfig {
         server_addr: "127.0.0.1:0".to_owned(),
         upload_dir: upload_dir.to_string_lossy().into_owned(),
         third_party: ThirdPartyConfig {
+            google_places_api_key: None,
             object_storage: ObjectStorageConfig {
                 provider: ObjectStorageProvider::Local,
                 aws_region: "us-west-2".to_owned(),

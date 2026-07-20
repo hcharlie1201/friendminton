@@ -93,6 +93,7 @@ mod tests {
             .json(Method::POST, "/api/gatherings", None, Some(payload.clone()))
             .await;
         assert_eq!(unauthorized.status, StatusCode::UNAUTHORIZED);
+        assert_eq!(unauthorized.body["code"], "unauthorized");
 
         let created = api
             .json(
@@ -105,7 +106,8 @@ mod tests {
         assert_eq!(created.status, StatusCode::OK, "{}", created.body);
         assert_eq!(created.body["title"], "Friday birdies & board games");
         assert_eq!(created.body["currency"], "USD");
-        assert_eq!(created.body["skill_level"], "intermediate");
+        assert_eq!(created.body["skill_level"], "e_plus");
+        assert_eq!(created.body["court_setup"], "reserved");
         assert_eq!(created.body["host_id"], host_id.to_string());
 
         let gathering_id = response_uuid(&created.body, "id");
@@ -133,6 +135,7 @@ mod tests {
             )
             .await;
         assert_eq!(invalid_time.status, StatusCode::BAD_REQUEST);
+        assert_eq!(invalid_time.body["code"], "bad_request");
 
         let mut invalid_cover = gathering_payload("Wrong cover", &city, "public", "open", Some(16));
         invalid_cover["cover_image_key"] = json!(format!("posts/{host_id}/cover.jpg"));
@@ -236,6 +239,7 @@ mod tests {
             )
             .await;
         assert_eq!(missing.status, StatusCode::NOT_FOUND);
+        assert_eq!(missing.body["code"], "not_found");
 
         let invalid_limit = api
             .json(
@@ -414,8 +418,9 @@ mod tests {
             "capacity": capacity,
             "cost_per_person_cents": 1500,
             "currency": " usd ",
-            "skill_level": " Intermediate ",
+            "skill_level": "e_plus",
             "play_format": "open_play",
+            "court_setup": "reserved",
             "court_count": 4,
             "social_tags": [],
             "theme": "court-glow",

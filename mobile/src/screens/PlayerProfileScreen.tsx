@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getApiUsersById, type Player } from '../api/generated';
-import { unwrap } from '../api/runtime';
+import { apiData } from '../api/runtime';
 import { Button, colors, fonts } from '../components/ui';
 
 export function PlayerProfileScreen() {
@@ -118,7 +118,7 @@ function PlayerProfileError({ onRetry }: { onRetry: () => void }) {
 
 function usePlayerProfile(playerId: string) {
   const load = useCallback(
-    () => getApiUsersById({ path: { id: playerId } }).then(unwrap<Player>),
+    () => apiData<Player>(getApiUsersById({ path: { id: playerId } })),
     [playerId],
   );
   return useQuery({

@@ -59,6 +59,7 @@ impl FromStr for Environment {
 #[derive(Debug, Clone)]
 pub struct ThirdPartyConfig {
     pub object_storage: ObjectStorageConfig,
+    pub google_places_api_key: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -146,6 +147,7 @@ impl AppConfig {
             .to_owned();
         let provider = profile.third_party.object_storage.provider;
         let bucket = non_empty(get_env("S3_BUCKET")).or(profile.third_party.object_storage.bucket);
+        let google_places_api_key = non_empty(get_env("GOOGLE_PLACES_API_KEY"));
 
         if environment.is_deployed() && !public_base_url.starts_with("https://") {
             return Err(ConfigError::InsecurePublicBaseUrl(environment));
@@ -156,6 +158,12 @@ impl AppConfig {
         if provider == ObjectStorageProvider::S3 && bucket.is_none() {
             return Err(ConfigError::MissingVariable {
                 variable: "S3_BUCKET",
+                environment,
+            });
+        }
+        if environment.is_deployed() && google_places_api_key.is_none() {
+            return Err(ConfigError::MissingVariable {
+                variable: "GOOGLE_PLACES_API_KEY",
                 environment,
             });
         }
@@ -173,6 +181,7 @@ impl AppConfig {
                         .unwrap_or(profile.third_party.object_storage.aws_region),
                     bucket,
                 },
+                google_places_api_key,
             },
         })
     }
@@ -206,6 +215,7 @@ mod tests {
         let config = load(HashMap::from([
             ("APP_ENV", "staging"),
             ("DATABASE_URL", "postgres://staging-secret"),
+            ("GOOGLE_PLACES_API_KEY", "staging-google-key"),
         ]))
         .unwrap();
 
@@ -237,6 +247,7 @@ mod tests {
             ("DATABASE_URL", "postgres://production-secret"),
             ("PUBLIC_BASE_URL", "https://api.friendminton.com/"),
             ("S3_BUCKET", "friendminton-media-production"),
+            ("GOOGLE_PLACES_API_KEY", "production-google-key"),
         ]))
         .unwrap();
 
@@ -253,6 +264,7 @@ mod tests {
             ("APP_ENV", "staging"),
             ("DATABASE_URL", "postgres://staging-secret"),
             ("PUBLIC_BASE_URL", "http://staging.example.com"),
+            ("GOOGLE_PLACES_API_KEY", "staging-google-key"),
         ]))
         .unwrap_err();
 

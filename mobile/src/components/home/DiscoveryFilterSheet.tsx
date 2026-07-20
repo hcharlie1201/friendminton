@@ -28,13 +28,15 @@ const MINIMUM_SHEET_BOTTOM_PADDING = 16;
 
 export const DiscoveryFilterSheet = memo(function DiscoveryFilterSheet({
   city,
+  latitude,
+  longitude,
   onApply,
   onClose,
   skillLevel,
   visible,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const filter = useDiscoveryFilterSheet({ city, onApply, skillLevel, visible });
+  const filter = useDiscoveryFilterSheet({ city, latitude, longitude, onApply, skillLevel, visible });
 
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
@@ -100,7 +102,7 @@ export const DiscoveryFilterSheet = memo(function DiscoveryFilterSheet({
             </ScrollView>
 
             <Button icon="checkmark" onPress={filter.apply}>
-              Show players
+              Show results
             </Button>
           </View>
         </KeyboardAvoidingView>
@@ -109,7 +111,7 @@ export const DiscoveryFilterSheet = memo(function DiscoveryFilterSheet({
   );
 });
 
-function useDiscoveryFilterSheet({ city, onApply, skillLevel, visible }: Omit<Props, 'onClose'>) {
+function useDiscoveryFilterSheet({ city, latitude, longitude, onApply, skillLevel, visible }: Omit<Props, 'onClose'>) {
   const [isLocating, setIsLocating] = useState(false);
   const [draftCity, setDraftCity] = useState(city);
   const [draftSkillLevel, setDraftSkillLevel] = useState<SkillLevel | null>(skillLevel);
@@ -133,8 +135,14 @@ function useDiscoveryFilterSheet({ city, onApply, skillLevel, visible }: Omit<Pr
       return;
     }
 
-    onApply({ city: normalizedCity, skillLevel: draftSkillLevel });
-  }, [draftCity, draftSkillLevel, onApply]);
+    const cityUnchanged = normalizedCity === city;
+    onApply({
+      city: normalizedCity,
+      latitude: cityUnchanged ? latitude : null,
+      longitude: cityUnchanged ? longitude : null,
+      skillLevel: draftSkillLevel,
+    });
+  }, [city, draftCity, draftSkillLevel, latitude, longitude, onApply]);
 
   const useCurrentLocation = useCallback(async () => {
     setIsLocating(true);

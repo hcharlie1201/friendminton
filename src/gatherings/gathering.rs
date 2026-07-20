@@ -47,10 +47,32 @@ pub enum GatheringParticipantStatus {
 #[sqlx(type_name = "text", rename_all = "snake_case")]
 pub enum PlayFormat {
     OpenPlay,
+    RoundRobin,
     Doubles,
     Singles,
     Drills,
     Coaching,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Type)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "text", rename_all = "snake_case")]
+pub enum GatheringSkillLevel {
+    Beginner,
+    E,
+    EPlus,
+    D,
+    C,
+    B,
+    A,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Type)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "text", rename_all = "snake_case")]
+pub enum CourtSetup {
+    DropIn,
+    Reserved,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Type)]
@@ -80,12 +102,16 @@ pub struct Gathering {
     pub ends_at: Option<OffsetDateTime>,
     pub venue: String,
     pub city: String,
+    pub court_id: Option<Uuid>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     pub description: Option<String>,
     pub capacity: Option<i32>,
     pub cost_per_person_cents: i32,
     pub currency: String,
-    pub skill_level: Option<String>,
+    pub skill_level: Option<GatheringSkillLevel>,
     pub play_format: Option<PlayFormat>,
+    pub court_setup: Option<CourtSetup>,
     pub court_count: Option<i32>,
     pub social_tags: Vec<SocialTag>,
     pub theme: Option<String>,
@@ -115,14 +141,18 @@ pub struct CreateGathering {
     pub ends_at: Option<OffsetDateTime>,
     pub venue: String,
     pub city: String,
+    pub court_id: Option<Uuid>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     pub description: Option<String>,
     pub capacity: Option<i32>,
     #[serde(default)]
     pub cost_per_person_cents: i32,
     #[serde(default = "default_currency")]
     pub currency: String,
-    pub skill_level: Option<String>,
+    pub skill_level: Option<GatheringSkillLevel>,
     pub play_format: Option<PlayFormat>,
+    pub court_setup: Option<CourtSetup>,
     pub court_count: Option<i32>,
     #[serde(default)]
     pub social_tags: Vec<SocialTag>,
@@ -140,6 +170,9 @@ pub struct GatheringSearch {
     #[serde(default, with = "time::serde::rfc3339::option")]
     #[schemars(with = "Option<String>")]
     pub starts_before: Option<OffsetDateTime>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    pub radius_km: Option<f64>,
     pub limit: Option<i64>,
 }
 
@@ -165,12 +198,16 @@ pub(super) struct StoredGathering {
     pub ends_at: Option<OffsetDateTime>,
     pub venue: String,
     pub city: String,
+    pub court_id: Option<Uuid>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     pub description: Option<String>,
     pub capacity: Option<i32>,
     pub cost_per_person_cents: i32,
     pub currency: String,
-    pub skill_level: Option<String>,
+    pub skill_level: Option<GatheringSkillLevel>,
     pub play_format: Option<PlayFormat>,
+    pub court_setup: Option<CourtSetup>,
     pub court_count: Option<i32>,
     pub social_tags: Vec<SocialTag>,
     pub theme: Option<String>,

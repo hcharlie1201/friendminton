@@ -24,6 +24,7 @@ export type DiscoverGathering = {
   city: string;
   cost_per_person_cents: number;
   court_count?: number | null;
+  court_setup?: 'drop_in' | 'reserved' | null;
   cover_image_key?: string | null;
   cover_image_url?: string | null;
   created_at: string;
@@ -34,7 +35,7 @@ export type DiscoverGathering = {
   id: string;
   join_policy: 'open' | 'approval_required' | 'invite_only' | 'members_only';
   kind: GatheringKind;
-  play_format?: 'open_play' | 'doubles' | 'singles' | 'drills' | 'coaching' | null;
+  play_format?: 'open_play' | 'round_robin' | 'doubles' | 'singles' | 'drills' | 'coaching' | null;
   skill_level?: string | null;
   social_tags: Array<'drinks' | 'food' | 'board_games' | 'watch_party' | 'gear_swap'>;
   starts_at: string;
@@ -256,7 +257,12 @@ function gatheringMetadata(gathering: DiscoverGathering) {
 
   if (gathering.play_format) items.push(playFormatLabel(gathering.play_format));
   if (gathering.skill_level) items.push(skillLevelLabel(gathering.skill_level));
-  if (gathering.court_count) items.push(`${gathering.court_count} ${gathering.court_count === 1 ? 'court' : 'courts'}`);
+  if (gathering.court_setup === 'drop_in') items.push('Drop-in courts');
+  if (gathering.court_setup === 'reserved') {
+    items.push(gathering.court_count
+      ? `${gathering.court_count} reserved ${gathering.court_count === 1 ? 'court' : 'courts'}`
+      : 'Courts reserved');
+  }
   if (gathering.capacity) items.push(`${gathering.capacity} spots`);
 
   for (const tag of gathering.social_tags.slice(0, 2)) {
@@ -274,6 +280,7 @@ function playFormatLabel(format: NonNullable<DiscoverGathering['play_format']>) 
     case 'singles': return 'Singles';
     case 'drills': return 'Drills';
     case 'coaching': return 'Coaching';
+    case 'round_robin': return 'Round robin';
   }
 }
 
@@ -289,6 +296,8 @@ function socialTagLabel(tag: DiscoverGathering['social_tags'][number]) {
 
 function skillLevelLabel(level: string) {
   if (level === 'all_levels') return 'All levels';
+  if (level === 'e_plus') return 'E+';
+  if (['e', 'd', 'c', 'b', 'a'].includes(level)) return level.toUpperCase();
   return `${level.charAt(0).toUpperCase()}${level.slice(1)}`;
 }
 
@@ -306,7 +315,7 @@ function joinPolicyLabel(policy: DiscoverGathering['join_policy']) {
     case 'approval_required': return 'Request to join';
     case 'invite_only': return 'Invite only';
     case 'members_only': return 'Members only';
-    default: return 'Drop in';
+    default: return 'Open';
   }
 }
 

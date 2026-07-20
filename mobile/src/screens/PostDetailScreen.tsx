@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getApiPostsByPostId, type FeedPost } from '../api/generated';
-import { unwrap } from '../api/runtime';
+import { apiData } from '../api/runtime';
 import { PostPhotoGallery } from '../components/feed/PostPhotoGallery';
 import { Button, colors, fonts } from '../components/ui';
 import { estimateBadmintonSession, type BadmintonEstimate } from '../features/posts/badmintonEstimates';
@@ -272,7 +272,7 @@ function usePostRetry(refetch: () => Promise<unknown>) {
 
 async function loadPost(postId: string) {
   if (!postId) throw new Error('Missing post id');
-  return getApiPostsByPostId({ path: { post_id: postId } }).then(unwrap<FeedPost>);
+  return apiData<FeedPost>(getApiPostsByPostId({ path: { post_id: postId } }));
 }
 
 function singleParam(value: string | string[] | undefined) {

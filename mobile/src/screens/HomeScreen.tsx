@@ -36,14 +36,16 @@ import {
   type Workout,
 } from '../api/generated';
 import { apiBaseUrl } from '../config';
-import { authHeaders, unwrap, unwrapEmpty } from '../api/runtime';
+import { apiData, apiSuccess, authHeaders } from '../api/runtime';
 import { useSession } from '../auth/session';
+import { errorMessage } from '../common/errors';
 import {
   AppHeader,
   BottomTabBar,
   HomeContent,
   InlineLoading,
   type DiscoveryPreferences,
+  type DiscoveryLocation,
   type HomeActions,
   type SkillLevel,
   type Tab,
@@ -70,14 +72,22 @@ const feedPageSize = 20;
 const feedLoadAheadDistance = 320;
 
 function useDiscoveryPreferences() {
-  const [city, setCity] = useState('Oakland');
+  const [location, setLocation] = useState<DiscoveryLocation>({
+    city: 'Oakland',
+    latitude: 37.8044,
+    longitude: -122.2712,
+  });
   const [skillLevel, setSkillLevel] = useState<SkillLevel | null>(null);
   const apply = useCallback((preferences: DiscoveryPreferences) => {
-    setCity(preferences.city);
+    setLocation({
+      city: preferences.city,
+      latitude: preferences.latitude,
+      longitude: preferences.longitude,
+    });
     setSkillLevel(preferences.skillLevel);
   }, []);
 
-  return { apply, city, setCity, skillLevel };
+  return { apply, ...location, setLocation, skillLevel };
 }
 
 function useHomeRefresh(queryClient: ReturnType<typeof useQueryClient>, userId: string) {
@@ -135,7 +145,7 @@ export function HomeScreen() {
   const currentUser = requireSessionUser(user);
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const discoveryPreferences = useDiscoveryPreferences();
-  const { city, skillLevel } = discoveryPreferences;
+  const { city, latitude, longitude, skillLevel } = discoveryPreferences;
   const [playerSearch, setPlayerSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [workoutTitle, setWorkoutTitle] = useState('Doubles ladder night');
@@ -163,6 +173,8 @@ export function HomeScreen() {
   const gatheringsQuery = useGatheringDiscovery({
     city,
     enabled: activeTab === 'discover' || activeTab === 'groups',
+    latitude,
+    longitude,
     skillLevel,
     userId: currentUser.id,
   });
@@ -175,34 +187,34 @@ export function HomeScreen() {
   const snapshotQuery = useQuery({
     queryKey: ['weeklySnapshot', currentUser.id],
     queryFn: () =>
-      getApiEngagementWeeklySnapshot({
+      apiData<WeeklySnapshot>(getApiEngagementWeeklySnapshot({
         headers: authHeaders(currentUser.id),
-      }).then(unwrap<WeeklySnapshot>),
+      })),
   });
   const notificationsQuery = useQuery({
     queryKey: ['notifications', currentUser.id],
     queryFn: () =>
-      getApiEngagementNotifications({
+      apiData<Notification[]>(getApiEngagementNotifications({
         headers: authHeaders(currentUser.id),
-      }).then(unwrap<Notification[]>),
+      })),
   });
   const unreadNotificationsQuery = useQuery({
     queryKey: ['notifications', 'unreadCount', currentUser.id],
     enabled: notificationsQuery.isSuccess,
     queryFn: () =>
-      getApiEngagementNotificationsUnreadCount({
+      apiData<UnreadNotificationCount>(getApiEngagementNotificationsUnreadCount({
         headers: authHeaders(currentUser.id),
-      }).then(unwrap<UnreadNotificationCount>),
+      })),
   });
   const gameInvitesQuery = useQuery({
     queryKey: ['gameInvites', city, skillLevel],
     queryFn: () =>
-      getApiGameInvites({
+      apiData<GameInvite[]>(getApiGameInvites({
         query: {
           city,
           skill_level: skillLevel ?? undefined,
         },
-      }).then(unwrap<GameInvite[]>),
+      })),
   });
   const createPostMutation = useMutation({
     mutationFn: () =>
@@ -226,9 +238,9 @@ export function HomeScreen() {
   });
   const markNotificationsReadMutation = useMutation({
     mutationFn: () =>
-      postApiEngagementNotificationsRead({
+      apiSuccess(postApiEngagementNotificationsRead({
         headers: authHeaders(currentUser.id),
-      }).then(unwrapEmpty),
+      })),
     onError: showError,
     onSuccess: async () => {
       await Promise.all([
@@ -320,6 +332,8 @@ export function HomeScreen() {
           actions={actions}
           activeTab={activeTab}
           city={city}
+          latitude={latitude}
+          longitude={longitude}
           currentUser={currentUser}
           editingPostId={editingPostId}
           feed={feed}
@@ -327,8 +341,7 @@ export function HomeScreen() {
           gameInvites={gameInvites}
           gatherings={gatheringsQuery.gatherings}
           notifications={notifications}
-          onCityChange={discoveryPreferences.setCity}
-          onDiscoveryPreferencesChange={discoveryPreferences.apply}
+          onLocationChange={discoveryPreferences.setLocation}
           onPostDraftChange={setPostDraft}
           onRetryPlayerSearch={playersQuery.refetch}
           players={players}
@@ -337,7 +350,6 @@ export function HomeScreen() {
           postDraft={postDraft}
           postIsSaving={createPostMutation.isPending}
           setWorkoutTitle={setWorkoutTitle}
-          skillLevel={skillLevel}
           snapshot={snapshotQuery.data}
           workoutElapsedMilliseconds={workoutRecorder.elapsedMilliseconds}
           workoutPhase={workoutRecorder.phase}
@@ -360,12 +372,12 @@ export function HomeScreen() {
 async function loadFeedPage({
   pageParam,
 }: QueryFunctionContext<typeof feedQueryKey, string | null>) {
-  const response = await getApiPostsFeed({
+  const response = await apiData<FeedPage | FeedPost[]>(getApiPostsFeed({
     query: {
       cursor: pageParam,
       limit: feedPageSize,
     },
-  }).then(unwrap<FeedPage | FeedPost[]>);
+  }));
   const page = Array.isArray(response)
     ? { items: response, next_cursor: null }
     : response;
@@ -387,8 +399,7 @@ function getNextFeedPageParam(lastPage: FeedPage) {
 }
 
 function showError(error: unknown) {
-  const message = error instanceof Error ? error.message : 'Something went wrong.';
-  Alert.alert('Friendminton', message);
+  Alert.alert('Friendminton', errorMessage(error));
 }
 
 function requireSessionUser(user: ReturnType<typeof useSession>['user']) {
@@ -541,7 +552,10 @@ async function savePost({
     if (!draft.workoutId) {
       throw new Error('This post is not attached to a recorded workout and cannot be edited.');
     }
-    return putApiPosts({ body: { ...commonBody, id: postId, workout_id: draft.workoutId }, headers }).then(unwrap);
+    return apiData(putApiPosts({
+      body: { ...commonBody, id: postId, workout_id: draft.workoutId },
+      headers,
+    }));
   }
 
   if (!recordedWorkout) {
@@ -550,7 +564,7 @@ async function savePost({
 
   let workoutId = recordedWorkoutId;
   if (!workoutId) {
-    const workout = await postApiWorkouts({
+    const workout = await apiData<Workout>(postApiWorkouts({
       body: {
         calories: null,
         distance_meters: null,
@@ -561,12 +575,12 @@ async function savePost({
         workout_type: 'match',
       },
       headers,
-    }).then(unwrap<Workout>);
+    }));
     workoutId = workout.id;
     setRecordedWorkoutId(workoutId);
   }
 
-  return postApiPosts({ body: { ...commonBody, workout_id: workoutId }, headers }).then(unwrap);
+  return apiData(postApiPosts({ body: { ...commonBody, workout_id: workoutId }, headers }));
 }
 
 function beginWorkout(

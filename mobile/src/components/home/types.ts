@@ -3,8 +3,12 @@ export type SkillLevel = 'beginner' | 'intermediate' | 'advanced' | 'competitive
 
 export type DiscoveryPreferences = {
   city: string;
+  latitude: number | null;
+  longitude: number | null;
   skillLevel: SkillLevel | null;
 };
+
+export type DiscoveryLocation = Pick<DiscoveryPreferences, 'city' | 'latitude' | 'longitude'>;
 
 export const tabs: Array<{ key: Tab; label: string }> = [
   { key: 'home', label: 'Home' },

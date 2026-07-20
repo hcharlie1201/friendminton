@@ -10,7 +10,7 @@ type Props = DiscoveryPreferences & {
   onApply: (preferences: DiscoveryPreferences) => void;
 };
 
-export const DiscoveryFilters = memo(function DiscoveryFilters({ city, onApply, skillLevel }: Props) {
+export const DiscoveryFilters = memo(function DiscoveryFilters({ city, latitude, longitude, onApply, skillLevel }: Props) {
   const filterSheet = useFilterSheetActions(onApply);
 
   return (
@@ -41,6 +41,8 @@ export const DiscoveryFilters = memo(function DiscoveryFilters({ city, onApply, 
 
       <DiscoveryFilterSheet
         city={city}
+        latitude={latitude}
+        longitude={longitude}
         onApply={filterSheet.apply}
         onClose={filterSheet.close}
         skillLevel={skillLevel}

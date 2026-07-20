@@ -1,30 +1,15 @@
-import { TextField } from '../ui';
+import { LocationAutocomplete, type SelectedLocation } from '../location';
 import { GatheringFormSection } from './GatheringFormPrimitives';
 
 type Props = {
-  city: string;
-  onCityChange: (value: string) => void;
-  onVenueChange: (value: string) => void;
-  venue: string;
+  onLocationChange: (value: SelectedLocation) => void;
+  value: SelectedLocation | null;
 };
 
-export function GatheringLocationFields({ city, onCityChange, onVenueChange, venue }: Props) {
+export function GatheringLocationFields({ onLocationChange, value }: Props) {
   return (
     <GatheringFormSection icon="location-outline" title="Where">
-      <TextField
-        accessibilityLabel="Venue"
-        maxLength={200}
-        onChangeText={onVenueChange}
-        placeholder="East Bay Badminton Center"
-        value={venue}
-      />
-      <TextField
-        accessibilityLabel="City"
-        maxLength={100}
-        onChangeText={onCityChange}
-        placeholder="City"
-        value={city}
-      />
+      <LocationAutocomplete onSelect={onLocationChange} value={value} />
     </GatheringFormSection>
   );
 }

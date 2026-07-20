@@ -9,18 +9,16 @@ import type {
 } from '../../api/generated';
 import { StyleSheet, View } from 'react-native';
 import { ActivityPostCard } from '../feed/ActivityPostCard';
-import { DiscoverCarousels } from '../discovery';
+import { DiscoverHub } from '../discovery';
 import { DiscoverGatheringSections } from '../gatherings';
 import { PostComposer } from '../feed/PostComposer';
 import type { PostDraft } from '../../features/posts/postDraft';
 import { formatElapsedTime, type WorkoutRecorderPhase } from '../../features/workouts/useWorkoutRecorder';
 import { Button, Section } from '../ui';
-import { DiscoveryFilters } from './DiscoveryFilters';
 import { GameInviteCard } from './GameInviteCard';
-import { HostGatheringBanner } from './HostGatheringBanner';
 import { PlayerSearchResults } from './PlayerSearchResults';
 import { SettingsPanel } from './SettingsPanel';
-import type { DiscoveryPreferences, SkillLevel, Tab } from './types';
+import type { DiscoveryLocation, Tab } from './types';
 import { WeeklySnapshot } from './WeeklySnapshot';
 import { WorkoutRecorder } from './WorkoutRecorder';
 
@@ -48,11 +46,12 @@ type Props = {
   gameInvites: GameInvite[];
   gatherings: Gathering[];
   city: string;
+  latitude: number | null;
+  longitude: number | null;
   currentUser: Pick<User, 'id' | 'display_name' | 'email'>;
   editingPostId: string | null;
   notifications: Notification[];
-  onCityChange: (city: string) => void;
-  onDiscoveryPreferencesChange: (preferences: DiscoveryPreferences) => void;
+  onLocationChange: (location: DiscoveryLocation) => void;
   players: Player[];
   onPostDraftChange: (draft: PostDraft) => void;
   onRetryPlayerSearch: () => void;
@@ -61,7 +60,6 @@ type Props = {
   playerSearchQuery: string;
   playerSearchHasError: boolean;
   setWorkoutTitle: (value: string) => void;
-  skillLevel: SkillLevel | null;
   snapshot?: WeeklySnapshotData;
   workoutElapsedMilliseconds: number;
   workoutPhase: WorkoutRecorderPhase;
@@ -72,6 +70,8 @@ export function HomeContent({
   actions,
   activeTab,
   city,
+  latitude,
+  longitude,
   currentUser,
   editingPostId,
   feed,
@@ -79,8 +79,7 @@ export function HomeContent({
   gameInvites,
   gatherings,
   notifications,
-  onCityChange,
-  onDiscoveryPreferencesChange,
+  onLocationChange,
   players,
   onPostDraftChange,
   onRetryPlayerSearch,
@@ -89,7 +88,6 @@ export function HomeContent({
   playerSearchQuery,
   playerSearchHasError,
   setWorkoutTitle,
-  skillLevel,
   snapshot,
   workoutElapsedMilliseconds,
   workoutPhase,
@@ -98,9 +96,14 @@ export function HomeContent({
   if (activeTab === 'discover') {
     return (
       <>
-        <DiscoveryFilters city={city} onApply={onDiscoveryPreferencesChange} skillLevel={skillLevel} />
-        <HostGatheringBanner onCreate={actions.createGathering} />
-        <DiscoverCarousels gatherings={gatherings} onOpenGathering={actions.openGathering} />
+        <DiscoverHub
+          city={city}
+          gatherings={gatherings}
+          latitude={latitude}
+          longitude={longitude}
+          onCreateGathering={actions.createGathering}
+          onOpenGathering={actions.openGathering}
+        />
         {playerSearchQuery.length > 0 && (
           <PlayerSearchResults
             hasError={playerSearchHasError}
@@ -178,7 +181,7 @@ export function HomeContent({
         displayName={currentUser.display_name}
         email={currentUser.email}
         notifications={notifications}
-        onCityChange={onCityChange}
+        onLocationChange={onLocationChange}
         onSignOut={actions.signOut}
       />
     );

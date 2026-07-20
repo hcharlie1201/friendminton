@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { getApiUsers, type Player } from '../../api/generated';
-import { unwrap } from '../../api/runtime';
+import { apiData } from '../../api/runtime';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -22,14 +22,14 @@ export function usePlayerSearch({ city, enabled, query, skillLevel }: PlayerSear
     placeholderData: keepPreviousData,
     queryKey: ['players', 'search', { city, query: effectiveQuery, skillLevel }],
     queryFn: ({ signal }) =>
-      getApiUsers({
+      apiData<Player[]>(getApiUsers({
         query: {
           city,
           query: effectiveQuery || undefined,
           skill_level: skillLevel ?? undefined,
         },
         signal,
-      }).then(unwrap<Player[]>),
+      })),
     staleTime: 30_000,
   });
 

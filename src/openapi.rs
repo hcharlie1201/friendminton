@@ -33,8 +33,23 @@ pub fn base_document(public_base_url: &str, environment: &str) -> OpenApi {
                 ..Tag::default()
             },
             Tag {
+                name: "courts".into(),
+                description: Some("Badminton court search and community-maintained venue details".into()),
+                ..Tag::default()
+            },
+            Tag {
                 name: "gatherings".into(),
                 description: Some("Create and join badminton play sessions and socials".into()),
+                ..Tag::default()
+            },
+            Tag {
+                name: "groups".into(),
+                description: Some("Local badminton communities, membership, and shared goals".into()),
+                ..Tag::default()
+            },
+            Tag {
+                name: "places".into(),
+                description: Some("Google-backed location autocomplete and place resolution".into()),
                 ..Tag::default()
             },
             Tag {

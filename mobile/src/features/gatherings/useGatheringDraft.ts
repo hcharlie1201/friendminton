@@ -3,8 +3,10 @@ import { useCallback, useState, type Dispatch, type SetStateAction } from 'react
 import {
   createInitialGatheringDraft,
   type GatheringCoverPhoto,
+  type GatheringCourtSetup,
   type GatheringDraft,
   type GatheringKind,
+  type GatheringLocation,
   type GatheringPlayFormat,
   type GatheringSkillLevel,
   type GatheringSocialTag,
@@ -20,7 +22,7 @@ export function useGatheringDraft(city: string, kind: GatheringKind) {
   const setCity = useDraftTextSetter(setValue, 'city');
   const setDescription = useDraftTextSetter(setValue, 'description');
   const setCapacity = useDraftTextSetter(setValue, 'capacity');
-  const setCostPerPerson = useDraftTextSetter(setValue, 'costPerPerson');
+  const setCostPerPersonCents = useDraftValueSetter(setValue, 'costPerPersonCents');
   const setCourtCount = useDraftTextSetter(setValue, 'courtCount');
   const setKind = useCallback((next: GatheringKind) => {
     setValue((current) => ({
@@ -34,6 +36,16 @@ export function useGatheringDraft(city: string, kind: GatheringKind) {
   }, []);
   const setCoverPhoto = useCallback((coverPhoto: GatheringCoverPhoto | null) => {
     setValue((current) => ({ ...current, coverPhoto }));
+  }, []);
+  const setLocation = useCallback((location: GatheringLocation) => {
+    setValue((current) => ({
+      ...current,
+      city: location.city ?? current.city,
+      latitude: location.latitude,
+      location,
+      longitude: location.longitude,
+      venue: location.label,
+    }));
   }, []);
   const setStartsAt = useCallback((startsAt: Date) => {
     setValue((current) => {
@@ -56,6 +68,9 @@ export function useGatheringDraft(city: string, kind: GatheringKind) {
   const setPlayFormat = useCallback((playFormat: GatheringPlayFormat) => {
     setValue((current) => ({ ...current, playFormat }));
   }, []);
+  const setCourtSetup = useCallback((courtSetup: GatheringCourtSetup) => {
+    setValue((current) => ({ ...current, courtSetup }));
+  }, []);
   const setSkillLevel = useCallback((skillLevel: GatheringSkillLevel) => {
     setValue((current) => ({ ...current, skillLevel }));
   }, []);
@@ -72,12 +87,14 @@ export function useGatheringDraft(city: string, kind: GatheringKind) {
     isDirty: gatheringDraftFingerprint(value) !== gatheringDraftFingerprint(initialValue),
     setCapacity,
     setCity,
-    setCostPerPerson,
+    setCostPerPersonCents,
     setCourtCount,
+    setCourtSetup,
     setCoverPhoto,
     setDescription,
     setEndsAt,
     setKind,
+    setLocation,
     setPlayFormat,
     setSkillLevel,
     setStartsAt,
@@ -103,6 +120,15 @@ function useDraftTextSetter<K extends keyof GatheringDraft>(
   key: K,
 ) {
   return useCallback((next: string) => {
+    setDraft((current) => ({ ...current, [key]: next }));
+  }, [key, setDraft]);
+}
+
+function useDraftValueSetter<K extends keyof GatheringDraft>(
+  setDraft: Dispatch<SetStateAction<GatheringDraft>>,
+  key: K,
+) {
+  return useCallback((next: GatheringDraft[K]) => {
     setDraft((current) => ({ ...current, [key]: next }));
   }, [key, setDraft]);
 }

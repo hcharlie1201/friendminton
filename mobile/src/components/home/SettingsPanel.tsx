@@ -1,22 +1,24 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import type { Notification } from '../../api/generated';
-import { getCurrentCity, LocationPermissionError } from '../../features/location/currentCity';
+import { getCurrentLocation, LocationPermissionError } from '../../features/location/currentCity';
 import { formatDate } from '../../lib/dates';
-import { Button, Card, TextField, colors, fonts } from '../ui';
+import { LocationAutocomplete, type SelectedLocation } from '../location';
+import { Button, Card, colors, fonts } from '../ui';
+import type { DiscoveryLocation } from './types';
 
 type Props = {
   city: string;
   displayName: string;
   email: string;
   notifications: Notification[];
-  onCityChange: (city: string) => void;
+  onLocationChange: (location: DiscoveryLocation) => void;
   onSignOut: () => void;
 };
 
-export function SettingsPanel({ city, displayName, email, notifications, onCityChange, onSignOut }: Props) {
-  const [isLocating, setIsLocating] = useState(false);
+export function SettingsPanel({ city, displayName, email, notifications, onLocationChange, onSignOut }: Props) {
+  const location = useSettingsLocation(onLocationChange);
 
   return (
     <View style={styles.wrapper}>
@@ -28,11 +30,16 @@ export function SettingsPanel({ city, displayName, email, notifications, onCityC
       <Card>
         <Text style={styles.sectionTitle}>Discovery Settings</Text>
         <Text style={styles.help}>Used for player and group discovery. Your home feed stays global.</Text>
-        <TextField autoCapitalize="words" onChangeText={onCityChange} placeholder="Location" value={city} />
+        <LocationAutocomplete
+          initialText={city}
+          onSelect={location.select}
+          placeholder="Search for your home city"
+          value={null}
+        />
         <Button
           icon="navigate"
-          loading={isLocating}
-          onPress={() => void applyCurrentLocation({ onCityChange, setIsLocating })}
+          loading={location.isLocating}
+          onPress={location.useCurrent}
           variant="secondary"
         >
           Use current location
@@ -55,6 +62,21 @@ export function SettingsPanel({ city, displayName, email, notifications, onCityC
   );
 }
 
+function useSettingsLocation(onLocationChange: Props['onLocationChange']) {
+  const [isLocating, setIsLocating] = useState(false);
+  const select = useCallback((location: SelectedLocation) => {
+    onLocationChange({
+      city: location.city ?? location.label,
+      latitude: location.latitude,
+      longitude: location.longitude,
+    });
+  }, [onLocationChange]);
+  const useCurrent = useCallback(() => {
+    void applyCurrentLocation({ onLocationChange, setIsLocating });
+  }, [onLocationChange]);
+  return { isLocating, select, useCurrent };
+}
+
 function NotificationRow({ notification }: { notification: Notification }) {
   return (
     <View style={styles.notification}>
@@ -69,16 +91,16 @@ function NotificationRow({ notification }: { notification: Notification }) {
 }
 
 async function applyCurrentLocation({
-  onCityChange,
+  onLocationChange,
   setIsLocating,
 }: {
-  onCityChange: (city: string) => void;
+  onLocationChange: (location: DiscoveryLocation) => void;
   setIsLocating: (isLocating: boolean) => void;
 }) {
   setIsLocating(true);
 
   try {
-    onCityChange(await getCurrentCity());
+    onLocationChange(await getCurrentLocation());
   } catch (error) {
     const message =
       error instanceof LocationPermissionError

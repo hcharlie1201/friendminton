@@ -29,10 +29,26 @@ pub enum AppError {
     AddrParse(#[from] std::net::AddrParseError),
     #[error("media storage error: {0}")]
     Media(String),
+    #[error("service unavailable: {0}")]
+    ServiceUnavailable(&'static str),
+    #[error("external service error: {0}")]
+    ExternalService(String),
+}
+
+#[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ErrorCode {
+    BadRequest,
+    InternalServerError,
+    NotFound,
+    ServiceUnavailable,
+    UpstreamServiceError,
+    Unauthorized,
 }
 
 #[derive(Serialize, JsonSchema)]
 pub struct ErrorBody {
+    pub code: ErrorCode,
     pub error: String,
 }
 
@@ -53,7 +69,9 @@ impl OperationOutput for AppError {
                     (Some(400), response.clone()),
                     (Some(401), response.clone()),
                     (Some(404), response.clone()),
-                    (Some(500), response),
+                    (Some(500), response.clone()),
+                    (Some(502), response.clone()),
+                    (Some(503), response),
                 ]
             })
             .unwrap_or_default()
@@ -62,20 +80,53 @@ impl OperationOutput for AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> AxumResponse {
-        let status = match &self {
-            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
-            AppError::Unauthorized => StatusCode::UNAUTHORIZED,
-            AppError::Sqlx(sqlx::Error::RowNotFound) => StatusCode::NOT_FOUND,
+        let (status, code, message) = match &self {
+            AppError::BadRequest(message) => (
+                StatusCode::BAD_REQUEST,
+                ErrorCode::BadRequest,
+                format!("bad request: {message}"),
+            ),
+            AppError::Unauthorized => (
+                StatusCode::UNAUTHORIZED,
+                ErrorCode::Unauthorized,
+                "unauthorized".to_owned(),
+            ),
+            AppError::ServiceUnavailable(message) => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                ErrorCode::ServiceUnavailable,
+                (*message).to_owned(),
+            ),
+            AppError::ExternalService(message) => {
+                tracing::error!(error = %message, "external service request failed");
+                (
+                    StatusCode::BAD_GATEWAY,
+                    ErrorCode::UpstreamServiceError,
+                    "location service is temporarily unavailable".to_owned(),
+                )
+            }
+            AppError::Sqlx(sqlx::Error::RowNotFound) => (
+                StatusCode::NOT_FOUND,
+                ErrorCode::NotFound,
+                "resource not found".to_owned(),
+            ),
             AppError::Config(_)
             | AppError::Sqlx(_)
             | AppError::Migration(_)
             | AppError::Io(_)
             | AppError::AddrParse(_)
-            | AppError::Media(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            | AppError::Media(_) => {
+                tracing::error!(error = ?self, "request failed with an internal error");
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    ErrorCode::InternalServerError,
+                    "internal server error".to_owned(),
+                )
+            }
         };
 
         let body = Json(ErrorBody {
-            error: self.to_string(),
+            code,
+            error: message,
         });
 
         (status, body).into_response()

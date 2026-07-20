@@ -1,6 +1,7 @@
 export { Button } from './Button';
 export { Card } from './Card';
 export { Composer } from './Composer';
+export { CurrencyInput } from './CurrencyInput';
 export { PageHeader } from './PageHeader';
 export { Screen } from './Screen';
 export { SearchBar } from './SearchBar';

@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { TextField } from '../ui';
+import { CurrencyInput, TextField } from '../ui';
 import {
   GatheringFieldLabel,
   GatheringFormSection,
@@ -9,19 +9,19 @@ import {
 
 type Props = {
   capacity: string;
-  costPerPerson: string;
+  costPerPersonCents: number;
   description: string;
   onCapacityChange: (value: string) => void;
-  onCostPerPersonChange: (value: string) => void;
+  onCostPerPersonCentsChange: (value: number) => void;
   onDescriptionChange: (value: string) => void;
 };
 
 export function GatheringDetailsFields({
   capacity,
-  costPerPerson,
+  costPerPersonCents,
   description,
   onCapacityChange,
-  onCostPerPersonChange,
+  onCostPerPersonCentsChange,
   onDescriptionChange,
 }: Props) {
   return (
@@ -38,13 +38,14 @@ export function GatheringDetailsFields({
           placeholder="Unlimited"
           value={capacity}
         />
-        <GatheringLabeledInput
-          keyboardType="decimal-pad"
-          label="Cost per person"
-          onChangeText={onCostPerPersonChange}
-          placeholder="$0"
-          value={costPerPerson}
-        />
+        <View style={styles.currencyField}>
+          <GatheringFieldLabel>Cost per person</GatheringFieldLabel>
+          <CurrencyInput
+            accessibilityLabel="Cost per person"
+            onChangeCents={onCostPerPersonCentsChange}
+            valueCents={costPerPersonCents}
+          />
+        </View>
       </View>
       <GatheringFieldLabel>Description</GatheringFieldLabel>
       <TextField
@@ -63,5 +64,6 @@ export function GatheringDetailsFields({
 
 const styles = StyleSheet.create({
   twoColumns: { flexDirection: 'row', gap: 10 },
+  currencyField: { flex: 1, gap: 6 },
   descriptionInput: { minHeight: 122, paddingTop: 13 },
 });

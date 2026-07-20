@@ -4,12 +4,15 @@ mod app;
 mod auth;
 mod config;
 mod controller;
+mod courts;
 mod db;
 mod engagement;
 mod error;
 mod gatherings;
+mod groups;
 mod media;
 mod openapi;
+mod places;
 mod play;
 
 use std::net::SocketAddr;
@@ -31,12 +34,14 @@ async fn main() -> Result<(), error::AppError> {
     sqlx::migrate!("./migrations").run(&pool).await?;
     tokio::fs::create_dir_all(&config.upload_dir).await?;
     let media = media::MediaStorage::from_config(&config).await?;
+    let places = places::GooglePlaces::new(config.third_party.google_places_api_key.clone());
 
     let app = app::router(
         app::AppState {
             pool,
             upload_dir: config.upload_dir.clone().into(),
             media,
+            places,
         },
         &config,
     );

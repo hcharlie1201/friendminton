@@ -37,6 +37,7 @@ cd "$deploy_path" || fail "cannot enter DEPLOY_PATH: $deploy_path"
 [[ -f "$compose_file" ]] || fail "missing $deploy_path/$compose_file"
 command -v docker >/dev/null || fail "docker is not installed on the server"
 docker compose version >/dev/null || fail "the Docker Compose plugin is unavailable"
+compose config --quiet || fail "$environment_file is incomplete or the Compose configuration is invalid"
 
 compose pull || fail "docker compose pull failed"
 compose up -d --remove-orphans || fail "docker compose deployment failed"

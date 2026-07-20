@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiEngagementNotificationsData, GetApiEngagementNotificationsErrors, GetApiEngagementNotificationsResponses, GetApiEngagementNotificationsUnreadCountData, GetApiEngagementNotificationsUnreadCountErrors, GetApiEngagementNotificationsUnreadCountResponses, GetApiEngagementWeeklySnapshotData, GetApiEngagementWeeklySnapshotErrors, GetApiEngagementWeeklySnapshotResponses, GetApiGameInvitesData, GetApiGameInvitesErrors, GetApiGameInvitesResponses, GetApiGatheringsByGatheringIdData, GetApiGatheringsByGatheringIdErrors, GetApiGatheringsByGatheringIdResponses, GetApiGatheringsData, GetApiGatheringsErrors, GetApiGatheringsResponses, GetApiPostsByPostIdData, GetApiPostsByPostIdErrors, GetApiPostsByPostIdResponses, GetApiPostsFeedData, GetApiPostsFeedErrors, GetApiPostsFeedResponses, GetApiUsersByIdData, GetApiUsersByIdErrors, GetApiUsersByIdResponses, GetApiUsersData, GetApiUsersErrors, GetApiUsersResponses, GetApiWorkoutsUsersByUserIdData, GetApiWorkoutsUsersByUserIdErrors, GetApiWorkoutsUsersByUserIdResponses, PostApiAuthSignUpEmailData, PostApiAuthSignUpEmailErrors, PostApiAuthSignUpEmailResponses, PostApiEngagementNotificationsReadData, PostApiEngagementNotificationsReadErrors, PostApiGameInvitesByGameInviteIdJoinData, PostApiGameInvitesByGameInviteIdJoinErrors, PostApiGameInvitesData, PostApiGameInvitesErrors, PostApiGameInvitesResponses, PostApiGatheringsByGatheringIdJoinData, PostApiGatheringsByGatheringIdJoinErrors, PostApiGatheringsByGatheringIdJoinResponses, PostApiGatheringsData, PostApiGatheringsErrors, PostApiGatheringsResponses, PostApiPostsData, PostApiPostsErrors, PostApiPostsResponses, PostApiUploadsPresignData, PostApiUploadsPresignErrors, PostApiUploadsPresignResponses, PostApiWorkoutsData, PostApiWorkoutsErrors, PostApiWorkoutsResponses, PutApiPostsData, PutApiPostsErrors, PutApiPostsResponses } from './types.gen';
+import type { GetApiCourtsByCourtIdData, GetApiCourtsByCourtIdErrors, GetApiCourtsByCourtIdResponses, GetApiCourtsData, GetApiCourtsErrors, GetApiCourtsResponses, GetApiEngagementNotificationsData, GetApiEngagementNotificationsErrors, GetApiEngagementNotificationsResponses, GetApiEngagementNotificationsUnreadCountData, GetApiEngagementNotificationsUnreadCountErrors, GetApiEngagementNotificationsUnreadCountResponses, GetApiEngagementWeeklySnapshotData, GetApiEngagementWeeklySnapshotErrors, GetApiEngagementWeeklySnapshotResponses, GetApiGameInvitesData, GetApiGameInvitesErrors, GetApiGameInvitesResponses, GetApiGatheringsByGatheringIdData, GetApiGatheringsByGatheringIdErrors, GetApiGatheringsByGatheringIdResponses, GetApiGatheringsData, GetApiGatheringsErrors, GetApiGatheringsResponses, GetApiGroupsByGroupIdData, GetApiGroupsByGroupIdErrors, GetApiGroupsByGroupIdResponses, GetApiGroupsData, GetApiGroupsErrors, GetApiGroupsResponses, GetApiPlacesAutocompleteData, GetApiPlacesAutocompleteErrors, GetApiPlacesAutocompleteResponses, GetApiPlacesByPlaceIdData, GetApiPlacesByPlaceIdErrors, GetApiPlacesByPlaceIdResponses, GetApiPostsByPostIdData, GetApiPostsByPostIdErrors, GetApiPostsByPostIdResponses, GetApiPostsFeedData, GetApiPostsFeedErrors, GetApiPostsFeedResponses, GetApiUsersByIdData, GetApiUsersByIdErrors, GetApiUsersByIdResponses, GetApiUsersData, GetApiUsersErrors, GetApiUsersResponses, GetApiWorkoutsUsersByUserIdData, GetApiWorkoutsUsersByUserIdErrors, GetApiWorkoutsUsersByUserIdResponses, PostApiAuthSignUpEmailData, PostApiAuthSignUpEmailErrors, PostApiAuthSignUpEmailResponses, PostApiCourtsData, PostApiCourtsErrors, PostApiCourtsResponses, PostApiEngagementNotificationsReadData, PostApiEngagementNotificationsReadErrors, PostApiGameInvitesByGameInviteIdJoinData, PostApiGameInvitesByGameInviteIdJoinErrors, PostApiGameInvitesData, PostApiGameInvitesErrors, PostApiGameInvitesResponses, PostApiGatheringsByGatheringIdJoinData, PostApiGatheringsByGatheringIdJoinErrors, PostApiGatheringsByGatheringIdJoinResponses, PostApiGatheringsData, PostApiGatheringsErrors, PostApiGatheringsResponses, PostApiGroupsByGroupIdJoinData, PostApiGroupsByGroupIdJoinErrors, PostApiGroupsByGroupIdJoinResponses, PostApiGroupsData, PostApiGroupsErrors, PostApiGroupsResponses, PostApiPostsData, PostApiPostsErrors, PostApiPostsResponses, PostApiUploadsPresignData, PostApiUploadsPresignErrors, PostApiUploadsPresignResponses, PostApiWorkoutsData, PostApiWorkoutsErrors, PostApiWorkoutsResponses, PutApiPostsData, PutApiPostsErrors, PutApiPostsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -64,6 +64,19 @@ export const getApiPostsFeed = <ThrowOnError extends boolean = false>(options?: 
 
 export const getApiPostsByPostId = <ThrowOnError extends boolean = false>(options: Options<GetApiPostsByPostIdData, ThrowOnError>): RequestResult<GetApiPostsByPostIdResponses, GetApiPostsByPostIdErrors, ThrowOnError> => (options.client ?? client).get<GetApiPostsByPostIdResponses, GetApiPostsByPostIdErrors, ThrowOnError>({ url: '/api/posts/{post_id}', ...options });
 
+export const getApiCourts = <ThrowOnError extends boolean = false>(options?: Options<GetApiCourtsData, ThrowOnError>): RequestResult<GetApiCourtsResponses, GetApiCourtsErrors, ThrowOnError> => (options?.client ?? client).get<GetApiCourtsResponses, GetApiCourtsErrors, ThrowOnError>({ url: '/api/courts', ...options });
+
+export const postApiCourts = <ThrowOnError extends boolean = false>(options: Options<PostApiCourtsData, ThrowOnError>): RequestResult<PostApiCourtsResponses, PostApiCourtsErrors, ThrowOnError> => (options.client ?? client).post<PostApiCourtsResponses, PostApiCourtsErrors, ThrowOnError>({
+    url: '/api/courts',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const getApiCourtsByCourtId = <ThrowOnError extends boolean = false>(options: Options<GetApiCourtsByCourtIdData, ThrowOnError>): RequestResult<GetApiCourtsByCourtIdResponses, GetApiCourtsByCourtIdErrors, ThrowOnError> => (options.client ?? client).get<GetApiCourtsByCourtIdResponses, GetApiCourtsByCourtIdErrors, ThrowOnError>({ url: '/api/courts/{court_id}', ...options });
+
 export const getApiGatherings = <ThrowOnError extends boolean = false>(options?: Options<GetApiGatheringsData, ThrowOnError>): RequestResult<GetApiGatheringsResponses, GetApiGatheringsErrors, ThrowOnError> => (options?.client ?? client).get<GetApiGatheringsResponses, GetApiGatheringsErrors, ThrowOnError>({ url: '/api/gatherings', ...options });
 
 export const postApiGatherings = <ThrowOnError extends boolean = false>(options: Options<PostApiGatheringsData, ThrowOnError>): RequestResult<PostApiGatheringsResponses, PostApiGatheringsErrors, ThrowOnError> => (options.client ?? client).post<PostApiGatheringsResponses, PostApiGatheringsErrors, ThrowOnError>({
@@ -78,6 +91,25 @@ export const postApiGatherings = <ThrowOnError extends boolean = false>(options:
 export const getApiGatheringsByGatheringId = <ThrowOnError extends boolean = false>(options: Options<GetApiGatheringsByGatheringIdData, ThrowOnError>): RequestResult<GetApiGatheringsByGatheringIdResponses, GetApiGatheringsByGatheringIdErrors, ThrowOnError> => (options.client ?? client).get<GetApiGatheringsByGatheringIdResponses, GetApiGatheringsByGatheringIdErrors, ThrowOnError>({ url: '/api/gatherings/{gathering_id}', ...options });
 
 export const postApiGatheringsByGatheringIdJoin = <ThrowOnError extends boolean = false>(options: Options<PostApiGatheringsByGatheringIdJoinData, ThrowOnError>): RequestResult<PostApiGatheringsByGatheringIdJoinResponses, PostApiGatheringsByGatheringIdJoinErrors, ThrowOnError> => (options.client ?? client).post<PostApiGatheringsByGatheringIdJoinResponses, PostApiGatheringsByGatheringIdJoinErrors, ThrowOnError>({ url: '/api/gatherings/{gathering_id}/join', ...options });
+
+export const getApiGroups = <ThrowOnError extends boolean = false>(options?: Options<GetApiGroupsData, ThrowOnError>): RequestResult<GetApiGroupsResponses, GetApiGroupsErrors, ThrowOnError> => (options?.client ?? client).get<GetApiGroupsResponses, GetApiGroupsErrors, ThrowOnError>({ url: '/api/groups', ...options });
+
+export const postApiGroups = <ThrowOnError extends boolean = false>(options: Options<PostApiGroupsData, ThrowOnError>): RequestResult<PostApiGroupsResponses, PostApiGroupsErrors, ThrowOnError> => (options.client ?? client).post<PostApiGroupsResponses, PostApiGroupsErrors, ThrowOnError>({
+    url: '/api/groups',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const getApiGroupsByGroupId = <ThrowOnError extends boolean = false>(options: Options<GetApiGroupsByGroupIdData, ThrowOnError>): RequestResult<GetApiGroupsByGroupIdResponses, GetApiGroupsByGroupIdErrors, ThrowOnError> => (options.client ?? client).get<GetApiGroupsByGroupIdResponses, GetApiGroupsByGroupIdErrors, ThrowOnError>({ url: '/api/groups/{group_id}', ...options });
+
+export const postApiGroupsByGroupIdJoin = <ThrowOnError extends boolean = false>(options: Options<PostApiGroupsByGroupIdJoinData, ThrowOnError>): RequestResult<PostApiGroupsByGroupIdJoinResponses, PostApiGroupsByGroupIdJoinErrors, ThrowOnError> => (options.client ?? client).post<PostApiGroupsByGroupIdJoinResponses, PostApiGroupsByGroupIdJoinErrors, ThrowOnError>({ url: '/api/groups/{group_id}/join', ...options });
+
+export const getApiPlacesAutocomplete = <ThrowOnError extends boolean = false>(options: Options<GetApiPlacesAutocompleteData, ThrowOnError>): RequestResult<GetApiPlacesAutocompleteResponses, GetApiPlacesAutocompleteErrors, ThrowOnError> => (options.client ?? client).get<GetApiPlacesAutocompleteResponses, GetApiPlacesAutocompleteErrors, ThrowOnError>({ url: '/api/places/autocomplete', ...options });
+
+export const getApiPlacesByPlaceId = <ThrowOnError extends boolean = false>(options: Options<GetApiPlacesByPlaceIdData, ThrowOnError>): RequestResult<GetApiPlacesByPlaceIdResponses, GetApiPlacesByPlaceIdErrors, ThrowOnError> => (options.client ?? client).get<GetApiPlacesByPlaceIdResponses, GetApiPlacesByPlaceIdErrors, ThrowOnError>({ url: '/api/places/{place_id}', ...options });
 
 export const getApiGameInvites = <ThrowOnError extends boolean = false>(options?: Options<GetApiGameInvitesData, ThrowOnError>): RequestResult<GetApiGameInvitesResponses, GetApiGameInvitesErrors, ThrowOnError> => (options?.client ?? client).get<GetApiGameInvitesResponses, GetApiGameInvitesErrors, ThrowOnError>({ url: '/api/game-invites', ...options });
 

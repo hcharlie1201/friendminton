@@ -11,13 +11,14 @@ use sqlx::{Pool, Postgres};
 use std::path::PathBuf;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
-use crate::{config::AppConfig, controller, media::MediaStorage, openapi};
+use crate::{config::AppConfig, controller, media::MediaStorage, openapi, places::GooglePlaces};
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: Pool<Postgres>,
     pub upload_dir: PathBuf,
     pub media: MediaStorage,
+    pub places: GooglePlaces,
 }
 
 pub fn router(state: AppState, config: &AppConfig) -> Router {
@@ -45,7 +46,10 @@ fn api_routes() -> ApiRouter<AppState> {
         .nest("/users", controller::users::routes())
         .nest("/workouts", controller::workouts::routes())
         .nest("/posts", controller::posts::routes())
+        .nest("/courts", controller::courts::routes())
         .nest("/gatherings", controller::gatherings::routes())
+        .nest("/groups", controller::groups::routes())
+        .nest("/places", controller::places::routes())
         .nest("/game-invites", controller::game_invites::routes())
         .nest("/engagement", controller::engagement::routes())
         .nest("/uploads", controller::uploads::routes())

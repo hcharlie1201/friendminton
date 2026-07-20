@@ -9,16 +9,17 @@ use crate::{
 };
 
 pub use gathering::{
-    CreateGathering, Gathering, GatheringJoinPolicy, GatheringParticipant,
+    CourtSetup, CreateGathering, Gathering, GatheringJoinPolicy, GatheringParticipant,
     GatheringParticipantStatus, GatheringSearch,
 };
-use gathering::{GatheringVisibility, StoredGathering};
+use gathering::{GatheringKind, GatheringVisibility, StoredGathering};
 
 const GATHERING_COLUMNS: &str = r#"
     g.id, g.host_id, g.kind, g.visibility, g.join_policy, g.title,
-    g.starts_at, g.ends_at, g.venue, g.city, g.description, g.capacity,
+    g.starts_at, g.ends_at, g.venue, g.city, g.court_id, g.latitude, g.longitude,
+    g.description, g.capacity,
     g.cost_per_person_cents, g.currency, g.skill_level, g.play_format,
-    g.court_count, g.social_tags, g.theme, g.cover_image_key, g.created_at,
+    g.court_setup, g.court_count, g.social_tags, g.theme, g.cover_image_key, g.created_at,
     g.updated_at
 "#;
 
@@ -39,6 +40,7 @@ pub async fn create_gathering(
     mut payload: CreateGathering,
 ) -> Result<Gathering, AppError> {
     normalize_gathering(&mut payload);
+    resolve_gathering_court(pool, &mut payload).await?;
     validate_gathering(host_id, &payload)?;
 
     let mut transaction = pool.begin().await?;
@@ -46,16 +48,16 @@ pub async fn create_gathering(
         r#"
         INSERT INTO gatherings (
             host_id, kind, visibility, join_policy, title, starts_at, ends_at,
-            venue, city, description, capacity, cost_per_person_cents, currency,
-            skill_level, play_format, court_count, social_tags, theme, cover_image_key
+            venue, city, court_id, latitude, longitude, description, capacity, cost_per_person_cents, currency,
+            skill_level, play_format, court_setup, court_count, social_tags, theme, cover_image_key
         )
         VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-            $15, $16, $17, $18, $19
+            $15, $16, $17, $18, $19, $20, $21, $22, $23
         )
         RETURNING id, host_id, kind, visibility, join_policy, title, starts_at,
-            ends_at, venue, city, description, capacity, cost_per_person_cents,
-            currency, skill_level, play_format, court_count, social_tags, theme,
+            ends_at, venue, city, court_id, latitude, longitude, description, capacity, cost_per_person_cents,
+            currency, skill_level, play_format, court_setup, court_count, social_tags, theme,
             cover_image_key, created_at, updated_at
         "#,
     )
@@ -68,12 +70,16 @@ pub async fn create_gathering(
     .bind(payload.ends_at)
     .bind(payload.venue)
     .bind(payload.city)
+    .bind(payload.court_id)
+    .bind(payload.latitude)
+    .bind(payload.longitude)
     .bind(payload.description)
     .bind(payload.capacity)
     .bind(payload.cost_per_person_cents)
     .bind(payload.currency)
     .bind(payload.skill_level)
     .bind(payload.play_format)
+    .bind(payload.court_setup)
     .bind(payload.court_count)
     .bind(payload.social_tags)
     .bind(payload.theme)
@@ -135,6 +141,12 @@ pub async fn find_gatherings(
     if let Some(starts_before) = search.starts_before {
         query.push(" AND g.starts_at < ").push_bind(starts_before);
     }
+    push_coordinate_filters(
+        &mut query,
+        search.latitude,
+        search.longitude,
+        search.radius_km,
+    )?;
 
     query
         .push(" ORDER BY g.starts_at ASC, g.id ASC LIMIT ")
@@ -335,12 +347,16 @@ async fn hydrate_gathering(
         ends_at: stored.ends_at,
         venue: stored.venue,
         city: stored.city,
+        court_id: stored.court_id,
+        latitude: stored.latitude,
+        longitude: stored.longitude,
         description: stored.description,
         capacity: stored.capacity,
         cost_per_person_cents: stored.cost_per_person_cents,
         currency: stored.currency,
         skill_level: stored.skill_level,
         play_format: stored.play_format,
+        court_setup: stored.court_setup,
         court_count: stored.court_count,
         social_tags: stored.social_tags,
         theme: stored.theme,
@@ -357,9 +373,27 @@ fn normalize_gathering(payload: &mut CreateGathering) {
     payload.city = payload.city.trim().to_owned();
     payload.currency = payload.currency.trim().to_ascii_uppercase();
     payload.description = normalized_optional_text(payload.description.take());
-    payload.skill_level = normalized_optional_text(payload.skill_level.take())
-        .map(|skill_level| skill_level.to_ascii_lowercase());
     payload.theme = normalized_optional_text(payload.theme.take());
+}
+
+async fn resolve_gathering_court(
+    pool: &Pool<Postgres>,
+    payload: &mut CreateGathering,
+) -> Result<(), AppError> {
+    let Some(court_id) = payload.court_id else {
+        return Ok(());
+    };
+    let (name, city, latitude, longitude) = sqlx::query_as::<_, (String, String, f64, f64)>(
+        "SELECT name, city, latitude, longitude FROM courts WHERE id = $1",
+    )
+    .bind(court_id)
+    .fetch_one(pool)
+    .await?;
+    payload.venue = name;
+    payload.city = city;
+    payload.latitude = Some(latitude);
+    payload.longitude = Some(longitude);
+    Ok(())
 }
 
 fn normalized_optional_text(value: Option<String>) -> Option<String> {
@@ -373,6 +407,7 @@ fn validate_gathering(host_id: Uuid, payload: &CreateGathering) -> Result<(), Ap
     validate_required_text("title", &payload.title, MAX_TITLE_CHARS)?;
     validate_required_text("venue", &payload.venue, MAX_VENUE_CHARS)?;
     validate_required_text("city", &payload.city, MAX_CITY_CHARS)?;
+    validate_coordinate_pair(payload.latitude, payload.longitude)?;
 
     if let Some(ends_at) = payload.ends_at
         && ends_at <= payload.starts_at
@@ -410,14 +445,28 @@ fn validate_gathering(host_id: Uuid, payload: &CreateGathering) -> Result<(), Ap
             "currency must be a three-letter ISO currency code".to_owned(),
         ));
     }
-    if let Some(skill_level) = &payload.skill_level
-        && !matches!(
-            skill_level.as_str(),
-            "beginner" | "intermediate" | "advanced" | "competitive"
-        )
-    {
+    let includes_play = matches!(
+        payload.kind,
+        GatheringKind::Play | GatheringKind::PlayAndSocial
+    );
+    if includes_play && payload.court_setup.is_none() {
         return Err(AppError::BadRequest(
-            "skill_level must be beginner, intermediate, advanced, or competitive".to_owned(),
+            "court_setup is required for play gatherings".to_owned(),
+        ));
+    }
+    if !includes_play && payload.court_setup.is_some() {
+        return Err(AppError::BadRequest(
+            "court_setup is only available for play gatherings".to_owned(),
+        ));
+    }
+    if payload.court_setup == Some(CourtSetup::Reserved) && payload.court_count.is_none() {
+        return Err(AppError::BadRequest(
+            "court_count is required when courts are reserved".to_owned(),
+        ));
+    }
+    if payload.court_setup != Some(CourtSetup::Reserved) && payload.court_count.is_some() {
+        return Err(AppError::BadRequest(
+            "court_count is only available when courts are reserved".to_owned(),
         ));
     }
     if !matches!(payload.court_count, None | Some(1..=MAX_COURT_COUNT)) {
@@ -450,6 +499,54 @@ fn validate_gathering(host_id: Uuid, payload: &CreateGathering) -> Result<(), Ap
         validate_gathering_cover_key(host_id, object_key)?;
     }
 
+    Ok(())
+}
+
+fn validate_coordinate_pair(latitude: Option<f64>, longitude: Option<f64>) -> Result<(), AppError> {
+    match (latitude, longitude) {
+        (None, None) => Ok(()),
+        (Some(latitude), Some(longitude))
+            if latitude.is_finite()
+                && longitude.is_finite()
+                && (-90.0..=90.0).contains(&latitude)
+                && (-180.0..=180.0).contains(&longitude) =>
+        {
+            Ok(())
+        }
+        _ => Err(AppError::BadRequest(
+            "latitude and longitude must be provided together and be valid".to_owned(),
+        )),
+    }
+}
+
+fn push_coordinate_filters(
+    query: &mut QueryBuilder<'_, Postgres>,
+    latitude: Option<f64>,
+    longitude: Option<f64>,
+    radius_km: Option<f64>,
+) -> Result<(), AppError> {
+    let (latitude, longitude) = match (latitude, longitude) {
+        (None, None) => return Ok(()),
+        (Some(latitude), Some(longitude)) => {
+            validate_coordinate_pair(Some(latitude), Some(longitude))?;
+            (latitude, longitude)
+        }
+        _ => return validate_coordinate_pair(latitude, longitude),
+    };
+    let radius_km = radius_km.unwrap_or(25.0);
+    if !(0.5..=100.0).contains(&radius_km) {
+        return Err(AppError::BadRequest(
+            "radius_km must be between 0.5 and 100".to_owned(),
+        ));
+    }
+    query
+        .push(" AND ST_DWithin(g.location, ST_SetSRID(ST_MakePoint(")
+        .push_bind(longitude)
+        .push(", ")
+        .push_bind(latitude)
+        .push("), 4326)::GEOGRAPHY, ")
+        .push_bind(radius_km * 1_000.0)
+        .push(")");
     Ok(())
 }
 
@@ -513,8 +610,9 @@ fn escape_like(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::gathering::{
-        CreateGathering, GatheringJoinPolicy, GatheringKind, GatheringParticipantStatus,
-        GatheringVisibility, PlayFormat, SocialTag,
+        CourtSetup, CreateGathering, GatheringJoinPolicy, GatheringKind,
+        GatheringParticipantStatus, GatheringSkillLevel, GatheringVisibility, PlayFormat,
+        SocialTag,
     };
     use super::{
         MAX_DESCRIPTION_CHARS, gathering_limit, next_join_status, normalize_gathering,
@@ -534,12 +632,16 @@ mod tests {
             ends_at: Some(starts_at + Duration::hours(3)),
             venue: " East Bay Badminton ".to_owned(),
             city: " Emeryville ".to_owned(),
+            court_id: None,
+            latitude: None,
+            longitude: None,
             description: Some(" Courts first, snacks after. ".to_owned()),
             capacity: Some(24),
             cost_per_person_cents: 1_500,
             currency: " usd ".to_owned(),
-            skill_level: Some(" Intermediate ".to_owned()),
+            skill_level: Some(GatheringSkillLevel::EPlus),
             play_format: Some(PlayFormat::OpenPlay),
+            court_setup: Some(CourtSetup::Reserved),
             court_count: Some(4),
             social_tags: vec![SocialTag::Food, SocialTag::BoardGames],
             theme: Some(" court-glow ".to_owned()),
@@ -554,7 +656,7 @@ mod tests {
 
         assert_eq!(payload.title, "Friday birdies & board games");
         assert_eq!(payload.currency, "USD");
-        assert_eq!(payload.skill_level.as_deref(), Some("intermediate"));
+        assert_eq!(payload.skill_level, Some(GatheringSkillLevel::EPlus));
         assert_eq!(payload.theme.as_deref(), Some("court-glow"));
         assert!(validate_gathering(Uuid::new_v4(), &payload).is_ok());
     }
@@ -582,6 +684,27 @@ mod tests {
         normalize_gathering(&mut payload);
         payload.description = Some("x".repeat(MAX_DESCRIPTION_CHARS + 1));
         assert!(validate_gathering(host_id, &payload).is_err());
+    }
+
+    #[test]
+    fn gathering_validates_drop_in_and_reserved_court_details() {
+        let host_id = Uuid::new_v4();
+
+        let mut drop_in = valid_payload();
+        drop_in.court_setup = Some(CourtSetup::DropIn);
+        drop_in.court_count = None;
+        normalize_gathering(&mut drop_in);
+        assert!(validate_gathering(host_id, &drop_in).is_ok());
+
+        let mut reserved_without_count = valid_payload();
+        reserved_without_count.court_count = None;
+        normalize_gathering(&mut reserved_without_count);
+        assert!(validate_gathering(host_id, &reserved_without_count).is_err());
+
+        let mut drop_in_with_reserved_count = valid_payload();
+        drop_in_with_reserved_count.court_setup = Some(CourtSetup::DropIn);
+        normalize_gathering(&mut drop_in_with_reserved_count);
+        assert!(validate_gathering(host_id, &drop_in_with_reserved_count).is_err());
     }
 
     #[test]

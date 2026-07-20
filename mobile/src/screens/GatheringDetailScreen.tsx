@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getApiGatheringsByGatheringId, type Gathering } from '../api/generated';
-import { authHeaders, unwrap } from '../api/runtime';
+import { apiData, authHeaders } from '../api/runtime';
 import { useSession } from '../auth/session';
 import { GatheringDiscoveryCard } from '../components/gatherings';
 import { Button, colors, fonts } from '../components/ui';
@@ -62,6 +62,13 @@ function GatheringDetailContent({ gathering }: { gathering: Gathering }) {
           label="Cost"
           value={formatCost(gathering.cost_per_person_cents, gathering.currency)}
         />
+        {gathering.court_setup && (
+          <DetailRow
+            icon="grid-outline"
+            label="Court setup"
+            value={courtSetupLabel(gathering)}
+          />
+        )}
       </GatheringDetailSection>
 
       <View accessible accessibilityLabel="RSVP controls are not available yet" style={styles.rsvpNotice}>
@@ -73,6 +80,12 @@ function GatheringDetailContent({ gathering }: { gathering: Gathering }) {
       </View>
     </ScrollView>
   );
+}
+
+function courtSetupLabel(gathering: Gathering) {
+  if (gathering.court_setup === 'drop_in') return 'Drop-in';
+  if (!gathering.court_count) return 'Courts reserved';
+  return `${gathering.court_count} reserved ${gathering.court_count === 1 ? 'court' : 'courts'}`;
 }
 
 function GatheringDetailHeader({ onBack }: { onBack: () => void }) {
@@ -155,10 +168,10 @@ function useGatheringDetail(gatheringId: string, userId: string) {
   return useQuery({
     enabled: Boolean(gatheringId && userId),
     queryKey: ['gatherings', 'detail', gatheringId, userId],
-    queryFn: () => getApiGatheringsByGatheringId({
+    queryFn: () => apiData<Gathering>(getApiGatheringsByGatheringId({
       headers: authHeaders(userId),
       path: { gathering_id: gatheringId },
-    }).then(unwrap<Gathering>),
+    })),
   });
 }
 

@@ -1,5 +1,11 @@
 import { client as generatedClient } from './generated/client.gen';
 import type { ErrorBody } from './generated';
+import {
+  AppError,
+  AppErrorKind,
+  appErrorFromStatus,
+  normalizeAppError,
+} from '../common/errors';
 import { apiBaseUrl } from '../config';
 
 export type ApiResult<T> = {
@@ -8,43 +14,72 @@ export type ApiResult<T> = {
   response?: Response;
 };
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number,
-  ) {
-    super(message);
-  }
-}
-
 generatedClient.setConfig({ baseUrl: apiBaseUrl });
 
 export function authHeaders(userId: string) {
   return { 'x-user-id': userId };
 }
 
-export function unwrap<T>({ data, error, response }: ApiResult<T>) {
+export async function apiData<T>(request: PromiseLike<ApiResult<T>>) {
+  try {
+    return dataFromResult(await request);
+  } catch (error) {
+    throw normalizeAppError(error);
+  }
+}
+
+export async function apiSuccess(request: PromiseLike<ApiResult<unknown>>) {
+  try {
+    assertSuccessfulResult(await request);
+  } catch (error) {
+    throw normalizeAppError(error);
+  }
+}
+
+function dataFromResult<T>({ data, error, response }: ApiResult<T>) {
   if (error) {
-    throw new ApiError(error.error ?? `Request failed with status ${response?.status ?? 'unknown'}`, response?.status);
+    throw appErrorFromResponse(error, response?.status);
   }
 
   if (response && !response.ok) {
-    throw new ApiError(`Request failed with status ${response.status}`, response.status);
+    throw appErrorFromStatus(`Request failed with status ${response.status}`, response.status);
   }
 
   if (data === undefined) {
-    throw new ApiError('Request did not return data', response?.status);
+    throw new AppError(AppErrorKind.EmptyResponse, 'Request did not return data.', {
+      status: response?.status,
+    });
   }
 
   return data;
 }
 
-export function unwrapEmpty({ error, response }: ApiResult<unknown>) {
+function assertSuccessfulResult({ error, response }: ApiResult<unknown>) {
   if (error) {
-    throw new ApiError(error.error ?? `Request failed with status ${response?.status ?? 'unknown'}`, response?.status);
+    throw appErrorFromResponse(error, response?.status);
   }
 
   if (response && !response.ok) {
-    throw new ApiError(`Request failed with status ${response.status}`, response.status);
+    throw appErrorFromStatus(`Request failed with status ${response.status}`, response.status);
+  }
+}
+
+function appErrorFromResponse(error: ErrorBody, status?: number) {
+  const message = error.error ?? `Request failed with status ${status ?? 'unknown'}`;
+  switch (error.code) {
+    case 'bad_request':
+      return new AppError(AppErrorKind.Validation, message, { status });
+    case 'unauthorized':
+      return new AppError(AppErrorKind.Authentication, message, { status });
+    case 'not_found':
+      return new AppError(AppErrorKind.NotFound, message, { status });
+    case 'internal_server_error':
+      return new AppError(AppErrorKind.Server, message, { status });
+    case 'service_unavailable':
+      return new AppError(AppErrorKind.ServiceUnavailable, message, { status });
+    case 'upstream_service_error':
+      return new AppError(AppErrorKind.UpstreamService, message, { status });
+    default:
+      return appErrorFromStatus(message, status);
   }
 }

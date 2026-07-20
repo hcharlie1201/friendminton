@@ -1,21 +1,26 @@
 export type GatheringKind = 'play' | 'social' | 'play_and_social';
 export type GatheringVisibility = 'public' | 'private';
 export type GatheringJoinPolicy = 'open' | 'approval_required' | 'invite_only';
-export type GatheringPlayFormat = 'open_play' | 'doubles' | 'singles' | 'drills' | 'coaching';
-export type GatheringSkillLevel = 'all_levels' | 'beginner' | 'intermediate' | 'advanced' | 'competitive';
+export type GatheringPlayFormat = 'open_play' | 'round_robin' | 'doubles' | 'singles' | 'drills' | 'coaching';
+export type GatheringSkillLevel = 'all_levels' | 'beginner' | 'e' | 'e_plus' | 'd' | 'c' | 'b' | 'a';
+export type GatheringCourtSetup = 'drop_in' | 'reserved';
 export type GatheringSocialTag = 'drinks' | 'food' | 'board_games' | 'watch_party' | 'gear_swap';
 export type GatheringThemeId = 'court_lights' | 'birdie_burst' | 'net_night' | 'social_rally';
 
 export type GatheringDraft = {
   capacity: string;
   city: string;
-  costPerPerson: string;
+  costPerPersonCents: number;
+  courtSetup: GatheringCourtSetup;
   courtCount: string;
   coverPhoto: GatheringCoverPhoto | null;
   description: string;
   endsAt: Date;
   joinPolicy: GatheringJoinPolicy;
   kind: GatheringKind;
+  latitude: number | null;
+  location: GatheringLocation | null;
+  longitude: number | null;
   playFormat: GatheringPlayFormat;
   skillLevel: GatheringSkillLevel;
   socialTags: GatheringSocialTag[];
@@ -24,6 +29,15 @@ export type GatheringDraft = {
   title: string;
   venue: string;
   visibility: GatheringVisibility;
+};
+
+export type GatheringLocation = {
+  address: string;
+  city: string | null;
+  label: string;
+  latitude: number;
+  longitude: number;
+  placeId: string;
 };
 
 export type GatheringCoverPhoto = {
@@ -77,13 +91,17 @@ export function createInitialGatheringDraft(
   return {
     capacity: '12',
     city,
-    costPerPerson: '0',
+    costPerPersonCents: 0,
+    courtSetup: 'drop_in',
     courtCount: '2',
     coverPhoto: null,
     description: '',
     endsAt: new Date(startsAt.getTime() + TWO_HOURS_IN_MILLISECONDS),
     joinPolicy: 'open',
     kind,
+    latitude: null,
+    location: null,
+    longitude: null,
     playFormat: 'open_play',
     skillLevel: 'all_levels',
     socialTags: kind === 'play' ? [] : ['food'],

@@ -86,16 +86,16 @@ export function CreateGatheringScreen() {
           />
 
           <GatheringLocationFields
-            city={draft.value.city}
-            onCityChange={draft.setCity}
-            onVenueChange={draft.setVenue}
-            venue={draft.value.venue}
+            onLocationChange={draft.setLocation}
+            value={draft.value.location}
           />
 
           {isPlayGathering(draft.value.kind) && (
             <GatheringPlayDetails
               courtCount={draft.value.courtCount}
+              courtSetup={draft.value.courtSetup}
               onCourtCountChange={draft.setCourtCount}
+              onCourtSetupChange={draft.setCourtSetup}
               onFormatChange={draft.setPlayFormat}
               onSkillChange={draft.setSkillLevel}
               playFormat={draft.value.playFormat}
@@ -117,16 +117,16 @@ export function CreateGatheringScreen() {
 
           <GatheringDetailsFields
             capacity={draft.value.capacity}
-            costPerPerson={draft.value.costPerPerson}
+            costPerPersonCents={draft.value.costPerPersonCents}
             description={draft.value.description}
             onCapacityChange={draft.setCapacity}
-            onCostPerPersonChange={draft.setCostPerPerson}
+            onCostPerPersonCentsChange={draft.setCostPerPersonCents}
             onDescriptionChange={draft.setDescription}
           />
         </ScrollView>
 
         <View style={styles.footer}>
-          <Button disabled={!publisher.canSubmit} loading={publisher.isPending} onPress={publisher.submit}>
+          <Button loading={publisher.isPending} onPress={publisher.submit}>
             Publish {gatheringKindLabel(draft.value.kind).toLowerCase()}
           </Button>
           <Text style={styles.footerNote}>

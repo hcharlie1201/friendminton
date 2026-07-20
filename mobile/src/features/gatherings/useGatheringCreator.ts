@@ -5,7 +5,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 
 import { postApiGatherings, type CreateGathering, type Gathering } from '../../api/generated';
-import { authHeaders, unwrap } from '../../api/runtime';
+import { apiData, authHeaders } from '../../api/runtime';
+import { errorMessage } from '../../common/errors';
 import {
   isPlayGathering,
   isSocialGathering,
@@ -43,7 +44,6 @@ export function useGatheringPublisher(
   }, [draft, mutation.mutate, userId]);
 
   return {
-    canSubmit: Boolean(userId && draft.title.trim() && draft.venue.trim() && draft.city.trim()),
     isPending: mutation.isPending,
     submit,
   };
@@ -118,8 +118,11 @@ export function validateGatheringDraft(draft: GatheringDraft, userId: string) {
   if (draft.endsAt <= draft.startsAt) return 'The end time must be after the start time.';
   if (draft.startsAt <= new Date()) return 'Choose a start time in the future.';
   if (draft.capacity.trim() && parseOptionalInteger(draft.capacity) === null) return 'Spots must be a whole number.';
-  if (isPlayGathering(draft.kind) && parseOptionalInteger(draft.courtCount) === null) return 'Add at least one court.';
-  if (parseCostInCents(draft.costPerPerson) < 0) return 'Cost cannot be negative.';
+  if (
+    isPlayGathering(draft.kind)
+    && draft.courtSetup === 'reserved'
+    && parseOptionalInteger(draft.courtCount) === null
+  ) return 'Add at least one reserved court.';
   return null;
 }
 
@@ -130,14 +133,19 @@ async function createGathering(draft: GatheringDraft, userId: string) {
   const payload: CreateGathering = {
     capacity: parseOptionalInteger(draft.capacity),
     city: draft.city.trim(),
-    cost_per_person_cents: parseCostInCents(draft.costPerPerson),
-    court_count: isPlayGathering(draft.kind) ? parseOptionalInteger(draft.courtCount) : null,
+    cost_per_person_cents: draft.costPerPersonCents,
+    court_count: isPlayGathering(draft.kind) && draft.courtSetup === 'reserved'
+      ? parseOptionalInteger(draft.courtCount)
+      : null,
+    court_setup: isPlayGathering(draft.kind) ? draft.courtSetup : null,
     cover_image_key: coverImageKey,
     currency: 'USD',
     description: draft.description.trim() || null,
     ends_at: draft.endsAt.toISOString(),
     join_policy: draft.joinPolicy,
     kind: draft.kind,
+    latitude: draft.latitude,
+    longitude: draft.longitude,
     play_format: isPlayGathering(draft.kind) ? draft.playFormat : null,
     skill_level: isPlayGathering(draft.kind) && draft.skillLevel !== 'all_levels' ? draft.skillLevel : null,
     social_tags: isSocialGathering(draft.kind) ? draft.socialTags : [],
@@ -148,7 +156,7 @@ async function createGathering(draft: GatheringDraft, userId: string) {
     visibility: draft.visibility,
   };
 
-  return postApiGatherings({ body: payload, headers: authHeaders(userId) }).then(unwrap<Gathering>);
+  return apiData<Gathering>(postApiGatherings({ body: payload, headers: authHeaders(userId) }));
 }
 
 function parseOptionalInteger(value: string) {
@@ -157,14 +165,8 @@ function parseOptionalInteger(value: string) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-function parseCostInCents(value: string) {
-  if (!value.trim()) return 0;
-  const parsed = Number(value.replace(/[$,]/g, ''));
-  return Number.isFinite(parsed) ? Math.round(parsed * 100) : -1;
-}
-
 function showCreateError(error: unknown) {
-  Alert.alert('Could not publish', error instanceof Error ? error.message : 'Something went wrong.');
+  Alert.alert('Could not publish', errorMessage(error));
 }
 
 function showDiscardConfirmation(onDiscard: () => void, onCancel?: () => void) {

@@ -28,7 +28,7 @@ jobs:
       DATABASE_URL: postgres://friendminton:friendminton@localhost:5432/friendminton
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgis/postgis:17-3.5-alpine
         env:
           POSTGRES_USER: friendminton
           POSTGRES_PASSWORD: friendminton

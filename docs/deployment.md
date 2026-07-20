@@ -51,11 +51,16 @@ APP_ENV=staging
 PUBLIC_BASE_URL=https://16.146.136.68.sslip.io
 DOMAIN=16.146.136.68.sslip.io
 AWS_REGION=us-west-2
+GOOGLE_PLACES_API_KEY=replace-with-a-staging-google-places-key
 S3_BUCKET=friendminton-media-us-west-2
 ```
 
 Keep the existing database password and matching `DATABASE_URL`. Renaming the env file does not
 change or reset the Docker `postgres_data` volume.
+
+The deploy script does not upload a developer's local `.env`. It reads `.env.staging` or
+`.env.production` from the deployment directory on the server and validates the file before
+pulling an image. Keep `GOOGLE_PLACES_API_KEY` in that server-side file.
 
 The workflow uploads `docker-compose.prod.yml` and `Caddyfile` into this directory. The server
 does not build Rust or need GitHub repository credentials. It receives a temporary ECR login,

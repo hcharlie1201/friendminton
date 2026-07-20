@@ -39,6 +39,7 @@ run_deployment() {
 run_deployment
 grep -Fxq 'API_IMAGE=registry.example/friendminton:test-sha' \
   "$deployment_directory/.env.image"
+grep -Fq 'compose --env-file .env.staging -f docker-compose.prod.yml config --quiet' "$docker_calls"
 grep -Fq 'compose --env-file .env.staging -f docker-compose.prod.yml pull' "$docker_calls"
 grep -Fq 'compose --env-file .env.staging -f docker-compose.prod.yml up -d --remove-orphans' "$docker_calls"
 grep -Fq 'logout registry.example' "$docker_calls"

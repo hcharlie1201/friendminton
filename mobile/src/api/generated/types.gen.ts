@@ -6,6 +6,21 @@ export type ClientOptions = {
 
 export type ApiKeyLocation = 'query' | 'header' | 'cookie';
 
+export type BadmintonGroup = {
+    description?: string | null;
+    city: string;
+    created_at: string;
+    goal_tags: Array<GroupGoal>;
+    id: string;
+    join_policy: GroupJoinPolicy;
+    member_count: number;
+    name: string;
+    owner_id: string;
+    primary_court_id?: string | null;
+    updated_at: string;
+    visibility: GroupVisibility;
+};
+
 /**
  * Holds a set of reusable objects for different aspects of the OAS.
  * All objects defined within the components object will have no effect
@@ -99,6 +114,76 @@ export type Contact = {
 
 export type CookieStyle = 'form';
 
+export type Court = {
+    address: string;
+    amenities: Array<CourtAmenity>;
+    city: string;
+    court_count?: number | null;
+    created_at: string;
+    created_by?: string | null;
+    distance_km?: number | null;
+    drop_in_available: boolean;
+    environment: CourtEnvironment;
+    google_place_id?: string | null;
+    id: string;
+    latitude: number;
+    longitude: number;
+    name: string;
+    phone?: string | null;
+    reservation_url?: string | null;
+    source: CourtSource;
+    updated_at: string;
+    verified_at?: string | null;
+    website_url?: string | null;
+};
+
+export type CourtAmenity = 'parking' | 'showers' | 'locker_rooms' | 'pro_shop' | 'equipment_rental' | 'water' | 'seating';
+
+export type CourtEnvironment = 'indoor' | 'outdoor' | 'mixed';
+
+export type CourtPath = {
+    court_id: string;
+};
+
+export type CourtSearch = {
+    city?: string | null;
+    latitude?: number | null;
+    limit?: number | null;
+    longitude?: number | null;
+    query?: string | null;
+    radius_km?: number | null;
+};
+
+export type CourtSetup = 'drop_in' | 'reserved';
+
+export type CourtSource = 'community' | 'google_places' | 'admin';
+
+export type CreateBadmintonGroup = {
+    description?: string | null;
+    city: string;
+    goal_tags?: Array<GroupGoal>;
+    join_policy?: GroupJoinPolicy;
+    name: string;
+    primary_court_id?: string | null;
+    visibility?: GroupVisibility;
+};
+
+export type CreateCourt = {
+    address: string;
+    amenities?: Array<CourtAmenity>;
+    city: string;
+    court_count?: number | null;
+    drop_in_available?: boolean;
+    environment?: CourtEnvironment;
+    google_place_id?: string | null;
+    latitude: number;
+    longitude: number;
+    name: string;
+    phone?: string | null;
+    reservation_url?: string | null;
+    website_url?: string | null;
+};
+
 export type CreateGameInvite = {
     title: string;
     city: string;
@@ -116,13 +201,17 @@ export type CreateGathering = {
     city: string;
     cost_per_person_cents?: number;
     court_count?: number | null;
+    court_id?: string | null;
+    court_setup?: CourtSetup | null;
     cover_image_key?: string | null;
     currency?: string;
     ends_at?: string | null;
     join_policy?: GatheringJoinPolicy;
     kind: GatheringKind;
+    latitude?: number | null;
+    longitude?: number | null;
     play_format?: PlayFormat | null;
-    skill_level?: string | null;
+    skill_level?: GatheringSkillLevel | null;
     social_tags?: Array<SocialTag>;
     starts_at: string;
     theme?: string | null;
@@ -225,8 +314,11 @@ export type Encoding = {
 };
 
 export type ErrorBody = {
+    code: ErrorCode;
     error: string;
 };
+
+export type ErrorCode = 'bad_request' | 'internal_server_error' | 'not_found' | 'service_unavailable' | 'upstream_service_error' | 'unauthorized';
 
 export type Example = {
     /**
@@ -328,6 +420,8 @@ export type Gathering = {
     city: string;
     cost_per_person_cents: number;
     court_count?: number | null;
+    court_id?: string | null;
+    court_setup?: CourtSetup | null;
     cover_image_key?: string | null;
     cover_image_url?: string | null;
     created_at: string;
@@ -337,8 +431,10 @@ export type Gathering = {
     id: string;
     join_policy: GatheringJoinPolicy;
     kind: GatheringKind;
+    latitude?: number | null;
+    longitude?: number | null;
     play_format?: PlayFormat | null;
-    skill_level?: string | null;
+    skill_level?: GatheringSkillLevel | null;
     social_tags: Array<SocialTag>;
     starts_at: string;
     theme?: string | null;
@@ -367,12 +463,45 @@ export type GatheringPath = {
 export type GatheringSearch = {
     city?: string | null;
     kind?: GatheringKind | null;
+    latitude?: number | null;
     limit?: number | null;
+    longitude?: number | null;
+    radius_km?: number | null;
     starts_after?: string | null;
     starts_before?: string | null;
 };
 
+export type GatheringSkillLevel = 'beginner' | 'e' | 'e_plus' | 'd' | 'c' | 'b' | 'a';
+
 export type GatheringVisibility = 'public' | 'private';
+
+export type GroupGoal = 'fitness' | 'social' | 'improvement' | 'competitive' | 'consistent_play';
+
+export type GroupJoinPolicy = 'open' | 'approval_required' | 'invite_only';
+
+export type GroupMemberStatus = 'member' | 'pending' | 'invited';
+
+export type GroupMembership = {
+    group_id: string;
+    joined_at: string;
+    role: GroupRole;
+    status: GroupMemberStatus;
+    user_id: string;
+};
+
+export type GroupPath = {
+    group_id: string;
+};
+
+export type GroupRole = 'owner' | 'admin' | 'member';
+
+export type GroupSearch = {
+    city?: string | null;
+    limit?: number | null;
+    query?: string | null;
+};
+
+export type GroupVisibility = 'public' | 'private';
 
 export type Header = ({
     schema: SchemaObject;
@@ -1103,7 +1232,29 @@ export type Paths = {
     [key: string]: ReferenceOrForPathItem;
 };
 
-export type PlayFormat = 'open_play' | 'doubles' | 'singles' | 'drills' | 'coaching';
+export type PlaceAutocompleteQuery = {
+    input: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    session_token: string;
+};
+
+export type PlaceDetailsQuery = {
+    session_token: string;
+};
+
+export type PlacePath = {
+    place_id: string;
+};
+
+export type PlacePrediction = {
+    full_text: string;
+    place_id: string;
+    primary_text: string;
+    secondary_text?: string | null;
+};
+
+export type PlayFormat = 'open_play' | 'round_robin' | 'doubles' | 'singles' | 'drills' | 'coaching';
 
 export type Player = {
     bio?: string | null;
@@ -1354,6 +1505,14 @@ export type RequestBody = {
     [key: string]: unknown;
 };
 
+export type ResolvedPlace = {
+    city?: string | null;
+    formatted_address: string;
+    latitude: number;
+    longitude: number;
+    place_id: string;
+};
+
 export type Response = {
     /**
      * REQUIRED. A description of the response.
@@ -1602,6 +1761,8 @@ export type PostApiAuthSignUpEmailErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type PostApiAuthSignUpEmailError = PostApiAuthSignUpEmailErrors[keyof PostApiAuthSignUpEmailErrors];
@@ -1629,6 +1790,8 @@ export type GetApiUsersErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type GetApiUsersError = GetApiUsersErrors[keyof GetApiUsersErrors];
@@ -1653,6 +1816,8 @@ export type GetApiUsersByIdErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type GetApiUsersByIdError = GetApiUsersByIdErrors[keyof GetApiUsersByIdErrors];
@@ -1675,6 +1840,8 @@ export type PostApiWorkoutsErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type PostApiWorkoutsError = PostApiWorkoutsErrors[keyof PostApiWorkoutsErrors];
@@ -1697,6 +1864,8 @@ export type GetApiWorkoutsUsersByUserIdErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type GetApiWorkoutsUsersByUserIdError = GetApiWorkoutsUsersByUserIdErrors[keyof GetApiWorkoutsUsersByUserIdErrors];
@@ -1719,6 +1888,8 @@ export type PostApiPostsErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type PostApiPostsError = PostApiPostsErrors[keyof PostApiPostsErrors];
@@ -1741,6 +1912,8 @@ export type PutApiPostsErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type PutApiPostsError = PutApiPostsErrors[keyof PutApiPostsErrors];
@@ -1766,6 +1939,8 @@ export type GetApiPostsFeedErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type GetApiPostsFeedError = GetApiPostsFeedErrors[keyof GetApiPostsFeedErrors];
@@ -1790,6 +1965,8 @@ export type GetApiPostsByPostIdErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type GetApiPostsByPostIdError = GetApiPostsByPostIdErrors[keyof GetApiPostsByPostIdErrors];
@@ -1800,13 +1977,97 @@ export type GetApiPostsByPostIdResponses = {
 
 export type GetApiPostsByPostIdResponse = GetApiPostsByPostIdResponses[keyof GetApiPostsByPostIdResponses];
 
+export type GetApiCourtsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        city?: string | null;
+        latitude?: number | null;
+        limit?: number | null;
+        longitude?: number | null;
+        query?: string | null;
+        radius_km?: number | null;
+    };
+    url: '/api/courts';
+};
+
+export type GetApiCourtsErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiCourtsError = GetApiCourtsErrors[keyof GetApiCourtsErrors];
+
+export type GetApiCourtsResponses = {
+    200: Array<Court>;
+};
+
+export type GetApiCourtsResponse = GetApiCourtsResponses[keyof GetApiCourtsResponses];
+
+export type PostApiCourtsData = {
+    body: CreateCourt;
+    path?: never;
+    query?: never;
+    url: '/api/courts';
+};
+
+export type PostApiCourtsErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiCourtsError = PostApiCourtsErrors[keyof PostApiCourtsErrors];
+
+export type PostApiCourtsResponses = {
+    200: Court;
+};
+
+export type PostApiCourtsResponse = PostApiCourtsResponses[keyof PostApiCourtsResponses];
+
+export type GetApiCourtsByCourtIdData = {
+    body?: never;
+    path: {
+        court_id: string;
+    };
+    query?: never;
+    url: '/api/courts/{court_id}';
+};
+
+export type GetApiCourtsByCourtIdErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiCourtsByCourtIdError = GetApiCourtsByCourtIdErrors[keyof GetApiCourtsByCourtIdErrors];
+
+export type GetApiCourtsByCourtIdResponses = {
+    200: Court;
+};
+
+export type GetApiCourtsByCourtIdResponse = GetApiCourtsByCourtIdResponses[keyof GetApiCourtsByCourtIdResponses];
+
 export type GetApiGatheringsData = {
     body?: never;
     path?: never;
     query?: {
         city?: string | null;
         kind?: GatheringKind | null;
+        latitude?: number | null;
         limit?: number | null;
+        longitude?: number | null;
+        radius_km?: number | null;
         starts_after?: string | null;
         starts_before?: string | null;
     };
@@ -1818,6 +2079,8 @@ export type GetApiGatheringsErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type GetApiGatheringsError = GetApiGatheringsErrors[keyof GetApiGatheringsErrors];
@@ -1840,6 +2103,8 @@ export type PostApiGatheringsErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type PostApiGatheringsError = PostApiGatheringsErrors[keyof PostApiGatheringsErrors];
@@ -1864,6 +2129,8 @@ export type GetApiGatheringsByGatheringIdErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type GetApiGatheringsByGatheringIdError = GetApiGatheringsByGatheringIdErrors[keyof GetApiGatheringsByGatheringIdErrors];
@@ -1888,6 +2155,8 @@ export type PostApiGatheringsByGatheringIdJoinErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type PostApiGatheringsByGatheringIdJoinError = PostApiGatheringsByGatheringIdJoinErrors[keyof PostApiGatheringsByGatheringIdJoinErrors];
@@ -1897,6 +2166,167 @@ export type PostApiGatheringsByGatheringIdJoinResponses = {
 };
 
 export type PostApiGatheringsByGatheringIdJoinResponse = PostApiGatheringsByGatheringIdJoinResponses[keyof PostApiGatheringsByGatheringIdJoinResponses];
+
+export type GetApiGroupsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        city?: string | null;
+        limit?: number | null;
+        query?: string | null;
+    };
+    url: '/api/groups';
+};
+
+export type GetApiGroupsErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiGroupsError = GetApiGroupsErrors[keyof GetApiGroupsErrors];
+
+export type GetApiGroupsResponses = {
+    200: Array<BadmintonGroup>;
+};
+
+export type GetApiGroupsResponse = GetApiGroupsResponses[keyof GetApiGroupsResponses];
+
+export type PostApiGroupsData = {
+    body: CreateBadmintonGroup;
+    path?: never;
+    query?: never;
+    url: '/api/groups';
+};
+
+export type PostApiGroupsErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGroupsError = PostApiGroupsErrors[keyof PostApiGroupsErrors];
+
+export type PostApiGroupsResponses = {
+    200: BadmintonGroup;
+};
+
+export type PostApiGroupsResponse = PostApiGroupsResponses[keyof PostApiGroupsResponses];
+
+export type GetApiGroupsByGroupIdData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/api/groups/{group_id}';
+};
+
+export type GetApiGroupsByGroupIdErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiGroupsByGroupIdError = GetApiGroupsByGroupIdErrors[keyof GetApiGroupsByGroupIdErrors];
+
+export type GetApiGroupsByGroupIdResponses = {
+    200: BadmintonGroup;
+};
+
+export type GetApiGroupsByGroupIdResponse = GetApiGroupsByGroupIdResponses[keyof GetApiGroupsByGroupIdResponses];
+
+export type PostApiGroupsByGroupIdJoinData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/api/groups/{group_id}/join';
+};
+
+export type PostApiGroupsByGroupIdJoinErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGroupsByGroupIdJoinError = PostApiGroupsByGroupIdJoinErrors[keyof PostApiGroupsByGroupIdJoinErrors];
+
+export type PostApiGroupsByGroupIdJoinResponses = {
+    200: GroupMembership;
+};
+
+export type PostApiGroupsByGroupIdJoinResponse = PostApiGroupsByGroupIdJoinResponses[keyof PostApiGroupsByGroupIdJoinResponses];
+
+export type GetApiPlacesAutocompleteData = {
+    body?: never;
+    path?: never;
+    query: {
+        input: string;
+        latitude?: number | null;
+        longitude?: number | null;
+        session_token: string;
+    };
+    url: '/api/places/autocomplete';
+};
+
+export type GetApiPlacesAutocompleteErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiPlacesAutocompleteError = GetApiPlacesAutocompleteErrors[keyof GetApiPlacesAutocompleteErrors];
+
+export type GetApiPlacesAutocompleteResponses = {
+    200: Array<PlacePrediction>;
+};
+
+export type GetApiPlacesAutocompleteResponse = GetApiPlacesAutocompleteResponses[keyof GetApiPlacesAutocompleteResponses];
+
+export type GetApiPlacesByPlaceIdData = {
+    body?: never;
+    path: {
+        place_id: string;
+    };
+    query: {
+        session_token: string;
+    };
+    url: '/api/places/{place_id}';
+};
+
+export type GetApiPlacesByPlaceIdErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiPlacesByPlaceIdError = GetApiPlacesByPlaceIdErrors[keyof GetApiPlacesByPlaceIdErrors];
+
+export type GetApiPlacesByPlaceIdResponses = {
+    200: ResolvedPlace;
+};
+
+export type GetApiPlacesByPlaceIdResponse = GetApiPlacesByPlaceIdResponses[keyof GetApiPlacesByPlaceIdResponses];
 
 export type GetApiGameInvitesData = {
     body?: never;
@@ -1914,6 +2344,8 @@ export type GetApiGameInvitesErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type GetApiGameInvitesError = GetApiGameInvitesErrors[keyof GetApiGameInvitesErrors];
@@ -1936,6 +2368,8 @@ export type PostApiGameInvitesErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type PostApiGameInvitesError = PostApiGameInvitesErrors[keyof PostApiGameInvitesErrors];
@@ -1958,6 +2392,8 @@ export type PostApiGameInvitesByGameInviteIdJoinErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type PostApiGameInvitesByGameInviteIdJoinError = PostApiGameInvitesByGameInviteIdJoinErrors[keyof PostApiGameInvitesByGameInviteIdJoinErrors];
@@ -1974,6 +2410,8 @@ export type GetApiEngagementWeeklySnapshotErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type GetApiEngagementWeeklySnapshotError = GetApiEngagementWeeklySnapshotErrors[keyof GetApiEngagementWeeklySnapshotErrors];
@@ -1996,6 +2434,8 @@ export type GetApiEngagementNotificationsErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type GetApiEngagementNotificationsError = GetApiEngagementNotificationsErrors[keyof GetApiEngagementNotificationsErrors];
@@ -2018,6 +2458,8 @@ export type GetApiEngagementNotificationsUnreadCountErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type GetApiEngagementNotificationsUnreadCountError = GetApiEngagementNotificationsUnreadCountErrors[keyof GetApiEngagementNotificationsUnreadCountErrors];
@@ -2040,6 +2482,8 @@ export type PostApiEngagementNotificationsReadErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type PostApiEngagementNotificationsReadError = PostApiEngagementNotificationsReadErrors[keyof PostApiEngagementNotificationsReadErrors];
@@ -2056,6 +2500,8 @@ export type PostApiUploadsPresignErrors = {
     401: ErrorBody;
     404: ErrorBody;
     500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
 };
 
 export type PostApiUploadsPresignError = PostApiUploadsPresignErrors[keyof PostApiUploadsPresignErrors];
