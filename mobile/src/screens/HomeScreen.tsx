@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
 import {
   Alert,
   RefreshControl,
@@ -58,6 +59,7 @@ import {
   type PostDraft,
 } from '../features/posts/postDraft';
 import { uploadPostPhotos } from '../features/posts/uploads';
+import { feedQueryKey } from '../features/posts/feed';
 import { type RecordedWorkout, useWorkoutRecorder } from '../features/workouts/useWorkoutRecorder';
 import { usePlayerSearch } from '../features/players/usePlayerSearch';
 
@@ -65,7 +67,6 @@ type WriteMutation = {
   mutate: () => void;
 };
 
-const feedQueryKey = ['feed', 'pages'] as const;
 const feedPageSize = 20;
 const feedLoadAheadDistance = 320;
 
@@ -144,6 +145,7 @@ export function HomeScreen() {
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const workoutRecorder = useWorkoutRecorder();
   const homeRefresh = useHomeRefresh(queryClient, currentUser.id);
+  const openPost = usePostNavigation();
 
   const healthQuery = useQuery({
     queryKey: ['health'],
@@ -262,6 +264,7 @@ export function HomeScreen() {
     discardWorkout: workoutRecorder.reset,
     endWorkout: workoutRecorder.end,
     pauseWorkout: workoutRecorder.pause,
+    openPost,
     resumeWorkout: workoutRecorder.resume,
     setActiveTab,
     setEditingPostId,
@@ -406,6 +409,7 @@ function useHomeActions({
   discardWorkout,
   endWorkout,
   pauseWorkout,
+  openPost,
   resumeWorkout,
   setActiveTab,
   setEditingPostId,
@@ -420,6 +424,7 @@ function useHomeActions({
   discardWorkout: () => void;
   endWorkout: () => void;
   pauseWorkout: () => void;
+  openPost: (post: FeedPost) => void;
   resumeWorkout: () => void;
   setActiveTab: (tab: Tab) => void;
   setEditingPostId: (postId: string | null) => void;
@@ -438,6 +443,7 @@ function useHomeActions({
       editPost: (post: FeedPost) =>
         beginPostEdit(post, setPostDraft, setEditingPostId, setActiveTab, homeScrollRef),
       endWorkout,
+      openPost,
       pauseWorkout,
       resumeWorkout,
       signOut: () => void signOut(),
@@ -448,6 +454,7 @@ function useHomeActions({
       createPostMutation,
       discardWorkout,
       endWorkout,
+      openPost,
       pauseWorkout,
       resumeWorkout,
       setActiveTab,
@@ -459,6 +466,13 @@ function useHomeActions({
       homeScrollRef,
     ],
   );
+}
+
+function usePostNavigation() {
+  const router = useRouter();
+  return useCallback((post: FeedPost) => {
+    router.push({ pathname: '/posts/[postId]', params: { postId: post.id } });
+  }, [router]);
 }
 
 function changeTab(

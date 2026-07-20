@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 
 import type { FeedPost } from '../../api/generated';
 import { formatDate } from '../../lib/dates';
@@ -12,15 +12,23 @@ type Props = {
   canEdit: boolean;
   imageRefreshToken: number;
   onEdit: (post: FeedPost) => void;
+  onOpen: (post: FeedPost) => void;
   post: FeedPost;
 };
 
-export function ActivityPostCard({ canEdit, imageRefreshToken, onEdit, post }: Props) {
+export function ActivityPostCard({ canEdit, imageRefreshToken, onEdit, onOpen, post }: Props) {
   const body = post.body ?? '';
   const imageUrls = post.image_urls ?? [];
+  const open = useOpenPostAction(onOpen, post);
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      accessibilityHint="Opens this activity"
+      accessibilityLabel={`${post.display_name}'s ${post.workout_title ?? 'activity'}`}
+      accessibilityRole="button"
+      onPress={open}
+      style={styles.post}
+    >
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{initials(post.display_name)}</Text>
@@ -53,7 +61,7 @@ export function ActivityPostCard({ canEdit, imageRefreshToken, onEdit, post }: P
       )}
 
       {post.effort && <Effort value={post.effort} />}
-    </View>
+    </Pressable>
   );
 }
 
@@ -67,9 +75,16 @@ function EditPostButton({ onEdit, post }: { onEdit: (post: FeedPost) => void; po
 }
 
 function useEditPostAction(onEdit: (post: FeedPost) => void, post: FeedPost) {
-  return useCallback(() => {
+  return useCallback((event: GestureResponderEvent) => {
+    event.stopPropagation();
     onEdit(post);
   }, [onEdit, post]);
+}
+
+function useOpenPostAction(onOpen: (post: FeedPost) => void, post: FeedPost) {
+  return useCallback(() => {
+    onOpen(post);
+  }, [onOpen, post]);
 }
 
 function Effort({ value }: { value: number }) {
@@ -103,18 +118,18 @@ function initials(name: string) {
 }
 
 const styles = StyleSheet.create({
-  card: {
+  post: {
     backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderBottomColor: colors.background,
+    borderBottomWidth: 8,
     gap: 14,
-    padding: 16,
+    paddingVertical: 18,
   },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 20,
   },
   avatar: {
     alignItems: 'center',
@@ -152,8 +167,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 25,
+    paddingHorizontal: 20,
   },
-  workoutSummary: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 8, flexDirection: 'row', gap: 10, padding: 11 },
+  workoutSummary: { alignItems: 'center', flexDirection: 'row', gap: 10, paddingHorizontal: 20 },
   workoutCopy: { flex: 1 },
   workoutTitle: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 14, fontWeight: '900' },
   workoutDuration: { color: colors.muted, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
@@ -164,6 +180,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     flexDirection: 'row',
     gap: 10,
+    marginHorizontal: 20,
     paddingTop: 12,
   },
   effortLabel: {

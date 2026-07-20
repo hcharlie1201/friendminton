@@ -186,9 +186,13 @@ pub async fn feed(
     let (before_time, before_id) = cursor.unzip();
     let mut posts = sqlx::query_as::<_, StoredFeedPost>(
         r#"
-        SELECT posts.id, posts.user_id, users.display_name, posts.workout_id,
+        SELECT posts.id, posts.user_id, users.display_name,
+            users.skill_level AS user_skill_level, posts.workout_id,
             workouts.title AS workout_title,
+            workouts.workout_type AS workout_type,
             workouts.duration_milliseconds AS workout_duration_milliseconds,
+            workouts.calories AS workout_calories,
+            workouts.occurred_at AS workout_occurred_at,
             posts.body, posts.location, posts.effort,
             posts.image_urls AS image_keys, posts.created_at
         FROM posts
@@ -220,27 +224,42 @@ pub async fn feed(
     };
     let mut feed = Vec::with_capacity(posts.len());
     for post in posts {
-        let image_urls = media.read_urls(&post.image_keys).await?;
-        feed.push(FeedPost {
-            id: post.id,
-            user_id: post.user_id,
-            display_name: post.display_name,
-            workout_id: post.workout_id,
-            workout_title: post.workout_title,
-            workout_duration_milliseconds: post.workout_duration_milliseconds,
-            body: post.body,
-            location: post.location,
-            effort: post.effort,
-            image_keys: post.image_keys,
-            image_urls,
-            created_at: post.created_at,
-        });
+        feed.push(hydrate_feed_post(media, post).await?);
     }
 
     Ok(FeedPage {
         items: feed,
         next_cursor,
     })
+}
+
+pub async fn get_post(
+    pool: &Pool<Postgres>,
+    media: &MediaStorage,
+    post_id: Uuid,
+) -> Result<FeedPost, AppError> {
+    let post = sqlx::query_as::<_, StoredFeedPost>(
+        r#"
+        SELECT posts.id, posts.user_id, users.display_name,
+            users.skill_level AS user_skill_level, posts.workout_id,
+            workouts.title AS workout_title,
+            workouts.workout_type AS workout_type,
+            workouts.duration_milliseconds AS workout_duration_milliseconds,
+            workouts.calories AS workout_calories,
+            workouts.occurred_at AS workout_occurred_at,
+            posts.body, posts.location, posts.effort,
+            posts.image_urls AS image_keys, posts.created_at
+        FROM posts
+        JOIN users ON users.id = posts.user_id
+        LEFT JOIN workouts ON workouts.id = posts.workout_id
+        WHERE posts.id = $1
+        "#,
+    )
+    .bind(post_id)
+    .fetch_one(pool)
+    .await?;
+
+    hydrate_feed_post(media, post).await
 }
 
 fn feed_limit(limit: Option<i64>) -> Result<i64, AppError> {
@@ -303,12 +322,38 @@ async fn hydrate_post(media: &MediaStorage, post: StoredPost) -> Result<Post, Ap
     })
 }
 
+async fn hydrate_feed_post(
+    media: &MediaStorage,
+    post: StoredFeedPost,
+) -> Result<FeedPost, AppError> {
+    let image_urls = media.read_urls(&post.image_keys).await?;
+    Ok(FeedPost {
+        id: post.id,
+        user_id: post.user_id,
+        display_name: post.display_name,
+        user_skill_level: post.user_skill_level,
+        workout_id: post.workout_id,
+        workout_title: post.workout_title,
+        workout_type: post.workout_type,
+        workout_duration_milliseconds: post.workout_duration_milliseconds,
+        workout_calories: post.workout_calories,
+        workout_occurred_at: post.workout_occurred_at,
+        body: post.body,
+        location: post.location,
+        effort: post.effort,
+        image_keys: post.image_keys,
+        image_urls,
+        created_at: post.created_at,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        decode_feed_cursor, encode_feed_cursor, feed_limit, summarized_duration_minutes,
-        validate_post,
+        StoredFeedPost, decode_feed_cursor, encode_feed_cursor, feed_limit, hydrate_feed_post,
+        summarized_duration_minutes, validate_post,
     };
+    use crate::media::MediaStorage;
     use time::OffsetDateTime;
     use uuid::Uuid;
 
@@ -342,6 +387,64 @@ mod tests {
         assert_eq!(feed_limit(Some(50)).unwrap(), 50);
         assert!(feed_limit(Some(0)).is_err());
         assert!(feed_limit(Some(51)).is_err());
+    }
+
+    #[tokio::test]
+    async fn feed_post_hydration_preserves_details_and_resolves_photo_urls() {
+        let post_id = Uuid::new_v4();
+        let user_id = Uuid::new_v4();
+        let workout_id = Uuid::new_v4();
+        let created_at = OffsetDateTime::from_unix_timestamp(1_721_234_567).unwrap();
+        let image_keys = vec![
+            format!("posts/{user_id}/first.jpg"),
+            format!("posts/{user_id}/second.jpg"),
+        ];
+        let storage = MediaStorage::Local {
+            upload_dir: "uploads".into(),
+        };
+
+        let post = hydrate_feed_post(
+            &storage,
+            StoredFeedPost {
+                id: post_id,
+                user_id,
+                display_name: "Court Tester".to_owned(),
+                user_skill_level: "advanced".to_owned(),
+                workout_id: Some(workout_id),
+                workout_title: Some("Footwork intervals".to_owned()),
+                workout_type: Some("badminton".to_owned()),
+                workout_duration_milliseconds: Some(1_234_567),
+                workout_calories: Some(321),
+                workout_occurred_at: Some(created_at),
+                body: "Fast corners today".to_owned(),
+                location: Some("Community gym".to_owned()),
+                effort: Some(8),
+                image_keys: image_keys.clone(),
+                created_at,
+            },
+        )
+        .await
+        .expect("hydrate feed post");
+
+        assert_eq!(post.id, post_id);
+        assert_eq!(post.user_id, user_id);
+        assert_eq!(post.display_name, "Court Tester");
+        assert_eq!(post.user_skill_level, "advanced");
+        assert_eq!(post.workout_id, Some(workout_id));
+        assert_eq!(post.workout_title.as_deref(), Some("Footwork intervals"));
+        assert_eq!(post.workout_type.as_deref(), Some("badminton"));
+        assert_eq!(post.workout_duration_milliseconds, Some(1_234_567));
+        assert_eq!(post.workout_calories, Some(321));
+        assert_eq!(post.workout_occurred_at, Some(created_at));
+        assert_eq!(post.image_keys, image_keys);
+        assert_eq!(
+            post.image_urls,
+            vec![
+                format!("/uploads/posts/{user_id}/first.jpg"),
+                format!("/uploads/posts/{user_id}/second.jpg"),
+            ]
+        );
+        assert_eq!(post.created_at, created_at);
     }
 
     #[test]

@@ -26,6 +26,7 @@ import { imageUrlForLogs, postImageUrl } from '../../features/posts/postDraft';
 import { colors, fonts } from '../ui';
 
 type Props = {
+  displayHeight?: number;
   imageRefreshToken: number;
   imageUrls: string[];
 };
@@ -37,13 +38,14 @@ type GalleryPage = {
   width: number;
 };
 
-export function PostPhotoGallery({ imageRefreshToken, imageUrls }: Props) {
+export function PostPhotoGallery({ displayHeight = 220, imageRefreshToken, imageUrls }: Props) {
   const resolvedUrls = useMemo(() => imageUrls.map(postImageUrl), [imageUrls]);
   const gallery = usePostPhotoGallery(resolvedUrls.length);
 
   return (
     <>
       <PostPhotoGrid
+        displayHeight={displayHeight}
         imageRefreshToken={imageRefreshToken}
         imageUrls={resolvedUrls}
         onOpen={gallery.openPhoto}
@@ -62,13 +64,14 @@ export function PostPhotoGallery({ imageRefreshToken, imageUrls }: Props) {
 }
 
 function PostPhotoGrid({
+  displayHeight,
   imageRefreshToken,
   imageUrls,
   onOpen,
 }: Props & { onOpen: (index: number) => void }) {
   if (imageUrls.length === 3) {
     return (
-      <View style={styles.photos}>
+      <View style={[styles.photos, { height: displayHeight }]}>
         <PostPhotoTile
           count={imageUrls.length}
           imageRefreshToken={imageRefreshToken}
@@ -100,7 +103,7 @@ function PostPhotoGrid({
   }
 
   return (
-    <View style={[styles.photos, imageUrls.length === 4 && styles.photosWrapped]}>
+    <View style={[styles.photos, { height: displayHeight }, imageUrls.length === 4 && styles.photosWrapped]}>
       {imageUrls.map((uri, index) => (
         <PostPhotoTile
           count={imageUrls.length}
@@ -307,7 +310,8 @@ function usePostPhotoGallery(photoCount: number) {
 }
 
 function usePhotoTileAction(index: number, onOpen: (index: number) => void) {
-  return useCallback(() => {
+  return useCallback((event: GestureResponderEvent) => {
+    event.stopPropagation();
     onOpen(index);
   }, [index, onOpen]);
 }
@@ -411,10 +415,8 @@ function usePhotoLoadState(uri: string, imageRefreshToken: number) {
 
 const styles = StyleSheet.create({
   photos: {
-    borderRadius: 8,
     flexDirection: 'row',
     gap: 3,
-    height: 220,
     overflow: 'hidden',
     width: '100%',
   },

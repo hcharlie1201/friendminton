@@ -266,9 +266,13 @@ export type FeedPost = {
     image_urls: Array<string>;
     location?: string | null;
     user_id: string;
+    user_skill_level: string;
+    workout_calories?: number | null;
     workout_duration_milliseconds?: number | null;
     workout_id?: string | null;
+    workout_occurred_at?: string | null;
     workout_title?: string | null;
+    workout_type?: string | null;
 };
 
 export type FeedQuery = {
@@ -1051,6 +1055,10 @@ export type Post = {
     workout_id?: string | null;
 };
 
+export type PostPath = {
+    post_id: string;
+};
+
 export type QueryStyle = 'form' | 'spaceDelimited' | 'pipeDelimited' | 'deepObject';
 
 export type ReferenceOrForExample = {
@@ -1680,6 +1688,30 @@ export type GetApiPostsFeedResponses = {
 };
 
 export type GetApiPostsFeedResponse = GetApiPostsFeedResponses[keyof GetApiPostsFeedResponses];
+
+export type GetApiPostsByPostIdData = {
+    body?: never;
+    path: {
+        post_id: string;
+    };
+    query?: never;
+    url: '/api/posts/{post_id}';
+};
+
+export type GetApiPostsByPostIdErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+};
+
+export type GetApiPostsByPostIdError = GetApiPostsByPostIdErrors[keyof GetApiPostsByPostIdErrors];
+
+export type GetApiPostsByPostIdResponses = {
+    200: FeedPost;
+};
+
+export type GetApiPostsByPostIdResponse = GetApiPostsByPostIdResponses[keyof GetApiPostsByPostIdResponses];
 
 export type GetApiGameInvitesData = {
     body?: never;

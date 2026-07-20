@@ -6,6 +6,7 @@ import type {
   User,
   WeeklySnapshot as WeeklySnapshotData,
 } from '../../api/generated';
+import { StyleSheet, View } from 'react-native';
 import { ActivityPostCard } from '../feed/ActivityPostCard';
 import { PostComposer } from '../feed/PostComposer';
 import type { PostDraft } from '../../features/posts/postDraft';
@@ -26,6 +27,7 @@ export type HomeActions = {
   discardWorkout: () => void;
   editPost: (post: FeedPost) => void;
   endWorkout: () => void;
+  openPost: (post: FeedPost) => void;
   pauseWorkout: () => void;
   resumeWorkout: () => void;
   signOut: () => void;
@@ -175,15 +177,22 @@ export function HomeContent({
           onSubmit={actions.createPost}
         />
       )}
-      {feed.map((post) => (
-        <ActivityPostCard
-          canEdit={post.user_id === currentUser.id}
-          imageRefreshToken={feedRefreshToken}
-          key={post.id}
-          onEdit={actions.editPost}
-          post={post}
-        />
-      ))}
+      <View style={styles.feed}>
+        {feed.map((post) => (
+          <ActivityPostCard
+            canEdit={post.user_id === currentUser.id}
+            imageRefreshToken={feedRefreshToken}
+            key={post.id}
+            onEdit={actions.editPost}
+            onOpen={actions.openPost}
+            post={post}
+          />
+        ))}
+      </View>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  feed: { marginHorizontal: -20 },
+});
