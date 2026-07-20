@@ -34,10 +34,14 @@
   "scripts": {
     "start": "expo start",
     "start:clear": "expo start --clear",
+    "start:staging": "bash ./scripts/with-staging-env.sh pnpm exec expo start --clear",
+    "testflight:build": "bash ./scripts/build-ios-testflight-local.sh",
+    "testflight:submit": "bash ./scripts/submit-latest-ios-testflight.sh",
     "android": "expo run:android",
     "generate:api": "openapi-ts",
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
+    "with:staging": "bash ./scripts/with-staging-env.sh",
     "web": "expo start --web"
   },
   "private": true

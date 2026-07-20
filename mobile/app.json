@@ -12,7 +12,7 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Friendminton uses your location to find nearby players, sessions, and socials."
       },
-      "bundleIdentifier": "com.anonymous.friendminton-mobile"
+      "bundleIdentifier": "com.hcharlie1201.friendminton"
     },
     "android": {
       "adaptiveIcon": {

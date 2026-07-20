@@ -1,4 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { isRunningInExpoGo } from 'expo';
 import Constants from 'expo-constants';
 import type { Court, Gathering } from '../../api/generated';
 import { useCallback, useMemo, useState } from 'react';
@@ -271,6 +272,7 @@ function useCourtMarkerAction(court: Court) {
 }
 
 function mapProvider(): Provider | undefined {
+  if (Platform.OS === 'ios' && isRunningInExpoGo()) return undefined;
   const configuredForGoogleOnIos = Constants.expoConfig?.extra?.googleMapsProvider === 'google';
   return Platform.OS === 'android' || configuredForGoogleOnIos ? PROVIDER_GOOGLE : undefined;
 }
@@ -335,8 +337,8 @@ const styles = StyleSheet.create({
   dateTile: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 12, justifyContent: 'center', minHeight: 66, width: 58 }, dateMonth: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 10, fontWeight: '900' }, dateDay: { color: colors.ink, fontFamily: fonts.black, fontSize: 25, fontWeight: '900' },
   gameCopy: { flex: 1, gap: 2, minWidth: 0 }, gameTime: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' }, gameTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 16, fontWeight: '900' }, gameVenue: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12 }, gameMetadata: { color: colors.ink, fontFamily: fonts.bold, fontSize: 11, marginTop: 4 },
   emptyState: { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.border, borderRadius: 18, borderWidth: 1, gap: 7, padding: 28 }, emptyTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' }, emptyBody: { color: colors.muted, fontFamily: fonts.regular, fontSize: 13, textAlign: 'center' }, hostButton: { backgroundColor: colors.primary, borderRadius: 12, marginTop: 8, paddingHorizontal: 18, paddingVertical: 11 }, hostButtonText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 13, fontWeight: '900' },
-  mapContainer: { borderColor: '#B9D8E8', borderRadius: 18, borderWidth: 1, minHeight: 410, overflow: 'hidden' },
-  map: { minHeight: 410 },
-  mapEmpty: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 16, gap: 7, left: 24, padding: 20, position: 'absolute', right: 24, top: 135 },
+  mapContainer: { borderColor: '#B9D8E8', borderRadius: 18, borderWidth: 1, height: 410, overflow: 'hidden' },
+  map: { height: '100%', width: '100%' },
+  mapEmpty: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 16, bottom: 18, gap: 5, left: 18, padding: 14, position: 'absolute', right: 18 },
   mapTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 18, fontWeight: '900', textAlign: 'center' }, mapBody: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, maxWidth: 260, textAlign: 'center' },
 });

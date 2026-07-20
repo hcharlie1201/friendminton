@@ -115,6 +115,7 @@ pub enum ConfigError {
 
 impl AppConfig {
     pub fn load() -> Result<Self, ConfigError> {
+        let _ = dotenvy::dotenv();
         Self::load_from(Path::new("config"), |key| std::env::var(key).ok())
     }
 

@@ -990,6 +990,7 @@ dependencies = [
  "aws-sdk-s3",
  "axum",
  "config",
+ "dotenvy",
  "reqwest",
  "schemars",
  "serde",

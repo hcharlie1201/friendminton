@@ -29,7 +29,17 @@ pub(crate) async fn autocomplete(
     CurrentUser { .. }: CurrentUser,
     Query(query): Query<PlaceAutocompleteQuery>,
 ) -> Result<Json<Vec<PlacePrediction>>, AppError> {
-    Ok(Json(state.places.autocomplete(query).await?))
+    tracing::debug!(
+        input_length = query.input.trim().chars().count(),
+        location_biased = query.latitude.is_some() && query.longitude.is_some(),
+        "Google Places autocomplete requested"
+    );
+    let predictions = state.places.autocomplete(query).await?;
+    tracing::debug!(
+        prediction_count = predictions.len(),
+        "Google Places autocomplete completed"
+    );
+    Ok(Json(predictions))
 }
 
 pub(crate) async fn resolve(
@@ -38,7 +48,16 @@ pub(crate) async fn resolve(
     Path(path): Path<PlacePath>,
     Query(query): Query<PlaceDetailsQuery>,
 ) -> Result<Json<ResolvedPlace>, AppError> {
-    Ok(Json(state.places.resolve(&path.place_id, query).await?))
+    tracing::debug!(
+        place_id_length = path.place_id.len(),
+        "Google Places details requested"
+    );
+    let place = state.places.resolve(&path.place_id, query).await?;
+    tracing::debug!(
+        city_found = place.city.is_some(),
+        "Google Places details completed"
+    );
+    Ok(Json(place))
 }
 
 #[cfg(test)]

@@ -34,6 +34,7 @@ async fn main() -> Result<(), error::AppError> {
     sqlx::migrate!("./migrations").run(&pool).await?;
     tokio::fs::create_dir_all(&config.upload_dir).await?;
     let media = media::MediaStorage::from_config(&config).await?;
+    let places_configured = config.third_party.google_places_api_key.is_some();
     let places = places::GooglePlaces::new(config.third_party.google_places_api_key.clone());
 
     let app = app::router(
@@ -48,7 +49,12 @@ async fn main() -> Result<(), error::AppError> {
     let addr: SocketAddr = config.server_addr.parse()?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
-    tracing::info!(%addr, environment = %config.environment, "friendminton api listening");
+    tracing::info!(
+        %addr,
+        environment = %config.environment,
+        places_configured,
+        "friendminton api listening"
+    );
     axum::serve(listener, app).await?;
 
     Ok(())
