@@ -34,15 +34,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 20,
     fontWeight: '900',
   },
   count: {
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.primarySurface,
     borderRadius: 14,
-    color: colors.primaryDark,
+    color: colors.primaryStrong,
     fontFamily: fonts.black,
     fontSize: 13,
     fontWeight: '900',
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   empty: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.bold,
     fontSize: 15,
     fontWeight: '700',

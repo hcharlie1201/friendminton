@@ -64,7 +64,7 @@ function useChoiceAction<T extends string>(onSelect: (value: T) => void, value: 
 const styles = StyleSheet.create({
   group: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choice: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 14,
     borderWidth: 1,
@@ -75,10 +75,10 @@ const styles = StyleSheet.create({
   },
   choiceSelected: {
     backgroundColor: colors.primary,
-    borderColor: colors.primaryDark,
+    borderColor: colors.primaryStrong,
   },
-  label: { color: colors.ink, fontFamily: fonts.black, fontSize: 13, fontWeight: '900', textAlign: 'center' },
-  labelSelected: { color: '#FFFFFF' },
-  description: { color: colors.muted, fontFamily: fonts.medium, fontSize: 10, lineHeight: 14, marginTop: 3, textAlign: 'center' },
-  descriptionSelected: { color: 'rgba(255,255,255,0.8)' },
+  label: { color: colors.text, fontFamily: fonts.black, fontSize: 13, fontWeight: '900', textAlign: 'center' },
+  labelSelected: { color: colors.textOnPrimary },
+  description: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 10, lineHeight: 14, marginTop: 3, textAlign: 'center' },
+  descriptionSelected: { color: colors.primaryStrong },
 });

@@ -60,7 +60,7 @@ function useSectionSelection(onChange: Props['onChange'], value: DiscoverSection
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#E8EEF7',
+    backgroundColor: colors.secondarySurface,
     borderRadius: 13,
     flexDirection: 'row',
     gap: 4,
@@ -74,12 +74,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   optionSelected: {
-    backgroundColor: colors.card,
-    shadowColor: '#0F172A',
+    backgroundColor: colors.surface,
+    shadowColor: colors.text,
     shadowOffset: { height: 2, width: 0 },
     shadowOpacity: 0.09,
     shadowRadius: 5,
   },
-  label: { color: colors.muted, fontFamily: fonts.bold, fontSize: 14, fontWeight: '700' },
-  labelSelected: { color: colors.ink, fontFamily: fonts.black, fontWeight: '900' },
+  label: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 14, fontWeight: '700' },
+  labelSelected: { color: colors.text, fontFamily: fonts.black, fontWeight: '900' },
 });

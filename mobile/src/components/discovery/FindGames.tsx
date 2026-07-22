@@ -53,7 +53,7 @@ export function FindGames({ city, gatherings, latitude, longitude, onCreateGathe
         <View style={styles.headingActions}>
           {discovery.resultType === 'games' && (
             <Pressable accessibilityLabel="Open game filters" accessibilityRole="button" onPress={discovery.openFilters} style={styles.filterButton}>
-              <Ionicons color={colors.primaryDark} name="options-outline" size={24} />
+              <Ionicons color={colors.primaryStrong} name="options-outline" size={24} />
               {discovery.activeFilterCount > 0 && (
                 <View style={styles.filterBadge}>
                   <Text style={styles.filterBadgeText}>{discovery.activeFilterCount}</Text>
@@ -150,7 +150,7 @@ function ResultsLayoutToggle({ layout, onToggle }: { layout: GameResultsLayout; 
       style={styles.layoutToggle}
     >
       <Ionicons
-        color="#FFFFFF"
+        color={colors.textInverse}
         name={showingMap ? 'grid-outline' : 'map-outline'}
         size={25}
       />
@@ -193,7 +193,7 @@ function GameListItem({ game, onOpen }: { game: Gathering; onOpen: Props['onOpen
         <Text numberOfLines={1} style={styles.gameVenue}>{game.venue} · {game.city}</Text>
         <Text style={styles.gameMetadata}>{gameMetadata(game)}</Text>
       </View>
-      <Ionicons color={colors.muted} name="chevron-forward" size={22} />
+      <Ionicons color={colors.textMuted} name="chevron-forward" size={22} />
     </Pressable>
   );
 }
@@ -258,7 +258,7 @@ function CourtMarker({ court }: { court: Court }) {
       coordinate={{ latitude: court.latitude, longitude: court.longitude }}
       description={`${court.address} · ${court.court_count ?? '?'} courts`}
       onCalloutPress={open}
-      pinColor={colors.success}
+      pinColor={colors.playAccentStrong}
       title={court.name}
     />
   );
@@ -326,19 +326,19 @@ function gameMetadata(game: Gathering) {
 
 const styles = StyleSheet.create({
   container: { gap: 16 }, headingRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }, headingCopy: { flex: 1, gap: 2, minWidth: 0 },
-  title: { color: colors.ink, fontFamily: fonts.black, fontSize: 22, fontWeight: '900' }, subtitle: { color: colors.muted, fontFamily: fonts.medium, fontSize: 13 },
+  title: { color: colors.text, fontFamily: fonts.black, fontSize: 22, fontWeight: '900' }, subtitle: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13 },
   headingActions: { alignItems: 'center', flexDirection: 'row', gap: 9 },
-  filterButton: { alignItems: 'center', backgroundColor: colors.primarySoft, borderColor: '#B9D8FF', borderRadius: 12, borderWidth: 1, height: 46, justifyContent: 'center', width: 50 },
+  filterButton: { alignItems: 'center', backgroundColor: colors.primarySurface, borderColor: colors.borderStrong, borderRadius: 12, borderWidth: 1, height: 46, justifyContent: 'center', width: 50 },
   filterBadge: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: 9, height: 18, justifyContent: 'center', minWidth: 18, position: 'absolute', right: -5, top: -6 },
-  filterBadgeText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 10, fontWeight: '900' },
-  layoutToggle: { alignItems: 'center', backgroundColor: colors.primaryDark, borderRadius: 12, height: 46, justifyContent: 'center', width: 50 },
+  filterBadgeText: { color: colors.textOnPrimary, fontFamily: fonts.black, fontSize: 10, fontWeight: '900' },
+  layoutToggle: { alignItems: 'center', backgroundColor: colors.primaryStrong, borderRadius: 12, height: 46, justifyContent: 'center', width: 50 },
   discoveryStrips: { gap: 10 },
   gameList: { borderBottomColor: colors.border, borderBottomWidth: 1 }, gameRow: { alignItems: 'center', borderTopColor: colors.border, borderTopWidth: 1, flexDirection: 'row', gap: 13, minHeight: 116, paddingVertical: 14 },
-  dateTile: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 12, justifyContent: 'center', minHeight: 66, width: 58 }, dateMonth: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 10, fontWeight: '900' }, dateDay: { color: colors.ink, fontFamily: fonts.black, fontSize: 25, fontWeight: '900' },
-  gameCopy: { flex: 1, gap: 2, minWidth: 0 }, gameTime: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' }, gameTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 16, fontWeight: '900' }, gameVenue: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12 }, gameMetadata: { color: colors.ink, fontFamily: fonts.bold, fontSize: 11, marginTop: 4 },
-  emptyState: { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.border, borderRadius: 18, borderWidth: 1, gap: 7, padding: 28 }, emptyTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' }, emptyBody: { color: colors.muted, fontFamily: fonts.regular, fontSize: 13, textAlign: 'center' }, hostButton: { backgroundColor: colors.primary, borderRadius: 12, marginTop: 8, paddingHorizontal: 18, paddingVertical: 11 }, hostButtonText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 13, fontWeight: '900' },
-  mapContainer: { borderColor: '#B9D8E8', borderRadius: 18, borderWidth: 1, height: 410, overflow: 'hidden' },
+  dateTile: { alignItems: 'center', backgroundColor: colors.primarySurface, borderRadius: 12, justifyContent: 'center', minHeight: 66, width: 58 }, dateMonth: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 10, fontWeight: '900' }, dateDay: { color: colors.text, fontFamily: fonts.black, fontSize: 25, fontWeight: '900' },
+  gameCopy: { flex: 1, gap: 2, minWidth: 0 }, gameTime: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' }, gameTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 16, fontWeight: '900' }, gameVenue: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12 }, gameMetadata: { color: colors.text, fontFamily: fonts.bold, fontSize: 11, marginTop: 4 },
+  emptyState: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, gap: 7, padding: 28 }, emptyTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' }, emptyBody: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, textAlign: 'center' }, hostButton: { backgroundColor: colors.primary, borderRadius: 12, marginTop: 8, paddingHorizontal: 18, paddingVertical: 11 }, hostButtonText: { color: colors.textOnPrimary, fontFamily: fonts.black, fontSize: 13, fontWeight: '900' },
+  mapContainer: { borderColor: colors.borderStrong, borderRadius: 18, borderWidth: 1, height: 410, overflow: 'hidden' },
   map: { height: '100%', width: '100%' },
-  mapEmpty: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 16, bottom: 18, gap: 5, left: 18, padding: 14, position: 'absolute', right: 18 },
-  mapTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 18, fontWeight: '900', textAlign: 'center' }, mapBody: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, maxWidth: 260, textAlign: 'center' },
+  mapEmpty: { alignItems: 'center', backgroundColor: colors.surfaceOverlay, borderRadius: 16, bottom: 18, gap: 5, left: 18, padding: 14, position: 'absolute', right: 18 },
+  mapTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 18, fontWeight: '900', textAlign: 'center' }, mapBody: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12, maxWidth: 260, textAlign: 'center' },
 });

@@ -55,28 +55,28 @@ export type GatheringTheme = {
 
 export const gatheringThemes: GatheringTheme[] = [
   {
-    accent: '#C7FF4A',
-    colors: ['#031D44', '#0759B8', '#0B8FFF'],
+    accent: '#FFD166',
+    colors: ['#27789C', '#5AB8E2', '#83CFF1'],
     id: 'court_lights',
-    label: 'Court Lights',
+    label: 'Blue Skies',
   },
   {
-    accent: '#FFD447',
-    colors: ['#5B1DA8', '#C53BE8', '#FF526D'],
+    accent: '#FFD166',
+    colors: ['#B9425B', '#F4778D', '#FF8A4C'],
     id: 'birdie_burst',
-    label: 'Birdie Burst',
+    label: 'Sunset Rally',
   },
   {
-    accent: '#26E7FF',
-    colors: ['#07162D', '#073B78', '#006F8F'],
+    accent: '#FFB8C5',
+    colors: ['#36558F', '#628BCC', '#83CFF1'],
     id: 'net_night',
-    label: 'Net Night',
+    label: 'Cloud Nine',
   },
   {
-    accent: '#E5FF4E',
-    colors: ['#D92D45', '#FF6333', '#FF9F2F'],
+    accent: '#FFF0F3',
+    colors: ['#C94256', '#FF8A4C', '#FFD166'],
     id: 'social_rally',
-    label: 'Social Rally',
+    label: 'Golden Hour',
   },
 ];
 

@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   title: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 30,
     fontWeight: '900',

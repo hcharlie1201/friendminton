@@ -19,7 +19,7 @@ const styles = StyleSheet.create({
     minHeight: 36,
   },
   label: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.bold,
     fontSize: 14,
     fontWeight: '700',

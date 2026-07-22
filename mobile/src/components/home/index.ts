@@ -8,5 +8,4 @@ export { PlayerCard } from './PlayerCard';
 export { PlayerSearchResults } from './PlayerSearchResults';
 export { SettingsPanel } from './SettingsPanel';
 export { WeeklySnapshot } from './WeeklySnapshot';
-export { WorkoutRecorder } from './WorkoutRecorder';
 export type { DiscoveryLocation, DiscoveryPreferences, SkillLevel, Tab } from './types';

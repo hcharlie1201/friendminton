@@ -57,7 +57,7 @@ export const DiscoveryFilterSheet = memo(function DiscoveryFilterSheet({
                 hitSlop={8}
                 onPress={onClose}
               >
-                <Ionicons color={colors.ink} name="close" size={27} />
+                <Ionicons color={colors.text} name="close" size={27} />
               </Pressable>
               <Text accessibilityRole="header" style={styles.title}>
                 Discover filters
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdrop: {
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: colors.overlay,
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     gap: 18,
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
   },
   grabber: {
     alignSelf: 'center',
-    backgroundColor: '#CBD5E1',
+    backgroundColor: colors.borderStrong,
     borderRadius: 2,
     height: 4,
     width: 38,
@@ -227,13 +227,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 19,
     fontWeight: '900',
   },
   resetLabel: {
-    color: colors.primaryDark,
+    color: colors.primaryStrong,
     fontFamily: fonts.bold,
     fontSize: 14,
     fontWeight: '700',
@@ -249,13 +249,13 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   sectionTitle: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 17,
     fontWeight: '900',
   },
   sectionHelp: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.regular,
     fontSize: 13,
   },

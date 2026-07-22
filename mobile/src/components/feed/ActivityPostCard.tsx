@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'r
 
 import type { FeedPost } from '../../api/generated';
 import { formatDate } from '../../lib/dates';
-import { formatElapsedTime } from '../../features/workouts/useWorkoutRecorder';
+import { formatElapsedTime } from '../../lib/duration';
 import { colors, fonts } from '../ui';
 import { PostPhotoGallery } from './PostPhotoGallery';
 
@@ -69,7 +69,7 @@ function EditPostButton({ onEdit, post }: { onEdit: (post: FeedPost) => void; po
   const edit = useEditPostAction(onEdit, post);
   return (
     <Pressable accessibilityLabel="Edit post" hitSlop={10} onPress={edit} style={styles.editButton}>
-      <Ionicons color={colors.muted} name="ellipsis-horizontal" size={22} />
+      <Ionicons color={colors.textMuted} name="ellipsis-horizontal" size={22} />
     </Pressable>
   );
 }
@@ -119,7 +119,7 @@ function initials(name: string) {
 
 const styles = StyleSheet.create({
   post: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderBottomColor: colors.background,
     borderBottomWidth: 8,
     gap: 14,
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     width: 40,
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
     fontFamily: fonts.black,
     fontSize: 13,
     fontWeight: '900',
@@ -150,19 +150,19 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   name: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 16,
     fontWeight: '900',
   },
   meta: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.bold,
     fontSize: 12,
     fontWeight: '700',
   },
   body: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.bold,
     fontSize: 18,
     fontWeight: '700',
@@ -171,8 +171,8 @@ const styles = StyleSheet.create({
   },
   workoutSummary: { alignItems: 'center', flexDirection: 'row', gap: 10, paddingHorizontal: 20 },
   workoutCopy: { flex: 1 },
-  workoutTitle: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 14, fontWeight: '900' },
-  workoutDuration: { color: colors.muted, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
+  workoutTitle: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 14, fontWeight: '900' },
+  workoutDuration: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
   editButton: { alignItems: 'center', height: 36, justifyContent: 'center', width: 36 },
   effort: {
     alignItems: 'center',
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   effortLabel: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.black,
     fontSize: 10,
     fontWeight: '900',
@@ -192,5 +192,5 @@ const styles = StyleSheet.create({
   effortBars: { flex: 1, flexDirection: 'row', gap: 3 },
   effortBar: { backgroundColor: colors.border, borderRadius: 2, flex: 1, height: 5 },
   effortBarActive: { backgroundColor: colors.primary },
-  effortValue: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' },
+  effortValue: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' },
 });

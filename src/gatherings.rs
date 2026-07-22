@@ -1,18 +1,20 @@
 mod gathering;
 
 use sqlx::{Pool, Postgres, QueryBuilder};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::{
+    activities::Workout,
     error::AppError,
     media::{MediaStorage, validate_gathering_cover_key},
 };
 
 pub use gathering::{
     CourtSetup, CreateGathering, Gathering, GatheringJoinPolicy, GatheringParticipant,
-    GatheringParticipantStatus, GatheringSearch,
+    GatheringParticipantStatus, GatheringSearch, GatheringViewerState,
 };
-use gathering::{GatheringKind, GatheringVisibility, StoredGathering};
+use gathering::{GatheringKind, GatheringVisibility, PlayFormat, StoredGathering};
 
 const GATHERING_COLUMNS: &str = r#"
     g.id, g.host_id, g.kind, g.visibility, g.join_policy, g.title,
@@ -277,6 +279,167 @@ pub async fn join_gathering(
 
     transaction.commit().await?;
     Ok(participant)
+}
+
+pub async fn gathering_viewer_state(
+    pool: &Pool<Postgres>,
+    gathering_id: Uuid,
+    user_id: Uuid,
+) -> Result<GatheringViewerState, AppError> {
+    let (starts_at, kind) = sqlx::query_as::<_, (OffsetDateTime, GatheringKind)>(
+        r#"
+        SELECT starts_at, kind
+        FROM gatherings
+        WHERE id = $1
+            AND (
+                visibility = 'public'
+                OR host_id = $2
+                OR EXISTS (
+                    SELECT 1 FROM gathering_participants
+                    WHERE gathering_id = $1
+                        AND user_id = $2
+                        AND status IN ('going', 'invited')
+                )
+            )
+        "#,
+    )
+    .bind(gathering_id)
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
+    let participant_status = sqlx::query_scalar::<_, GatheringParticipantStatus>(
+        r#"
+        SELECT status
+        FROM gathering_participants
+        WHERE gathering_id = $1 AND user_id = $2
+        "#,
+    )
+    .bind(gathering_id)
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
+    let workout_id = sqlx::query_scalar::<_, Uuid>(
+        "SELECT id FROM workouts WHERE gathering_id = $1 AND user_id = $2",
+    )
+    .bind(gathering_id)
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
+    let post_id = if let Some(workout_id) = workout_id {
+        sqlx::query_scalar::<_, Uuid>("SELECT id FROM posts WHERE workout_id = $1")
+            .bind(workout_id)
+            .fetch_optional(pool)
+            .await?
+    } else {
+        None
+    };
+
+    Ok(GatheringViewerState {
+        can_finish: participant_status == Some(GatheringParticipantStatus::Going)
+            && workout_id.is_none()
+            && kind != GatheringKind::Social
+            && starts_at <= OffsetDateTime::now_utc(),
+        participant_status,
+        workout_id,
+        post_id,
+    })
+}
+
+pub async fn finish_gathering(
+    pool: &Pool<Postgres>,
+    gathering_id: Uuid,
+    user_id: Uuid,
+) -> Result<Workout, AppError> {
+    let mut transaction = pool.begin().await?;
+    let (title, kind, play_format, starts_at, ends_at) = sqlx::query_as::<
+        _,
+        (
+            String,
+            GatheringKind,
+            Option<PlayFormat>,
+            OffsetDateTime,
+            Option<OffsetDateTime>,
+        ),
+    >(
+        r#"
+        SELECT title, kind, play_format, starts_at, ends_at
+        FROM gatherings
+        WHERE id = $1
+        FOR UPDATE
+        "#,
+    )
+    .bind(gathering_id)
+    .fetch_one(&mut *transaction)
+    .await?;
+
+    let participant_status = sqlx::query_scalar::<_, GatheringParticipantStatus>(
+        r#"
+        SELECT status
+        FROM gathering_participants
+        WHERE gathering_id = $1 AND user_id = $2
+        "#,
+    )
+    .bind(gathering_id)
+    .bind(user_id)
+    .fetch_optional(&mut *transaction)
+    .await?;
+    if participant_status != Some(GatheringParticipantStatus::Going) {
+        return Err(AppError::BadRequest(
+            "join this gathering before finishing your session".to_owned(),
+        ));
+    }
+    if kind == GatheringKind::Social {
+        return Err(AppError::BadRequest(
+            "social-only gatherings do not create workout activities".to_owned(),
+        ));
+    }
+
+    let now = OffsetDateTime::now_utc();
+    if now < starts_at {
+        return Err(AppError::BadRequest(
+            "the session cannot be finished before it starts".to_owned(),
+        ));
+    }
+    let finished_at = ends_at.map_or(now, |end| end.min(now));
+    let elapsed_milliseconds = (finished_at - starts_at).whole_milliseconds().max(1);
+    let duration_milliseconds = i64::try_from(elapsed_milliseconds)
+        .map_err(|_| AppError::BadRequest("session duration is too large".to_owned()))?;
+    let duration_minutes = i32::try_from((duration_milliseconds + 59_999) / 60_000)
+        .map_err(|_| AppError::BadRequest("session duration is too large".to_owned()))?;
+    let workout_type = match play_format {
+        Some(PlayFormat::Drills) => "drills",
+        Some(PlayFormat::Coaching) => "lesson",
+        Some(PlayFormat::OpenPlay) => "open_play",
+        Some(PlayFormat::RoundRobin | PlayFormat::Doubles | PlayFormat::Singles) => "match",
+        None if kind == GatheringKind::Social => "social",
+        None => "badminton",
+    };
+
+    let workout = sqlx::query_as::<_, Workout>(
+        r#"
+        INSERT INTO workouts (
+            user_id, gathering_id, title, workout_type, duration_minutes,
+            duration_milliseconds, occurred_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (user_id, gathering_id) WHERE gathering_id IS NOT NULL
+        DO UPDATE SET gathering_id = EXCLUDED.gathering_id
+        RETURNING id, user_id, gathering_id, title, workout_type, duration_minutes,
+            duration_milliseconds, calories, distance_meters, notes, occurred_at, created_at
+        "#,
+    )
+    .bind(user_id)
+    .bind(gathering_id)
+    .bind(title)
+    .bind(workout_type)
+    .bind(duration_minutes)
+    .bind(duration_milliseconds)
+    .bind(starts_at)
+    .fetch_one(&mut *transaction)
+    .await?;
+
+    transaction.commit().await?;
+    Ok(workout)
 }
 
 fn next_join_status(

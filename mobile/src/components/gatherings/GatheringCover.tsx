@@ -9,7 +9,7 @@ import {
   type GatheringKind,
   type GatheringThemeId,
 } from '../../features/gatherings/gatheringDraft';
-import { fonts } from '../ui';
+import { colors, fonts } from '../ui';
 
 type Props = {
   coverPhoto: GatheringCoverPhoto | null;
@@ -39,14 +39,14 @@ export function GatheringCover({
         {coverPhoto && <View style={styles.photoShade} />}
         {!coverPhoto && <CourtArtwork accent={theme.accent} />}
         <LinearGradient
-          colors={['rgba(4,18,42,0)', 'rgba(4,18,42,0.78)']}
+          colors={[colors.transparent, colors.overlayStrong]}
           pointerEvents="none"
           style={styles.bottomScrim}
         />
 
         <View style={styles.coverContent}>
           <View style={styles.kindBadge}>
-            <MaterialCommunityIcons color="#FFFFFF" name="badminton" size={15} />
+            <MaterialCommunityIcons color={colors.textInverse} name="badminton" size={15} />
             <Text style={styles.kindText}>{gatheringKindLabel(kind)}</Text>
           </View>
 
@@ -57,7 +57,7 @@ export function GatheringCover({
         </View>
 
         <Pressable accessibilityLabel="Choose a gathering cover photo" accessibilityRole="button" onPress={onEditCover} style={styles.editButton}>
-          <MaterialCommunityIcons color="#0F172A" name="image-edit-outline" size={19} />
+          <MaterialCommunityIcons color={colors.text} name="image-edit-outline" size={19} />
           <Text style={styles.editText}>{coverPhoto ? 'Change' : 'Add photo'}</Text>
         </Pressable>
       </LinearGradient>
@@ -73,7 +73,7 @@ function CourtArtwork({ accent }: { accent: string }) {
       <View style={[styles.courtService, styles.courtServiceTop, { backgroundColor: accent }]} />
       <View style={[styles.courtService, styles.courtServiceBottom, { backgroundColor: accent }]} />
       <View style={[styles.shuttleGlow, { backgroundColor: accent }]} />
-      <MaterialCommunityIcons color="#FFFFFF" name="badminton" size={112} style={styles.shuttleIcon} />
+      <MaterialCommunityIcons color={colors.textInverse} name="badminton" size={112} style={styles.shuttleIcon} />
     </View>
   );
 }
@@ -82,14 +82,14 @@ const styles = StyleSheet.create({
   frame: {
     borderRadius: 24,
     overflow: 'hidden',
-    shadowColor: '#0B3B75',
+    shadowColor: colors.shadow,
     shadowOffset: { height: 14, width: 0 },
     shadowOpacity: 0.24,
     shadowRadius: 24,
   },
   cover: { height: 300, overflow: 'hidden' },
   coverPhoto: { bottom: 0, height: '100%', left: 0, position: 'absolute', right: 0, top: 0, width: '100%' },
-  photoShade: { backgroundColor: 'rgba(4, 18, 42, 0.48)', bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
+  photoShade: { backgroundColor: colors.imageOverlay, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   bottomScrim: { bottom: 0, height: 160, left: 0, position: 'absolute', right: 0 },
   artwork: { bottom: 0, left: 0, opacity: 0.88, position: 'absolute', right: 0, top: 0 },
   courtOuter: {
@@ -141,8 +141,8 @@ const styles = StyleSheet.create({
   kindBadge: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(4, 17, 37, 0.34)',
-    borderColor: 'rgba(255,255,255,0.36)',
+    backgroundColor: colors.imageOverlay,
+    borderColor: colors.imageOverlayBorder,
     borderRadius: 99,
     borderWidth: 1,
     flexDirection: 'row',
@@ -150,13 +150,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 7,
   },
-  kindText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 12, fontWeight: '900' },
+  kindText: { color: colors.textInverse, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' },
   coverBottom: { gap: 7, maxWidth: '88%' },
-  title: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 31, fontWeight: '900', lineHeight: 35 },
-  meta: { color: 'rgba(255,255,255,0.86)', fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
+  title: { color: colors.textInverse, fontFamily: fonts.black, fontSize: 31, fontWeight: '900', lineHeight: 35 },
+  meta: { color: colors.imageOverlayText, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
   editButton: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: colors.surfaceOverlay,
     borderRadius: 99,
     flexDirection: 'row',
     gap: 6,
@@ -166,5 +166,5 @@ const styles = StyleSheet.create({
     right: 16,
     top: 16,
   },
-  editText: { color: '#0F172A', fontFamily: fonts.black, fontSize: 12, fontWeight: '900' },
+  editText: { color: colors.text, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' },
 });

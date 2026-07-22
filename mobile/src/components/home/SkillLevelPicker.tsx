@@ -96,20 +96,20 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   label: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.bold,
     fontSize: 15,
     fontWeight: '700',
   },
   description: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.regular,
     fontSize: 12,
     lineHeight: 16,
   },
   radio: {
     alignItems: 'center',
-    borderColor: '#94A3B8',
+    borderColor: colors.borderStrong,
     borderRadius: 10,
     borderWidth: 2,
     height: 20,

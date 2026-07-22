@@ -15,7 +15,7 @@ export function GatheringCreatorHeader({ kind, onClose }: { kind: GatheringKind;
         onPress={onClose}
         style={styles.headerButton}
       >
-        <Ionicons color={colors.ink} name="close" size={27} />
+        <Ionicons color={colors.text} name="close" size={27} />
       </Pressable>
       <View style={styles.headerCopy}>
         <Text style={styles.headerEyebrow}>HOST SOMETHING</Text>
@@ -29,7 +29,7 @@ export function GatheringCreatorHeader({ kind, onClose }: { kind: GatheringKind;
 const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    backgroundColor: colors.surfaceOverlay,
     borderBottomColor: colors.border,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -45,5 +45,5 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1.2,
   },
-  headerTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 17, fontWeight: '900' },
+  headerTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 17, fontWeight: '900' },
 });

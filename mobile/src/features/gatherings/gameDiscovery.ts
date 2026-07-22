@@ -33,7 +33,7 @@ export const defaultGameDiscoveryFilters: GameDiscoveryFilters = {
 export function filterGames(gatherings: readonly Gathering[], filters: GameDiscoveryFilters, now = new Date()) {
   return gatherings
     .filter(isPlayableGathering)
-    .filter((gathering) => matchesDate(gathering.starts_at, filters.date, now))
+    .filter((gathering) => matchesDate(gathering, filters.date, now))
     .filter((gathering) => !filters.playFormat || gathering.play_format === filters.playFormat)
     .filter((gathering) => !filters.visibility || gathering.visibility === filters.visibility)
     .filter((gathering) => !filters.level || !gathering.skill_level || gathering.skill_level === filters.level)
@@ -83,17 +83,28 @@ function matchesCost(cents: number, filter: GameCostFilter) {
   return true;
 }
 
-function matchesDate(startsAt: string, filter: GameDateFilter, now: Date) {
+function matchesDate(gathering: Gathering, filter: GameDateFilter, now: Date) {
   if (filter === 'any') return true;
-  const start = new Date(startsAt);
+  const start = new Date(gathering.starts_at);
   if (Number.isNaN(start.getTime())) return false;
 
   const week = Number(filter.slice(-1));
+  if (week === 0 && isOngoing(gathering, now)) return true;
   const rangeStart = startOfDay(now);
   rangeStart.setDate(rangeStart.getDate() + week * 7);
   const rangeEnd = new Date(rangeStart);
   rangeEnd.setDate(rangeEnd.getDate() + 7);
   return start >= rangeStart && start < rangeEnd;
+}
+
+function isOngoing(gathering: Gathering, now: Date) {
+  if (!gathering.ends_at) return false;
+  const start = new Date(gathering.starts_at);
+  const end = new Date(gathering.ends_at);
+  return !Number.isNaN(start.getTime())
+    && !Number.isNaN(end.getTime())
+    && start <= now
+    && end > now;
 }
 
 function startOfDay(value: Date) {

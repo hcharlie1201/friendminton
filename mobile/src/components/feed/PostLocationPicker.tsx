@@ -16,7 +16,7 @@ export function PostLocationPicker({ draft, onChange }: Props) {
   if (!picker.visible) {
     return (
       <Pressable accessibilityRole="button" onPress={picker.open} style={styles.tool}>
-        <Ionicons color={colors.primaryDark} name="location-outline" size={19} />
+        <Ionicons color={colors.primaryStrong} name="location-outline" size={19} />
         <Text style={styles.toolLabel}>Add location</Text>
       </Pressable>
     );
@@ -30,7 +30,7 @@ export function PostLocationPicker({ draft, onChange }: Props) {
         value={null}
       />
       <Pressable accessibilityRole="button" onPress={picker.remove} style={styles.remove}>
-        <Ionicons color={colors.muted} name="close-circle" size={18} />
+        <Ionicons color={colors.textMuted} name="close-circle" size={18} />
         <Text style={styles.removeText}>Remove location</Text>
       </Pressable>
     </View>
@@ -52,8 +52,8 @@ function usePostLocationPicker(draft: PostDraft, onChange: Props['onChange']) {
 
 const styles = StyleSheet.create({
   container: { gap: 6 },
-  tool: { alignItems: 'center', backgroundColor: colors.primarySoft, borderColor: '#B9D8FF', borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 6, minHeight: 40, paddingHorizontal: 11 },
-  toolLabel: { color: colors.primaryDark, fontFamily: fonts.extraBold, fontSize: 12, fontWeight: '800' },
+  tool: { alignItems: 'center', backgroundColor: colors.primarySurface, borderColor: colors.borderStrong, borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 6, minHeight: 40, paddingHorizontal: 11 },
+  toolLabel: { color: colors.primaryStrong, fontFamily: fonts.extraBold, fontSize: 12, fontWeight: '800' },
   remove: { alignItems: 'center', alignSelf: 'flex-end', flexDirection: 'row', gap: 4, padding: 4 },
-  removeText: { color: colors.muted, fontFamily: fonts.medium, fontSize: 11 },
+  removeText: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 11 },
 });

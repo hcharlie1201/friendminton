@@ -23,8 +23,6 @@ import {
   getApiGameInvites,
   getApiPostsFeed,
   postApiEngagementNotificationsRead,
-  postApiPosts,
-  postApiWorkouts,
   putApiPosts,
   type FeedPage,
   type FeedPost,
@@ -33,7 +31,6 @@ import {
   type UnreadNotificationCount,
   type User,
   type WeeklySnapshot,
-  type Workout,
 } from '../api/generated';
 import { apiBaseUrl } from '../config';
 import { apiData, apiSuccess, authHeaders } from '../api/runtime';
@@ -60,9 +57,9 @@ import {
 } from '../features/posts/postDraft';
 import { uploadPostPhotos } from '../features/posts/uploads';
 import { feedQueryKey } from '../features/posts/feed';
-import { type RecordedWorkout, useWorkoutRecorder } from '../features/workouts/useWorkoutRecorder';
 import { usePlayerSearch } from '../features/players/usePlayerSearch';
 import { useGatheringDiscovery } from '../features/gatherings/useGatheringDiscovery';
+import { useHostedGatherings } from '../features/gatherings/useHostedGatherings';
 
 type WriteMutation = {
   mutate: () => void;
@@ -148,11 +145,8 @@ export function HomeScreen() {
   const { city, latitude, longitude, skillLevel } = discoveryPreferences;
   const [playerSearch, setPlayerSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [workoutTitle, setWorkoutTitle] = useState('Doubles ladder night');
-  const [recordedWorkoutId, setRecordedWorkoutId] = useState<string | null>(null);
   const [postDraft, setPostDraft] = useState<PostDraft>(emptyPostDraft);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
-  const workoutRecorder = useWorkoutRecorder();
   const homeRefresh = useHomeRefresh(queryClient, currentUser.id);
   const openPost = usePostNavigation();
   const openGathering = useGatheringDetailNavigation();
@@ -178,6 +172,7 @@ export function HomeScreen() {
     skillLevel,
     userId: currentUser.id,
   });
+  const hostedGatheringsQuery = useHostedGatherings(currentUser.id, activeTab === 'you');
   const feedQuery = useInfiniteQuery({
     queryKey: feedQueryKey,
     queryFn: loadFeedPage,
@@ -218,20 +213,14 @@ export function HomeScreen() {
   });
   const createPostMutation = useMutation({
     mutationFn: () =>
-      savePost({
+      savePostEdit({
         draft: postDraft,
         postId: editingPostId,
-        recordedWorkout: workoutRecorder.recordedWorkout,
-        recordedWorkoutId,
-        setRecordedWorkoutId,
         userId: currentUser.id,
-        workoutTitle,
       }),
     onError: showError,
     onSuccess: async () => {
       resetPostEditor(setPostDraft, setEditingPostId);
-      setRecordedWorkoutId(null);
-      workoutRecorder.reset();
       setActiveTab('home');
       await invalidateHomeData(queryClient, currentUser.id);
     },
@@ -258,6 +247,7 @@ export function HomeScreen() {
     healthQuery.isLoading ||
     playersQuery.isFetching ||
     gatheringsQuery.isFetching ||
+    hostedGatheringsQuery.isFetching ||
     (feedQuery.isFetching && !feedQuery.isFetchingNextPage) ||
     snapshotQuery.isFetching ||
     gameInvitesQuery.isFetching ||
@@ -265,20 +255,14 @@ export function HomeScreen() {
     markNotificationsReadMutation.isPending;
   const actions = useHomeActions({
     createPostMutation,
-    discardWorkout: workoutRecorder.reset,
-    endWorkout: workoutRecorder.end,
-    pauseWorkout: workoutRecorder.pause,
     openGathering,
     openPlayer,
     openPost,
     openGatheringCreator,
-    resumeWorkout: workoutRecorder.resume,
     setActiveTab,
     setEditingPostId,
     setPostDraft,
-    setRecordedWorkoutId,
     signOut,
-    startWorkout: workoutRecorder.start,
     homeScrollRef,
   });
   const headerActions = useHeaderActions({
@@ -321,7 +305,7 @@ export function HomeScreen() {
             refreshing={homeRefresh.isRefreshing}
             tintColor={colors.primary}
             title={pullToRefreshTitle(activeTab)}
-            titleColor={colors.muted}
+            titleColor={colors.textMuted}
           />
         ) : undefined}
         scrollEventThrottle={100}
@@ -340,6 +324,7 @@ export function HomeScreen() {
           feedRefreshToken={homeRefresh.imageRefreshToken}
           gameInvites={gameInvites}
           gatherings={gatheringsQuery.gatherings}
+          hostedGatherings={hostedGatheringsQuery.data ?? []}
           notifications={notifications}
           onLocationChange={discoveryPreferences.setLocation}
           onPostDraftChange={setPostDraft}
@@ -349,11 +334,7 @@ export function HomeScreen() {
           playerSearchHasError={playersQuery.isError}
           postDraft={postDraft}
           postIsSaving={createPostMutation.isPending}
-          setWorkoutTitle={setWorkoutTitle}
           snapshot={snapshotQuery.data}
-          workoutElapsedMilliseconds={workoutRecorder.elapsedMilliseconds}
-          workoutPhase={workoutRecorder.phase}
-          workoutTitle={workoutTitle}
         />
         {activeTab === 'home' && feedQuery.isFetchingNextPage && (
           <InlineLoading label="Loading more activities..." />
@@ -412,37 +393,25 @@ function requireSessionUser(user: ReturnType<typeof useSession>['user']) {
 
 function useHomeActions({
   createPostMutation,
-  discardWorkout,
-  endWorkout,
-  pauseWorkout,
   openGathering,
   openPlayer,
   openPost,
   openGatheringCreator,
-  resumeWorkout,
   setActiveTab,
   setEditingPostId,
   setPostDraft,
-  setRecordedWorkoutId,
   signOut,
-  startWorkout,
   homeScrollRef,
 }: {
   createPostMutation: WriteMutation;
-  discardWorkout: () => void;
-  endWorkout: () => void;
-  pauseWorkout: () => void;
   openGathering: (gatheringId: string) => void;
   openPlayer: (playerId: string) => void;
   openPost: (post: FeedPost) => void;
   openGatheringCreator: () => void;
-  resumeWorkout: () => void;
   setActiveTab: (tab: Tab) => void;
   setEditingPostId: (postId: string | null) => void;
   setPostDraft: (draft: PostDraft) => void;
-  setRecordedWorkoutId: (workoutId: string | null) => void;
   signOut: () => Promise<void>;
-  startWorkout: () => void;
   homeScrollRef: React.RefObject<ScrollView | null>;
 }) {
   return useMemo(
@@ -450,34 +419,23 @@ function useHomeActions({
       cancelPostEdit: () => resetPostEditor(setPostDraft, setEditingPostId),
       createGathering: openGatheringCreator,
       createPost: () => createPostMutation.mutate(),
-      discardWorkout: () => resetWorkoutDraft(discardWorkout, setPostDraft, setRecordedWorkoutId),
       editPost: (post: FeedPost) =>
         beginPostEdit(post, setPostDraft, setEditingPostId, setActiveTab, homeScrollRef),
-      endWorkout,
       openGathering,
       openPlayer,
       openPost,
-      pauseWorkout,
-      resumeWorkout,
       signOut: () => void signOut(),
-      startWorkout: () => beginWorkout(startWorkout, setPostDraft, setEditingPostId, setRecordedWorkoutId),
     }),
     [
       createPostMutation,
-      discardWorkout,
-      endWorkout,
       openGathering,
       openPlayer,
       openPost,
       openGatheringCreator,
-      pauseWorkout,
-      resumeWorkout,
       setActiveTab,
       setEditingPostId,
       setPostDraft,
-      setRecordedWorkoutId,
       signOut,
-      startWorkout,
       homeScrollRef,
     ],
   );
@@ -522,23 +480,19 @@ function changeTab(
   setSearchOpen(false);
 }
 
-async function savePost({
+async function savePostEdit({
   draft,
   postId,
-  recordedWorkout,
-  recordedWorkoutId,
-  setRecordedWorkoutId,
   userId,
-  workoutTitle,
 }: {
   draft: PostDraft;
   postId: string | null;
-  recordedWorkout: RecordedWorkout | null;
-  recordedWorkoutId: string | null;
-  setRecordedWorkoutId: (workoutId: string) => void;
   userId: string;
-  workoutTitle: string;
 }) {
+  if (!postId || !draft.workoutId) {
+    throw new Error('Only an existing event activity can be edited here.');
+  }
+
   const imageKeys = await uploadPostPhotos(userId, draft.photos);
   const commonBody = {
     body: draft.body.trim(),
@@ -548,60 +502,10 @@ async function savePost({
   };
   const headers = authHeaders(userId);
 
-  if (postId) {
-    if (!draft.workoutId) {
-      throw new Error('This post is not attached to a recorded workout and cannot be edited.');
-    }
-    return apiData(putApiPosts({
-      body: { ...commonBody, id: postId, workout_id: draft.workoutId },
-      headers,
-    }));
-  }
-
-  if (!recordedWorkout) {
-    throw new Error('Record and stop a workout before creating an activity post.');
-  }
-
-  let workoutId = recordedWorkoutId;
-  if (!workoutId) {
-    const workout = await apiData<Workout>(postApiWorkouts({
-      body: {
-        calories: null,
-        distance_meters: null,
-        duration_milliseconds: Math.max(1, recordedWorkout.elapsedMilliseconds),
-        notes: null,
-        occurred_at: recordedWorkout.startedAt,
-        title: workoutTitle.trim() || 'Badminton workout',
-        workout_type: 'match',
-      },
-      headers,
-    }));
-    workoutId = workout.id;
-    setRecordedWorkoutId(workoutId);
-  }
-
-  return apiData(postApiPosts({ body: { ...commonBody, workout_id: workoutId }, headers }));
-}
-
-function beginWorkout(
-  startWorkout: () => void,
-  setPostDraft: (draft: PostDraft) => void,
-  setEditingPostId: (postId: string | null) => void,
-  setRecordedWorkoutId: (workoutId: string | null) => void,
-) {
-  resetPostEditor(setPostDraft, setEditingPostId);
-  setRecordedWorkoutId(null);
-  startWorkout();
-}
-
-function resetWorkoutDraft(
-  discardWorkout: () => void,
-  setPostDraft: (draft: PostDraft) => void,
-  setRecordedWorkoutId: (workoutId: string | null) => void,
-) {
-  discardWorkout();
-  setPostDraft(emptyPostDraft);
-  setRecordedWorkoutId(null);
+  return apiData(putApiPosts({
+    body: { ...commonBody, id: postId, workout_id: draft.workoutId },
+    headers,
+  }));
 }
 
 function beginPostEdit(
@@ -687,10 +591,11 @@ async function refreshHomeData(queryClient: ReturnType<typeof useQueryClient>, u
 }
 
 function supportsPullToRefresh(tab: Tab) {
-  return tab === 'home' || tab === 'discover';
+  return tab === 'home' || tab === 'discover' || tab === 'you';
 }
 
 function pullToRefreshTitle(tab: Tab) {
+  if (tab === 'you') return 'Refreshing your gatherings...';
   return tab === 'discover' ? 'Refreshing discoveries...' : 'Refreshing activity...';
 }
 

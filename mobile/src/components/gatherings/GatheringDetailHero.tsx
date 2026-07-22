@@ -7,7 +7,7 @@ import {
   gatheringTheme,
   type GatheringThemeId,
 } from '../../features/gatherings/gatheringDraft';
-import { fonts } from '../ui';
+import { colors, fonts } from '../ui';
 
 type Props = {
   coverImageUrl?: string | null;
@@ -19,7 +19,7 @@ type Props = {
   visibility: 'public' | 'private';
 };
 
-const heroShade = ['rgba(3, 18, 42, 0.03)', 'rgba(3, 18, 42, 0.86)'] as const;
+const heroShade = [colors.imageOverlayClear, colors.overlayStrong] as const;
 
 export function GatheringDetailHero({
   coverImageUrl,
@@ -54,12 +54,12 @@ export function GatheringDetailHero({
       <View style={styles.heroContent}>
         <View style={styles.badges}>
           <View style={styles.badge}>
-            <MaterialCommunityIcons color="#FFFFFF" name="badminton" size={16} />
+            <MaterialCommunityIcons color={colors.textInverse} name="badminton" size={16} />
             <Text style={styles.badgeText}>{kindLabel}</Text>
           </View>
           <View style={styles.badge}>
             <Ionicons
-              color="#FFFFFF"
+              color={colors.textInverse}
               name={visibility === 'private' ? 'lock-closed-outline' : 'globe-outline'}
               size={15}
             />
@@ -70,11 +70,11 @@ export function GatheringDetailHero({
         <View style={styles.heroCopy}>
           <Text accessibilityRole="header" style={styles.title}>{title}</Text>
           <View style={styles.metaRow}>
-            <Ionicons color="rgba(255,255,255,0.9)" name="calendar-outline" size={16} />
+            <Ionicons color={colors.imageOverlayText} name="calendar-outline" size={16} />
             <Text style={styles.meta}>{scheduleLabel}</Text>
           </View>
           <View style={styles.metaRow}>
-            <Ionicons color="rgba(255,255,255,0.9)" name="location-outline" size={16} />
+            <Ionicons color={colors.imageOverlayText} name="location-outline" size={16} />
             <Text numberOfLines={2} style={styles.meta}>{locationLabel}</Text>
           </View>
         </View>
@@ -90,7 +90,7 @@ function GatheringCourtArtwork({ accent }: { accent: string }) {
       <View style={[styles.courtOuter, { borderColor: accent }]} />
       <View style={[styles.courtLine, styles.courtCenter, { backgroundColor: accent }]} />
       <View style={[styles.courtLine, styles.courtService, { backgroundColor: accent }]} />
-      <MaterialCommunityIcons color="#FFFFFF" name="badminton" size={132} style={styles.shuttle} />
+      <MaterialCommunityIcons color={colors.textInverse} name="badminton" size={132} style={styles.shuttle} />
     </View>
   );
 }
@@ -115,13 +115,9 @@ function useGatheringHeroCover(uri: string | null | undefined) {
 
 const styles = StyleSheet.create({
   hero: {
-    borderRadius: 26,
-    height: 360,
+    height: 390,
     overflow: 'hidden',
-    shadowColor: '#06356C',
-    shadowOffset: { height: 14, width: 0 },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
+    width: '100%',
   },
   coverImage: { bottom: 0, height: '100%', left: 0, position: 'absolute', right: 0, top: 0, width: '100%' },
   photoShade: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
@@ -145,8 +141,8 @@ const styles = StyleSheet.create({
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   badge: {
     alignItems: 'center',
-    backgroundColor: 'rgba(3,18,42,0.37)',
-    borderColor: 'rgba(255,255,255,0.34)',
+    backgroundColor: colors.imageOverlay,
+    borderColor: colors.imageOverlayBorder,
     borderRadius: 99,
     borderWidth: 1,
     flexDirection: 'row',
@@ -154,9 +150,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 7,
   },
-  badgeText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 11, fontWeight: '900' },
+  badgeText: { color: colors.textInverse, fontFamily: fonts.black, fontSize: 11, fontWeight: '900' },
   heroCopy: { gap: 8 },
-  title: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 32, fontWeight: '900', lineHeight: 38 },
+  title: { color: colors.textInverse, fontFamily: fonts.black, fontSize: 32, fontWeight: '900', lineHeight: 38 },
   metaRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 7 },
-  meta: { color: 'rgba(255,255,255,0.9)', flex: 1, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700', lineHeight: 18 },
+  meta: { color: colors.imageOverlayText, flex: 1, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700', lineHeight: 18 },
 });

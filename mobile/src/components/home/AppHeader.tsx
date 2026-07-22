@@ -53,16 +53,16 @@ export function AppHeader({
           <Text style={styles.avatarText}>F</Text>
         </Pressable>
         <Pressable accessibilityLabel="Search players" accessibilityRole="button" hitSlop={8} onPress={onOpenSearch}>
-          <Ionicons color="#050505" name="search" size={32} />
+          <Ionicons color={colors.text} name="search" size={32} />
         </Pressable>
       </View>
 
       <Text style={styles.title}>{titleForTab(activeTab)}</Text>
 
       <View style={styles.rightActions}>
-        <Ionicons color="#050505" name="chatbubbles-outline" size={31} />
+        <Ionicons color={colors.text} name="chatbubbles-outline" size={31} />
         <Pressable accessibilityRole="button" onPress={onOpenNotifications}>
-          <Ionicons color="#050505" name="notifications" size={33} />
+          <Ionicons color={colors.text} name="notifications" size={33} />
           {notificationCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{notificationCount}</Text>
@@ -76,7 +76,6 @@ export function AppHeader({
 
 function titleForTab(tab: Tab) {
   if (tab === 'discover') return 'Discover';
-  if (tab === 'record') return 'Record';
   if (tab === 'groups') return 'Groups';
   if (tab === 'you') return 'You';
   return 'Home';
@@ -85,7 +84,7 @@ function titleForTab(tab: Tab) {
 const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: 'row',
@@ -116,20 +115,20 @@ const styles = StyleSheet.create({
     width: 42,
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
     fontFamily: fonts.black,
     fontSize: 20,
     fontWeight: '900',
   },
   title: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 22,
     fontWeight: '900',
   },
   badge: {
     alignItems: 'center',
-    backgroundColor: '#EF3340',
+    backgroundColor: colors.danger,
     borderRadius: 13,
     height: 26,
     justifyContent: 'center',
@@ -139,7 +138,7 @@ const styles = StyleSheet.create({
     top: -8,
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
     fontFamily: fonts.black,
     fontSize: 13,
     fontWeight: '900',

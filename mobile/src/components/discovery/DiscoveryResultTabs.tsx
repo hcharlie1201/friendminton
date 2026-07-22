@@ -46,6 +46,6 @@ const styles = StyleSheet.create({
   container: { borderColor: colors.border, borderRadius: 12, borderWidth: 1, flexDirection: 'row', gap: 4, padding: 4 },
   tab: { alignItems: 'center', borderRadius: 9, flex: 1, justifyContent: 'center', minHeight: 42 },
   tabSelected: { backgroundColor: colors.primary },
-  label: { color: colors.muted, fontFamily: fonts.bold, fontSize: 14, fontWeight: '700' },
-  labelSelected: { color: '#FFFFFF', fontFamily: fonts.black, fontWeight: '900' },
+  label: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 14, fontWeight: '700' },
+  labelSelected: { color: colors.textOnPrimary, fontFamily: fonts.black, fontWeight: '900' },
 });

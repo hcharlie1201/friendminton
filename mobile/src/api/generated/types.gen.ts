@@ -473,6 +473,13 @@ export type GatheringSearch = {
 
 export type GatheringSkillLevel = 'beginner' | 'e' | 'e_plus' | 'd' | 'c' | 'b' | 'a';
 
+export type GatheringViewerState = {
+    can_finish: boolean;
+    participant_status?: GatheringParticipantStatus | null;
+    post_id?: string | null;
+    workout_id?: string | null;
+};
+
 export type GatheringVisibility = 'public' | 'private';
 
 export type GroupGoal = 'fitness' | 'social' | 'improvement' | 'competitive' | 'consistent_play';
@@ -1742,6 +1749,7 @@ export type Workout = {
     distance_meters?: number | null;
     duration_milliseconds: number;
     duration_minutes: number;
+    gathering_id?: string | null;
     id: string;
     notes?: string | null;
     occurred_at: string;
@@ -2141,6 +2149,32 @@ export type GetApiGatheringsByGatheringIdResponses = {
 
 export type GetApiGatheringsByGatheringIdResponse = GetApiGatheringsByGatheringIdResponses[keyof GetApiGatheringsByGatheringIdResponses];
 
+export type GetApiGatheringsByGatheringIdMeData = {
+    body?: never;
+    path: {
+        gathering_id: string;
+    };
+    query?: never;
+    url: '/api/gatherings/{gathering_id}/me';
+};
+
+export type GetApiGatheringsByGatheringIdMeErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiGatheringsByGatheringIdMeError = GetApiGatheringsByGatheringIdMeErrors[keyof GetApiGatheringsByGatheringIdMeErrors];
+
+export type GetApiGatheringsByGatheringIdMeResponses = {
+    200: GatheringViewerState;
+};
+
+export type GetApiGatheringsByGatheringIdMeResponse = GetApiGatheringsByGatheringIdMeResponses[keyof GetApiGatheringsByGatheringIdMeResponses];
+
 export type PostApiGatheringsByGatheringIdJoinData = {
     body?: never;
     path: {
@@ -2166,6 +2200,32 @@ export type PostApiGatheringsByGatheringIdJoinResponses = {
 };
 
 export type PostApiGatheringsByGatheringIdJoinResponse = PostApiGatheringsByGatheringIdJoinResponses[keyof PostApiGatheringsByGatheringIdJoinResponses];
+
+export type PostApiGatheringsByGatheringIdFinishData = {
+    body?: never;
+    path: {
+        gathering_id: string;
+    };
+    query?: never;
+    url: '/api/gatherings/{gathering_id}/finish';
+};
+
+export type PostApiGatheringsByGatheringIdFinishErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGatheringsByGatheringIdFinishError = PostApiGatheringsByGatheringIdFinishErrors[keyof PostApiGatheringsByGatheringIdFinishErrors];
+
+export type PostApiGatheringsByGatheringIdFinishResponses = {
+    200: Workout;
+};
+
+export type PostApiGatheringsByGatheringIdFinishResponse = PostApiGatheringsByGatheringIdFinishResponses[keyof PostApiGatheringsByGatheringIdFinishResponses];
 
 export type GetApiGroupsData = {
     body?: never;

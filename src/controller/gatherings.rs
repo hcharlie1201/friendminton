@@ -11,17 +11,23 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
+    activities::Workout,
     app::AppState,
     auth::CurrentUser,
     error::AppError,
-    gatherings::{self, CreateGathering, Gathering, GatheringParticipant, GatheringSearch},
+    gatherings::{
+        self, CreateGathering, Gathering, GatheringParticipant, GatheringSearch,
+        GatheringViewerState,
+    },
 };
 
 pub fn routes() -> ApiRouter<AppState> {
     ApiRouter::new()
         .api_route("/", post(create_gathering).get(find_gatherings))
         .api_route("/{gathering_id}", get(get_gathering))
+        .api_route("/{gathering_id}/me", get(get_gathering_viewer_state))
         .api_route("/{gathering_id}/join", post(join_gathering))
+        .api_route("/{gathering_id}/finish", post(finish_gathering))
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -66,6 +72,25 @@ pub(crate) async fn join_gathering(
 ) -> Result<Json<GatheringParticipant>, AppError> {
     let participant = gatherings::join_gathering(&state.pool, path.gathering_id, user_id).await?;
     Ok(Json(participant))
+}
+
+pub(crate) async fn get_gathering_viewer_state(
+    State(state): State<AppState>,
+    CurrentUser { id: user_id }: CurrentUser,
+    Path(path): Path<GatheringPath>,
+) -> Result<Json<GatheringViewerState>, AppError> {
+    let viewer_state =
+        gatherings::gathering_viewer_state(&state.pool, path.gathering_id, user_id).await?;
+    Ok(Json(viewer_state))
+}
+
+pub(crate) async fn finish_gathering(
+    State(state): State<AppState>,
+    CurrentUser { id: user_id }: CurrentUser,
+    Path(path): Path<GatheringPath>,
+) -> Result<Json<Workout>, AppError> {
+    let workout = gatherings::finish_gathering(&state.pool, path.gathering_id, user_id).await?;
+    Ok(Json(workout))
 }
 
 #[cfg(test)]
@@ -358,6 +383,99 @@ mod tests {
 
         api.cleanup_users(&[host_id, guest_id, invitee_id, stranger_id])
             .await;
+    }
+
+    #[tokio::test]
+    async fn finish_route_requires_participation_and_creates_one_event_workout() {
+        let api = TestApi::new().await;
+        let host_id = api.insert_user("finish-host").await;
+        let stranger_id = api.insert_user("finish-stranger").await;
+        let city = unique_city();
+        let gathering = create_gathering(
+            &api,
+            host_id,
+            gathering_payload("Finished open play", &city, "public", "open", Some(8)),
+        )
+        .await;
+        let gathering_id = response_uuid(&gathering, "id");
+        sqlx::query(
+            r#"
+            UPDATE gatherings
+            SET starts_at = now() - interval '2 hours',
+                ends_at = now() - interval '30 minutes'
+            WHERE id = $1
+            "#,
+        )
+        .bind(gathering_id)
+        .execute(&api.pool)
+        .await
+        .expect("move gathering into the past");
+
+        let viewer_uri = format!("/api/gatherings/{gathering_id}/me");
+        let before = api
+            .json(Method::GET, &viewer_uri, Some(host_id), None)
+            .await;
+        assert_eq!(before.status, StatusCode::OK, "{}", before.body);
+        assert_eq!(before.body["participant_status"], "going");
+        assert_eq!(before.body["can_finish"], true);
+        assert!(before.body["workout_id"].is_null());
+
+        let finish_uri = format!("/api/gatherings/{gathering_id}/finish");
+        let rejected = api
+            .json(Method::POST, &finish_uri, Some(stranger_id), None)
+            .await;
+        assert_eq!(rejected.status, StatusCode::BAD_REQUEST);
+
+        let finished = api
+            .json(Method::POST, &finish_uri, Some(host_id), None)
+            .await;
+        assert_eq!(finished.status, StatusCode::OK, "{}", finished.body);
+        assert_eq!(finished.body["gathering_id"], gathering_id.to_string());
+        assert!(finished.body["duration_milliseconds"].as_i64().unwrap_or(0) > 0);
+        let workout_id = response_uuid(&finished.body, "id");
+
+        let repeated = api
+            .json(Method::POST, &finish_uri, Some(host_id), None)
+            .await;
+        assert_eq!(repeated.status, StatusCode::OK, "{}", repeated.body);
+        assert_eq!(response_uuid(&repeated.body, "id"), workout_id);
+
+        let post_payload = json!({
+            "workout_id": workout_id,
+            "body": "Great open play session",
+            "location": "East Bay Badminton",
+            "effort": 7,
+            "image_keys": []
+        });
+        let post = api
+            .json(
+                Method::POST,
+                "/api/posts",
+                Some(host_id),
+                Some(post_payload.clone()),
+            )
+            .await;
+        assert_eq!(post.status, StatusCode::OK, "{}", post.body);
+        let post_id = response_uuid(&post.body, "id");
+        let duplicate_post = api
+            .json(
+                Method::POST,
+                "/api/posts",
+                Some(host_id),
+                Some(post_payload),
+            )
+            .await;
+        assert_eq!(duplicate_post.status, StatusCode::BAD_REQUEST);
+
+        let after = api
+            .json(Method::GET, &viewer_uri, Some(host_id), None)
+            .await;
+        assert_eq!(after.status, StatusCode::OK, "{}", after.body);
+        assert_eq!(response_uuid(&after.body, "workout_id"), workout_id);
+        assert_eq!(response_uuid(&after.body, "post_id"), post_id);
+        assert_eq!(after.body["can_finish"], false);
+
+        api.cleanup_users(&[host_id, stranger_id]).await;
     }
 
     async fn create_gathering(api: &TestApi, host_id: Uuid, payload: Value) -> Value {

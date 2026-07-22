@@ -20,19 +20,19 @@ export function GameInviteCard({ invite }: { invite: GameInvite }) {
 
 const styles = StyleSheet.create({
   title: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 17,
     fontWeight: '900',
   },
   meta: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.bold,
     fontSize: 13,
     fontWeight: '700',
   },
   body: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.regular,
     fontSize: 15,
     lineHeight: 21,

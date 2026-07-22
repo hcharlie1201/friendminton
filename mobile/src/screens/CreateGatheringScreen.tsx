@@ -154,13 +154,13 @@ function singleParam(value: string | string[] | undefined) {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: '#F4F8FF', flex: 1 },
+  screen: { backgroundColor: colors.background, flex: 1 },
   keyboardView: { flex: 1 },
   content: { gap: 18, padding: 18, paddingBottom: 36 },
   titleInput: {
     backgroundColor: 'transparent',
     borderColor: 'transparent',
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 27,
     fontWeight: '900',
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   footer: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderTopColor: colors.border,
     borderTopWidth: 1,
     gap: 7,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   footerNote: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.medium,
     fontSize: 10,
     paddingBottom: 4,

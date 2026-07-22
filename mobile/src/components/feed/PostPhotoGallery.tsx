@@ -148,7 +148,7 @@ function PostPhotoTile({
     >
       {photoLoad.failed ? (
         <View accessibilityLabel="Photo unavailable" style={styles.photoFallback}>
-          <Ionicons color={colors.muted} name="image-outline" size={26} />
+          <Ionicons color={colors.textMuted} name="image-outline" size={26} />
           <Text style={styles.photoFallbackText}>Pull down to retry</Text>
         </View>
       ) : (
@@ -164,7 +164,7 @@ function PostPhotoTile({
       )}
       {count > 1 && index === 0 && (
         <View style={styles.photoCountBadge}>
-          <Ionicons color="#FFFFFF" name="images" size={13} />
+          <Ionicons color={colors.textInverse} name="images" size={13} />
           <Text style={styles.photoCountText}>{count}</Text>
         </View>
       )}
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   photosWrapped: { flexWrap: 'wrap' },
-  photoTile: { backgroundColor: colors.primarySoft, overflow: 'hidden' },
+  photoTile: { backgroundColor: colors.primarySurface, overflow: 'hidden' },
   photo: { height: '100%', width: '100%' },
   photoEqual: { flex: 1 },
   photoPrimary: { flex: 2 },
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
   photoQuarter: { flexGrow: 1, height: '49%', width: '49%' },
   photoFallback: { alignItems: 'center', flex: 1, justifyContent: 'center' },
   photoFallbackText: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.bold,
     fontSize: 11,
     fontWeight: '700',
@@ -438,7 +438,7 @@ const styles = StyleSheet.create({
   },
   photoCountBadge: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.68)',
+    backgroundColor: colors.overlayStrong,
     borderRadius: 16,
     flexDirection: 'row',
     gap: 5,
@@ -449,16 +449,16 @@ const styles = StyleSheet.create({
     top: 8,
   },
   photoCountText: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
     fontFamily: fonts.black,
     fontSize: 12,
     fontWeight: '900',
   },
-  viewer: { backgroundColor: '#050505', flex: 1 },
+  viewer: { backgroundColor: colors.mediaBackground, flex: 1 },
   viewerBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   viewerCounterOverlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: colors.overlayStrong,
     borderRadius: 16,
     left: 0,
     marginHorizontal: 'auto',
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   viewerCounter: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
     fontFamily: fonts.black,
     fontSize: 15,
     fontWeight: '900',
@@ -492,6 +492,6 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
   },
-  pageDot: { backgroundColor: '#5F5F5F', borderRadius: 4, height: 7, width: 7 },
-  pageDotActive: { backgroundColor: '#FFFFFF', width: 18 },
+  pageDot: { backgroundColor: colors.mediaIndicator, borderRadius: 4, height: 7, width: 7 },
+  pageDotActive: { backgroundColor: colors.textInverse, width: 18 },
 });

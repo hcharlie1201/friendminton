@@ -33,7 +33,7 @@ pub async fn create_workout(
             calories, distance_meters, notes, occurred_at
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id, user_id, title, workout_type, duration_minutes, duration_milliseconds,
+        RETURNING id, user_id, gathering_id, title, workout_type, duration_minutes, duration_milliseconds,
             calories, distance_meters, notes, occurred_at, created_at
         "#,
     )
@@ -63,7 +63,7 @@ pub async fn list_user_workouts(
 ) -> Result<Vec<Workout>, AppError> {
     let workouts = sqlx::query_as::<_, Workout>(
         r#"
-        SELECT id, user_id, title, workout_type, duration_minutes, duration_milliseconds,
+        SELECT id, user_id, gathering_id, title, workout_type, duration_minutes, duration_milliseconds,
             calories, distance_meters, notes, occurred_at, created_at
         FROM workouts
         WHERE user_id = $1
@@ -97,6 +97,7 @@ pub async fn create_post(
         r#"
         INSERT INTO posts (user_id, workout_id, body, location, effort, image_urls)
         VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (workout_id) WHERE workout_id IS NOT NULL DO NOTHING
         RETURNING id, user_id, workout_id, body, location, effort,
             image_urls AS image_keys, created_at
         "#,
@@ -107,8 +108,11 @@ pub async fn create_post(
     .bind(payload.location)
     .bind(payload.effort)
     .bind(payload.image_keys)
-    .fetch_one(pool)
-    .await?;
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| {
+        AppError::BadRequest("this completed gathering already has an activity post".to_owned())
+    })?;
 
     hydrate_post(media, post).await
 }
@@ -118,17 +122,17 @@ async fn ensure_workout_owner(
     user_id: Uuid,
     workout_id: Uuid,
 ) -> Result<(), AppError> {
-    let is_owner = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM workouts WHERE id = $1 AND user_id = $2)",
+    let is_event_activity = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM workouts WHERE id = $1 AND user_id = $2 AND gathering_id IS NOT NULL)",
     )
     .bind(workout_id)
     .bind(user_id)
     .fetch_one(pool)
     .await?;
 
-    if !is_owner {
+    if !is_event_activity {
         return Err(AppError::BadRequest(
-            "activity posts require a recorded workout owned by the current user".to_owned(),
+            "activity posts require a completed gathering owned by the current user".to_owned(),
         ));
     }
 

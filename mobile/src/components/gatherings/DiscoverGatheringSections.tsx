@@ -17,8 +17,11 @@ type LayerProps = {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   onOpenGathering?: (gatheringId: string) => void;
   previewCount: number;
+  tone: GatheringLayerTone;
   title: string;
 };
+
+type GatheringLayerTone = 'play' | 'hybrid' | 'social';
 
 const DEFAULT_PREVIEW_COUNT = 2;
 
@@ -41,6 +44,7 @@ export function DiscoverGatheringSections({
           icon="badminton"
           onOpenGathering={onOpenGathering}
           previewCount={safePreviewCount}
+          tone="play"
           title="Play sessions"
         />
       )}
@@ -51,6 +55,7 @@ export function DiscoverGatheringSections({
           icon="account-group-outline"
           onOpenGathering={onOpenGathering}
           previewCount={safePreviewCount}
+          tone="hybrid"
           title="Play + social"
         />
       )}
@@ -61,6 +66,7 @@ export function DiscoverGatheringSections({
           icon="party-popper"
           onOpenGathering={onOpenGathering}
           previewCount={safePreviewCount}
+          tone="social"
           title="Badminton socials"
         />
       )}
@@ -74,22 +80,24 @@ function GatheringLayer({
   icon,
   onOpenGathering,
   previewCount,
+  tone,
   title,
 }: LayerProps) {
   const expansion = useLayerExpansion(gatherings.length, previewCount);
   const visibleGatherings = gatherings.slice(0, expansion.visibleCount);
+  const toneStyle = gatheringLayerToneStyle(tone);
 
   return (
     <View style={styles.layer}>
       <View style={styles.header}>
-        <View style={styles.headingIcon}>
-          <MaterialCommunityIcons color={colors.primary} name={icon} size={20} />
+        <View style={[styles.headingIcon, toneStyle.surface]}>
+          <MaterialCommunityIcons color={toneStyle.strong} name={icon} size={20} />
         </View>
         <View style={styles.headingCopy}>
           <View style={styles.titleRow}>
-          <Text accessibilityRole="header" style={styles.title}>{title}</Text>
-            <View style={styles.countBadge}>
-              <Text style={styles.countText}>{gatherings.length}</Text>
+            <Text accessibilityRole="header" style={styles.title}>{title}</Text>
+            <View style={[styles.countBadge, toneStyle.badge]}>
+              <Text style={[styles.countText, toneStyle.badgeText]}>{gatherings.length}</Text>
             </View>
           </View>
           <Text style={styles.description}>{description}</Text>
@@ -115,7 +123,7 @@ function GatheringLayer({
         >
           <Text style={styles.moreText}>{expansion.isExpanded ? 'Show less' : `See all ${gatherings.length}`}</Text>
           <Ionicons
-            color={colors.primaryDark}
+            color={colors.primaryStrong}
             name={expansion.isExpanded ? 'chevron-up' : 'arrow-forward'}
             size={17}
           />
@@ -168,38 +176,71 @@ function compareGatheringStart(first: DiscoverGathering, second: DiscoverGatheri
   return safeFirst - safeSecond;
 }
 
+function gatheringLayerToneStyle(tone: GatheringLayerTone) {
+  switch (tone) {
+    case 'social':
+      return {
+        badge: styles.socialBadge,
+        badgeText: styles.socialBadgeText,
+        strong: colors.socialAccentStrong,
+        surface: styles.socialSurface,
+      };
+    case 'hybrid':
+      return {
+        badge: styles.energyBadge,
+        badgeText: styles.energyBadgeText,
+        strong: colors.energyAccentStrong,
+        surface: styles.energySurface,
+      };
+    default:
+      return {
+        badge: styles.playBadge,
+        badgeText: styles.playBadgeText,
+        strong: colors.playAccentStrong,
+        surface: styles.playSurface,
+      };
+  }
+}
+
 const styles = StyleSheet.create({
   layers: { gap: 30 },
   layer: { gap: 13, width: '100%' },
   header: { alignItems: 'flex-start', flexDirection: 'row', gap: 10 },
   headingIcon: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
     borderRadius: 13,
     height: 42,
     justifyContent: 'center',
     width: 42,
   },
+  playSurface: { backgroundColor: colors.playAccentSurface },
+  socialSurface: { backgroundColor: colors.socialAccentSurface },
+  energySurface: { backgroundColor: colors.energyAccentSurface },
   headingCopy: { flex: 1, gap: 2, minWidth: 0 },
   titleRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  title: { color: colors.ink, fontFamily: fonts.black, fontSize: 21, fontWeight: '900' },
+  title: { color: colors.text, fontFamily: fonts.black, fontSize: 21, fontWeight: '900' },
   countBadge: {
     alignItems: 'center',
-    backgroundColor: '#CBFF4A',
     borderRadius: 99,
     justifyContent: 'center',
     minWidth: 25,
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
-  countText: { color: '#073B78', fontFamily: fonts.black, fontSize: 11, fontWeight: '900' },
-  description: { color: colors.muted, fontFamily: fonts.regular, fontSize: 13, lineHeight: 18 },
+  playBadge: { backgroundColor: colors.playAccent },
+  socialBadge: { backgroundColor: colors.socialAccent },
+  energyBadge: { backgroundColor: colors.energyAccent },
+  countText: { fontFamily: fonts.black, fontSize: 11, fontWeight: '900' },
+  playBadgeText: { color: colors.text },
+  socialBadgeText: { color: colors.textOnAccent },
+  energyBadgeText: { color: colors.text },
+  description: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, lineHeight: 18 },
   cards: { gap: 13, width: '100%' },
   moreButton: {
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: colors.primarySoft,
-    borderColor: '#B9D8FF',
+    backgroundColor: colors.primarySurface,
+    borderColor: colors.borderStrong,
     borderRadius: 99,
     borderWidth: 1,
     flexDirection: 'row',
@@ -207,5 +248,5 @@ const styles = StyleSheet.create({
     minHeight: 42,
     paddingHorizontal: 15,
   },
-  moreText: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 13, fontWeight: '900' },
+  moreText: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 13, fontWeight: '900' },
 });

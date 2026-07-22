@@ -12,7 +12,7 @@ export function CourtResults({ courts, isLoading }: { courts: readonly Court[]; 
   if (courts.length === 0) {
     return (
       <View style={styles.empty}>
-        <MaterialCommunityIcons color={colors.primary} name="badminton" size={39} />
+        <MaterialCommunityIcons color={colors.playAccentStrong} name="badminton" size={39} />
         <Text style={styles.emptyTitle}>No verified courts yet</Text>
         <Text style={styles.status}>Admins can seed courts, and community suggestions can be reviewed before publishing.</Text>
       </View>
@@ -26,7 +26,7 @@ function CourtRow({ court }: { court: Court }) {
   return (
     <Pressable accessibilityRole="link" onPress={openDirections} style={styles.row}>
       <View style={styles.iconTile}>
-        <MaterialCommunityIcons color={colors.primaryDark} name="badminton" size={25} />
+        <MaterialCommunityIcons color={colors.playAccentStrong} name="badminton" size={25} />
       </View>
       <View style={styles.copy}>
         <View style={styles.nameRow}>
@@ -36,7 +36,7 @@ function CourtRow({ court }: { court: Court }) {
         <Text numberOfLines={1} style={styles.address}>{court.address}</Text>
         <Text style={styles.metadata}>{courtMetadata(court)}</Text>
       </View>
-      <Ionicons color={colors.muted} name="navigate-outline" size={21} />
+      <Ionicons color={colors.textMuted} name="navigate-outline" size={21} />
     </Pressable>
   );
 }
@@ -58,13 +58,13 @@ function courtMetadata(court: Court) {
 const styles = StyleSheet.create({
   list: { borderBottomColor: colors.border, borderBottomWidth: 1 },
   row: { alignItems: 'center', borderTopColor: colors.border, borderTopWidth: 1, flexDirection: 'row', gap: 12, minHeight: 104, paddingVertical: 13 },
-  iconTile: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 13, height: 64, justifyContent: 'center', width: 64 },
+  iconTile: { alignItems: 'center', backgroundColor: colors.playAccentSurface, borderRadius: 13, height: 64, justifyContent: 'center', width: 64 },
   copy: { flex: 1, gap: 3, minWidth: 0 },
   nameRow: { alignItems: 'center', flexDirection: 'row', gap: 5 },
-  name: { color: colors.ink, flexShrink: 1, fontFamily: fonts.black, fontSize: 16, fontWeight: '900' },
-  address: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12 },
-  metadata: { color: colors.primaryDark, fontFamily: fonts.bold, fontSize: 11, marginTop: 3 },
-  status: { color: colors.muted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, textAlign: 'center' },
-  empty: { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.border, borderRadius: 16, borderWidth: 1, gap: 8, padding: 25 },
-  emptyTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 17, fontWeight: '900' },
+  name: { color: colors.text, flexShrink: 1, fontFamily: fonts.black, fontSize: 16, fontWeight: '900' },
+  address: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12 },
+  metadata: { color: colors.playAccentStrong, fontFamily: fonts.bold, fontSize: 11, marginTop: 3 },
+  status: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, textAlign: 'center' },
+  empty: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 16, borderWidth: 1, gap: 8, padding: 25 },
+  emptyTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 17, fontWeight: '900' },
 });

@@ -1,14 +1,15 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import type { Notification } from '../../api/generated';
 import { getCurrentLocation, LocationPermissionError } from '../../features/location/currentCity';
 import { formatDate } from '../../lib/dates';
 import { LocationAutocomplete, type SelectedLocation } from '../location';
-import { Button, Card, colors, fonts } from '../ui';
+import { Button, colors, fonts } from '../ui';
 import type { DiscoveryLocation } from './types';
 
 type Props = {
+  children?: ReactNode;
   city: string;
   displayName: string;
   email: string;
@@ -17,17 +18,19 @@ type Props = {
   onSignOut: () => void;
 };
 
-export function SettingsPanel({ city, displayName, email, notifications, onLocationChange, onSignOut }: Props) {
+export function SettingsPanel({ children, city, displayName, email, notifications, onLocationChange, onSignOut }: Props) {
   const location = useSettingsLocation(onLocationChange);
 
   return (
     <View style={styles.wrapper}>
-      <Card>
+      <View style={styles.profileSection}>
         <Text style={styles.title}>{displayName}</Text>
         <Text style={styles.meta}>{email}</Text>
-      </Card>
+      </View>
 
-      <Card>
+      {children}
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Discovery Settings</Text>
         <Text style={styles.help}>Used for player and group discovery. Your home feed stays global.</Text>
         <LocationAutocomplete
@@ -44,20 +47,22 @@ export function SettingsPanel({ city, displayName, email, notifications, onLocat
         >
           Use current location
         </Button>
-      </Card>
+      </View>
 
-      <Card>
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Notifications</Text>
         {notifications.length === 0 ? (
           <Text style={styles.help}>No notifications yet.</Text>
         ) : (
           notifications.map((notification) => <NotificationRow key={notification.id} notification={notification} />)
         )}
-      </Card>
+      </View>
 
-      <Button icon="log-out-outline" onPress={onSignOut} variant="danger">
-        Sign out
-      </Button>
+      <View style={styles.signOutSection}>
+        <Button icon="log-out-outline" onPress={onSignOut} variant="danger">
+          Sign out
+        </Button>
+      </View>
     </View>
   );
 }
@@ -116,28 +121,45 @@ async function applyCurrentLocation({
 
 const styles = StyleSheet.create({
   wrapper: {
-    gap: 12,
+    backgroundColor: colors.background,
   },
+  profileSection: {
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 8,
+    gap: 3,
+    paddingHorizontal: 20,
+    paddingVertical: 26,
+  },
+  section: {
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 8,
+    gap: 13,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  signOutSection: { backgroundColor: colors.surface, paddingHorizontal: 20, paddingVertical: 24 },
   title: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 20,
     fontWeight: '900',
   },
   meta: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.bold,
     fontSize: 14,
     fontWeight: '700',
   },
   sectionTitle: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 17,
     fontWeight: '900',
   },
   help: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.regular,
     fontSize: 14,
     lineHeight: 20,
@@ -163,19 +185,19 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   notificationTitle: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 15,
     fontWeight: '900',
   },
   notificationText: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.regular,
     fontSize: 14,
     lineHeight: 20,
   },
   notificationTime: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.bold,
     fontSize: 12,
     fontWeight: '700',

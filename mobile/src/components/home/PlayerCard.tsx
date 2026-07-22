@@ -63,7 +63,7 @@ function skillLevelLabel(skillLevel: string) {
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 18,
     borderWidth: 1,
@@ -76,8 +76,8 @@ const styles = StyleSheet.create({
   cardPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
   avatar: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
-    borderColor: '#B9D8FF',
+    backgroundColor: colors.primarySurface,
+    borderColor: colors.borderStrong,
     borderRadius: 24,
     borderWidth: 1,
     height: 48,
@@ -85,26 +85,26 @@ const styles = StyleSheet.create({
     width: 48,
   },
   avatarText: {
-    color: colors.primaryDark,
+    color: colors.primaryStrong,
     fontFamily: fonts.black,
     fontSize: 16,
     fontWeight: '900',
   },
   copy: { flex: 1, gap: 3, minWidth: 0 },
   title: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 17,
     fontWeight: '900',
   },
   meta: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.bold,
     fontSize: 13,
     fontWeight: '700',
   },
   body: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.regular,
     fontSize: 12,
     lineHeight: 17,

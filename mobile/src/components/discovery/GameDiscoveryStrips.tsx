@@ -83,11 +83,11 @@ function useQuickSelection(onChange: QuickProps['onChange'], value: GameQuickFil
 const styles = StyleSheet.create({
   strip: { gap: 8, paddingRight: 4 },
   dateChip: { borderColor: colors.border, borderRadius: 10, borderWidth: 1, justifyContent: 'center', minHeight: 42, paddingHorizontal: 14 },
-  chipSelected: { backgroundColor: colors.primaryDark, borderColor: colors.primaryDark },
-  chipLabel: { color: colors.ink, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
-  chipLabelSelected: { color: '#FFFFFF', fontFamily: fonts.black, fontWeight: '900' },
-  quickChip: { backgroundColor: colors.primarySoft, borderRadius: 10, justifyContent: 'center', minHeight: 38, paddingHorizontal: 14 },
+  chipSelected: { backgroundColor: colors.primaryStrong, borderColor: colors.primaryStrong },
+  chipLabel: { color: colors.text, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
+  chipLabelSelected: { color: colors.textInverse, fontFamily: fonts.black, fontWeight: '900' },
+  quickChip: { backgroundColor: colors.primarySurface, borderRadius: 10, justifyContent: 'center', minHeight: 38, paddingHorizontal: 14 },
   quickChipSelected: { backgroundColor: colors.primary },
-  quickLabel: { color: colors.primaryDark, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
-  quickLabelSelected: { color: '#FFFFFF', fontFamily: fonts.black, fontWeight: '900' },
+  quickLabel: { color: colors.primaryStrong, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
+  quickLabelSelected: { color: colors.textOnPrimary, fontFamily: fonts.black, fontWeight: '900' },
 });

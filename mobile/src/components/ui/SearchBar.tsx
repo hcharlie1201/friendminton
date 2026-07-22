@@ -17,10 +17,10 @@ export function SearchBar({ autoFocus = false, isLoading = false, onChangeText, 
   return (
     <View style={styles.row}>
       <Pressable accessibilityLabel="Close search" accessibilityRole="button" hitSlop={10} onPress={onClose}>
-        <Ionicons color={colors.ink} name="arrow-back" size={27} />
+        <Ionicons color={colors.text} name="arrow-back" size={27} />
       </Pressable>
       <View style={styles.field}>
-        <Ionicons color={colors.muted} name="search" size={20} />
+        <Ionicons color={colors.textMuted} name="search" size={20} />
         <TextInput
           autoCapitalize="none"
           autoCorrect={false}
@@ -29,7 +29,7 @@ export function SearchBar({ autoFocus = false, isLoading = false, onChangeText, 
           maxLength={80}
           onChangeText={onChangeText}
           placeholder="Search players"
-          placeholderTextColor={colors.muted}
+          placeholderTextColor={colors.textMuted}
           returnKeyType="search"
           style={styles.input}
           value={value}
@@ -40,7 +40,7 @@ export function SearchBar({ autoFocus = false, isLoading = false, onChangeText, 
           ) : (
             value.length > 0 && (
               <Pressable accessibilityLabel="Clear search" accessibilityRole="button" hitSlop={8} onPress={onClear}>
-                <Ionicons color={colors.muted} name="close-circle" size={21} />
+                <Ionicons color={colors.textMuted} name="close-circle" size={21} />
               </Pressable>
             )
           )}
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   },
   field: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.primarySurface,
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   input: {
-    color: colors.ink,
+    color: colors.text,
     flex: 1,
     fontFamily: fonts.regular,
     fontSize: 16,

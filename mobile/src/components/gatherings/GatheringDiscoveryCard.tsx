@@ -14,9 +14,13 @@ import {
   gatheringKindLabel,
   gatheringTheme,
   type GatheringKind,
-  type GatheringThemeId,
 } from '../../features/gatherings/gatheringDraft';
-import { apiBaseUrl } from '../../config';
+import {
+  formatGatheringSchedule,
+  formatGatheringVenue,
+  normalizeGatheringTheme,
+  resolveGatheringCoverUrl,
+} from '../../features/gatherings/gatheringPresentation';
 import { colors, fonts } from '../ui';
 
 export type DiscoverGathering = {
@@ -51,7 +55,7 @@ type Props = {
   onOpenGathering?: (gatheringId: string) => void;
 };
 
-const coverShadeColors = ['rgba(4, 17, 37, 0.06)', 'rgba(4, 17, 37, 0.76)'] as const;
+const coverShadeColors = [colors.imageOverlayClear, colors.overlayStrong] as const;
 
 export function GatheringDiscoveryCard({ gathering, onOpenGathering }: Props) {
   const open = useOpenGatheringAction(gathering.id, onOpenGathering);
@@ -81,7 +85,7 @@ export function GatheringDiscoveryCard({ gathering, onOpenGathering }: Props) {
         <View style={styles.detailRow}>
           <Ionicons color={colors.primary} name="location-outline" size={18} />
           <Text numberOfLines={1} style={styles.detailText}>
-            {formatVenue(gathering.venue, gathering.city)}
+            {formatGatheringVenue(gathering.venue, gathering.city)}
           </Text>
         </View>
 
@@ -98,7 +102,7 @@ export function GatheringDiscoveryCard({ gathering, onOpenGathering }: Props) {
         <View style={styles.footer}>
           <View style={styles.accessSummary}>
             <Ionicons
-              color={colors.muted}
+              color={colors.textMuted}
               name={gathering.visibility === 'private' ? 'lock-closed-outline' : 'globe-outline'}
               size={16}
             />
@@ -116,7 +120,7 @@ export function GatheringDiscoveryCard({ gathering, onOpenGathering }: Props) {
 }
 
 function GatheringCardCover({ gathering }: { gathering: DiscoverGathering }) {
-  const remoteCover = useRemoteGatheringCover(resolveCoverUrl(gathering.cover_image_url));
+  const remoteCover = useRemoteGatheringCover(resolveGatheringCoverUrl(gathering.cover_image_url));
   const theme = gatheringTheme(normalizeGatheringTheme(gathering.theme, gathering.kind));
   const dateTile = gatheringDateTile(gathering.starts_at);
 
@@ -140,7 +144,7 @@ function GatheringCardCover({ gathering }: { gathering: DiscoverGathering }) {
 
       <View style={styles.coverTop}>
         <View style={styles.kindBadge}>
-          <MaterialCommunityIcons color="#FFFFFF" name="badminton" size={15} />
+          <MaterialCommunityIcons color={colors.textInverse} name="badminton" size={15} />
           <Text style={styles.kindBadgeText}>{gatheringKindLabel(gathering.kind)}</Text>
         </View>
         <View style={styles.dateTile}>
@@ -152,11 +156,6 @@ function GatheringCardCover({ gathering }: { gathering: DiscoverGathering }) {
   );
 }
 
-function resolveCoverUrl(value: string | null | undefined) {
-  if (!value || value.startsWith('http://') || value.startsWith('https://')) return value;
-  return `${apiBaseUrl}${value}`;
-}
-
 function CourtCardArtwork({ accent }: { accent: string }) {
   return (
     <View pointerEvents="none" style={styles.artwork}>
@@ -164,7 +163,7 @@ function CourtCardArtwork({ accent }: { accent: string }) {
       <View style={[styles.courtOutline, { borderColor: accent }]} />
       <View style={[styles.courtLine, { backgroundColor: accent }]} />
       <View style={[styles.netLine, { backgroundColor: accent }]} />
-      <MaterialCommunityIcons color="#FFFFFF" name="badminton" size={88} style={styles.artworkIcon} />
+      <MaterialCommunityIcons color={colors.textInverse} name="badminton" size={88} style={styles.artworkIcon} />
     </View>
   );
 }
@@ -200,47 +199,8 @@ function cardPressableStyle({ pressed }: PressableStateCallbackType) {
   return [styles.card, pressed && styles.cardPressed];
 }
 
-function normalizeGatheringTheme(theme: string | null | undefined, kind: GatheringKind): GatheringThemeId {
-  if (theme === 'court_lights' || theme === 'birdie_burst' || theme === 'net_night' || theme === 'social_rally') {
-    return theme;
-  }
-  if (kind === 'social') return 'social_rally';
-  if (kind === 'play_and_social') return 'birdie_burst';
-  return 'court_lights';
-}
-
 function gatheringAccessibilityLabel(gathering: DiscoverGathering, schedule: string) {
-  return `${gatheringKindLabel(gathering.kind)}: ${gathering.title}. ${schedule}. ${formatVenue(gathering.venue, gathering.city)}.`;
-}
-
-function formatGatheringSchedule(startsAt: string, endsAt?: string | null) {
-  const start = new Date(startsAt);
-  if (Number.isNaN(start.getTime())) return 'Schedule coming soon';
-
-  const date = new Intl.DateTimeFormat(undefined, {
-    day: 'numeric',
-    month: 'short',
-    weekday: 'short',
-  }).format(start);
-  const startTime = formatGatheringTime(start);
-
-  if (!endsAt) return `${date} · ${startTime}`;
-  const end = new Date(endsAt);
-  if (Number.isNaN(end.getTime())) return `${date} · ${startTime}`;
-
-  if (isSameLocalDay(start, end)) return `${date} · ${startTime}–${formatGatheringTime(end)}`;
-  const endDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(end);
-  return `${date} · ${startTime} – ${endDate}, ${formatGatheringTime(end)}`;
-}
-
-function formatGatheringTime(value: Date) {
-  return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(value);
-}
-
-function isSameLocalDay(first: Date, second: Date) {
-  return first.getFullYear() === second.getFullYear()
-    && first.getMonth() === second.getMonth()
-    && first.getDate() === second.getDate();
+  return `${gatheringKindLabel(gathering.kind)}: ${gathering.title}. ${schedule}. ${formatGatheringVenue(gathering.venue, gathering.city)}.`;
 }
 
 function gatheringDateTile(startsAt: string) {
@@ -301,11 +261,6 @@ function skillLevelLabel(level: string) {
   return `${level.charAt(0).toUpperCase()}${level.slice(1)}`;
 }
 
-function formatVenue(venue: string, city: string) {
-  if (!city || venue.toLocaleLowerCase().includes(city.toLocaleLowerCase())) return venue;
-  return `${venue} · ${city}`;
-}
-
 function visibilityLabel(visibility: DiscoverGathering['visibility']) {
   return visibility === 'private' ? 'Private' : 'Public';
 }
@@ -336,12 +291,12 @@ function formatGatheringCost(cents: number, currency: string) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 22,
     borderWidth: 1,
     overflow: 'hidden',
-    shadowColor: '#06366C',
+    shadowColor: colors.shadow,
     shadowOffset: { height: 8, width: 0 },
     shadowOpacity: 0.09,
     shadowRadius: 16,
@@ -359,8 +314,8 @@ const styles = StyleSheet.create({
   },
   kindBadge: {
     alignItems: 'center',
-    backgroundColor: 'rgba(4, 17, 37, 0.56)',
-    borderColor: 'rgba(255,255,255,0.36)',
+    backgroundColor: colors.imageOverlay,
+    borderColor: colors.imageOverlayBorder,
     borderRadius: 99,
     borderWidth: 1,
     flexDirection: 'row',
@@ -368,17 +323,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  kindBadgeText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 11, fontWeight: '900' },
+  kindBadgeText: { color: colors.textInverse, fontFamily: fonts.black, fontSize: 11, fontWeight: '900' },
   dateTile: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.94)',
+    backgroundColor: colors.surfaceOverlay,
     borderRadius: 12,
     minWidth: 48,
     paddingHorizontal: 8,
     paddingVertical: 6,
   },
-  dateTileMonth: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
-  dateTileDay: { color: colors.ink, fontFamily: fonts.black, fontSize: 21, fontWeight: '900', lineHeight: 23 },
+  dateTileMonth: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 9, fontWeight: '900', letterSpacing: 0.8 },
+  dateTileDay: { color: colors.text, fontFamily: fonts.black, fontSize: 21, fontWeight: '900', lineHeight: 23 },
   artwork: { bottom: 0, left: 0, opacity: 0.92, position: 'absolute', right: 0, top: 0 },
   glow: { borderRadius: 100, height: 180, opacity: 0.12, position: 'absolute', right: -25, top: -17, width: 180 },
   courtOutline: {
@@ -395,12 +350,12 @@ const styles = StyleSheet.create({
   netLine: { height: 130, opacity: 0.28, position: 'absolute', right: 58, top: -4, transform: [{ rotate: '-14deg' }], width: 2 },
   artworkIcon: { opacity: 0.27, position: 'absolute', right: 13, top: 33, transform: [{ rotate: '-15deg' }] },
   body: { gap: 10, padding: 16 },
-  title: { color: colors.ink, fontFamily: fonts.black, fontSize: 21, fontWeight: '900', lineHeight: 25 },
+  title: { color: colors.text, fontFamily: fonts.black, fontSize: 21, fontWeight: '900', lineHeight: 25 },
   detailRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  detailText: { color: colors.ink, flex: 1, fontFamily: fonts.bold, fontSize: 13, fontWeight: '700' },
+  detailText: { color: colors.text, flex: 1, fontFamily: fonts.bold, fontSize: 13, fontWeight: '700' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, paddingTop: 2 },
-  chip: { backgroundColor: colors.primarySoft, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 6 },
-  chipText: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 11, fontWeight: '900' },
+  chip: { backgroundColor: colors.primarySurface, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 6 },
+  chipText: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 11, fontWeight: '900' },
   footer: {
     alignItems: 'center',
     borderTopColor: colors.border,
@@ -412,6 +367,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   accessSummary: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 6 },
-  accessText: { color: colors.muted, flex: 1, fontFamily: fonts.bold, fontSize: 11, fontWeight: '700' },
-  price: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 14, fontWeight: '900' },
+  accessText: { color: colors.textMuted, flex: 1, fontFamily: fonts.bold, fontSize: 11, fontWeight: '700' },
+  price: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 14, fontWeight: '900' },
 });

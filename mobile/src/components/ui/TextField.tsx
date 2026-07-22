@@ -7,7 +7,7 @@ type Props = TextInputProps & {
   variant?: 'default' | 'compact';
 };
 
-export function TextField({ placeholderTextColor = colors.muted, style, variant = 'default', ...props }: Props) {
+export function TextField({ placeholderTextColor = colors.textMuted, style, variant = 'default', ...props }: Props) {
   return (
     <TextInput
       placeholderTextColor={placeholderTextColor}
@@ -19,11 +19,11 @@ export function TextField({ placeholderTextColor = colors.muted, style, variant 
 
 const styles = StyleSheet.create({
   input: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.regular,
     fontSize: 16,
     minHeight: 50,

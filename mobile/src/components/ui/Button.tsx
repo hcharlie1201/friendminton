@@ -27,7 +27,7 @@ export function Button({
 }: Props) {
   const isDisabled = disabled || loading;
   const isPrimary = variant === 'primary';
-  const iconColor = isPrimary ? '#FFFFFF' : variant === 'danger' ? colors.danger : colors.primaryDark;
+  const iconColor = isPrimary ? colors.textOnPrimary : variant === 'danger' ? colors.danger : colors.primaryStrong;
 
   return (
     <Pressable
@@ -43,7 +43,7 @@ export function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary ? '#FFFFFF' : colors.primaryDark} />
+        <ActivityIndicator color={isPrimary ? colors.textOnPrimary : colors.primaryStrong} />
       ) : (
         <View style={styles.content}>
           {icon && <Ionicons color={iconColor} name={icon} size={size === 'compact' ? 16 : 18} />}
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   },
   primary: {
     backgroundColor: colors.primary,
-    borderColor: colors.primaryDark,
+    borderColor: colors.primaryStrong,
     borderWidth: 1,
     shadowColor: colors.primary,
     shadowOffset: { height: 8, width: 0 },
@@ -75,18 +75,18 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   secondary: {
-    backgroundColor: colors.primarySoft,
-    borderColor: '#B9D8FF',
+    backgroundColor: colors.primarySurface,
+    borderColor: colors.borderStrong,
     borderWidth: 1,
   },
   quiet: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderWidth: 1,
   },
   danger: {
-    backgroundColor: '#FFF1F2',
-    borderColor: '#F8B4B8',
+    backgroundColor: colors.dangerSurface,
+    borderColor: colors.dangerBorder,
     borderWidth: 1,
   },
   compact: {
@@ -98,20 +98,20 @@ const styles = StyleSheet.create({
     opacity: 0.58,
   },
   primaryPressed: {
-    backgroundColor: colors.primaryDark,
+    backgroundColor: colors.primaryPressed,
     shadowOpacity: 0.12,
     transform: [{ translateY: 1 }, { scale: 0.99 }],
   },
   secondaryPressed: {
-    backgroundColor: '#D9EAFF',
+    backgroundColor: colors.primarySurfacePressed,
     transform: [{ translateY: 1 }, { scale: 0.99 }],
   },
   quietPressed: {
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.primarySurface,
     transform: [{ translateY: 1 }, { scale: 0.99 }],
   },
   dangerPressed: {
-    backgroundColor: '#FFE4E6',
+    backgroundColor: colors.dangerSurface,
     transform: [{ translateY: 1 }, { scale: 0.99 }],
   },
   content: {
@@ -120,19 +120,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
     fontFamily: fonts.black,
     fontSize: 15,
     fontWeight: '900',
   },
   primaryLabel: {
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
   },
   secondaryLabel: {
-    color: colors.primaryDark,
+    color: colors.primaryStrong,
   },
   quietLabel: {
-    color: colors.primaryDark,
+    color: colors.primaryStrong,
   },
   dangerLabel: {
     color: colors.danger,

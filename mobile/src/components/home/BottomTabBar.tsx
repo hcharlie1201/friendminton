@@ -23,7 +23,7 @@ export function BottomTabBar({ activeTab, notificationCount, onTabChange }: Prop
             style={styles.tab}
           >
             <View>
-              <TabIcon color={isActive ? colors.primary : '#050505'} tab={tab.key} />
+              <TabIcon color={isActive ? colors.primaryStrong : colors.text} tab={tab.key} />
               {tab.key === 'home' && notificationCount > 0 && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{notificationCount}</Text>
@@ -40,7 +40,6 @@ export function BottomTabBar({ activeTab, notificationCount, onTabChange }: Prop
 
 function TabIcon({ color, tab }: { color: string; tab: Tab }) {
   if (tab === 'discover') return <Ionicons color={color} name="search" size={30} />;
-  if (tab === 'record') return <Ionicons color={color} name="radio-button-on-outline" size={33} />;
   if (tab === 'groups') return <MaterialCommunityIcons color={color} name="cards-diamond-outline" size={33} />;
   if (tab === 'you') return <Ionicons color={color} name="stats-chart-outline" size={31} />;
   return <Ionicons color={color} name="home" size={30} />;
@@ -49,7 +48,7 @@ function TabIcon({ color, tab }: { color: string; tab: Tab }) {
 const styles = StyleSheet.create({
   tabs: {
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderTopColor: colors.border,
     borderTopWidth: 1,
     flexDirection: 'row',
@@ -65,17 +64,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    color: '#050505',
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 13,
     fontWeight: '900',
   },
   activeText: {
-    color: colors.primary,
+    color: colors.primaryStrong,
   },
   badge: {
     alignItems: 'center',
-    backgroundColor: '#EF3340',
+    backgroundColor: colors.danger,
     borderRadius: 13,
     height: 26,
     justifyContent: 'center',
@@ -85,7 +84,7 @@ const styles = StyleSheet.create({
     top: -8,
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: colors.textInverse,
     fontFamily: fonts.black,
     fontSize: 13,
     fontWeight: '900',

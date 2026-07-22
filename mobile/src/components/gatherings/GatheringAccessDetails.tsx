@@ -49,8 +49,8 @@ export function GatheringAccessDetails({ onVisibilityChange, visibility }: Props
 const styles = StyleSheet.create({
   openAccess: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
-    borderColor: '#B9D8FF',
+    backgroundColor: colors.primarySurface,
+    borderColor: colors.borderStrong,
     borderRadius: 14,
     borderWidth: 1,
     flexDirection: 'row',
@@ -59,10 +59,10 @@ const styles = StyleSheet.create({
   },
   openAccessCopy: { flex: 1, gap: 2 },
   openAccessTitle: {
-    color: colors.primaryDark,
+    color: colors.primaryStrong,
     fontFamily: fonts.black,
     fontSize: 13,
     fontWeight: '900',
   },
-  openAccessDescription: { color: colors.muted, fontFamily: fonts.medium, fontSize: 10, lineHeight: 14 },
+  openAccessDescription: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 10, lineHeight: 14 },
 });

@@ -59,7 +59,7 @@ export function GatheringLabeledInput({
 
 const styles = StyleSheet.create({
   formSection: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 20,
     borderWidth: 1,
@@ -68,10 +68,10 @@ const styles = StyleSheet.create({
   },
   sectionHeading: { gap: 4 },
   sectionTitleRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  sectionTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' },
-  sectionSubtitle: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 17 },
+  sectionTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' },
+  sectionSubtitle: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 17 },
   fieldLabel: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.black,
     fontSize: 11,
     fontWeight: '900',

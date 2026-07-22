@@ -72,7 +72,7 @@ export function GameFilterSheet({ filters, onApply, onClose, resultCount, visibl
           <View style={styles.grabber} />
           <View style={styles.header}>
             <Pressable accessibilityLabel="Close game filters" hitSlop={8} onPress={onClose}>
-              <Ionicons color={colors.ink} name="close" size={27} />
+              <Ionicons color={colors.text} name="close" size={27} />
             </Pressable>
             <Text accessibilityRole="header" style={styles.title}>Game filters</Text>
             <Pressable accessibilityLabel="Reset game filters" hitSlop={8} onPress={draft.reset}>
@@ -138,13 +138,13 @@ function FilterSection({ children, title }: { children: ReactNode; title: string
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { backgroundColor: 'rgba(15,23,42,0.45)', bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
-  sheet: { backgroundColor: colors.card, borderTopLeftRadius: 22, borderTopRightRadius: 22, gap: 16, maxHeight: '92%', paddingHorizontal: 20, paddingTop: 10 },
-  grabber: { alignSelf: 'center', backgroundColor: '#CBD5E1', borderRadius: 2, height: 4, width: 38 },
+  backdrop: { backgroundColor: colors.overlay, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 22, borderTopRightRadius: 22, gap: 16, maxHeight: '92%', paddingHorizontal: 20, paddingTop: 10 },
+  grabber: { alignSelf: 'center', backgroundColor: colors.borderStrong, borderRadius: 2, height: 4, width: 38 },
   header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  title: { color: colors.ink, fontFamily: fonts.black, fontSize: 19, fontWeight: '900' },
-  reset: { color: colors.primaryDark, fontFamily: fonts.bold, fontSize: 14, fontWeight: '700' },
+  title: { color: colors.text, fontFamily: fonts.black, fontSize: 19, fontWeight: '900' },
+  reset: { color: colors.primaryStrong, fontFamily: fonts.bold, fontSize: 14, fontWeight: '700' },
   content: { gap: 22, paddingBottom: 6 },
   section: { gap: 9 },
-  sectionTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 16, fontWeight: '900' },
+  sectionTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 16, fontWeight: '900' },
 });

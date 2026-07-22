@@ -44,13 +44,13 @@ export function PlayerSearchResults({ hasError, onOpenPlayer, onRetry, players, 
 
 const styles = StyleSheet.create({
   errorTitle: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 17,
     fontWeight: '900',
   },
   errorBody: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.regular,
     fontSize: 14,
     lineHeight: 20,

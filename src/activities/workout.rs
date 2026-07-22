@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub struct Workout {
     pub id: Uuid,
     pub user_id: Uuid,
+    pub gathering_id: Option<Uuid>,
     pub title: String,
     pub workout_type: String,
     pub duration_minutes: i32,

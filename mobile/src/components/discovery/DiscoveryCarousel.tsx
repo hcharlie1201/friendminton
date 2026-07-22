@@ -94,14 +94,14 @@ const styles = StyleSheet.create({
   },
   titleRow: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 8 },
   title: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 20,
     fontWeight: '900',
   },
   countBadge: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.primarySurface,
     borderRadius: 99,
     justifyContent: 'center',
     minWidth: 25,
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   countText: {
-    color: colors.primaryDark,
+    color: colors.primaryStrong,
     fontFamily: fonts.black,
     fontSize: 11,
     fontWeight: '900',
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   },
   content: { gap: 12, paddingRight: 20 },
   emptyCard: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 18,
     borderStyle: 'dashed',
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   emptyText: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.bold,
     fontSize: 14,
     fontWeight: '700',

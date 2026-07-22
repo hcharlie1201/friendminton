@@ -10,32 +10,25 @@ import type {
 import { StyleSheet, View } from 'react-native';
 import { ActivityPostCard } from '../feed/ActivityPostCard';
 import { DiscoverHub } from '../discovery';
-import { DiscoverGatheringSections } from '../gatherings';
+import { DiscoverGatheringSections, HostedGatheringList } from '../gatherings';
 import { PostComposer } from '../feed/PostComposer';
 import type { PostDraft } from '../../features/posts/postDraft';
-import { formatElapsedTime, type WorkoutRecorderPhase } from '../../features/workouts/useWorkoutRecorder';
 import { Button, Section } from '../ui';
 import { GameInviteCard } from './GameInviteCard';
 import { PlayerSearchResults } from './PlayerSearchResults';
 import { SettingsPanel } from './SettingsPanel';
 import type { DiscoveryLocation, Tab } from './types';
 import { WeeklySnapshot } from './WeeklySnapshot';
-import { WorkoutRecorder } from './WorkoutRecorder';
 
 export type HomeActions = {
   cancelPostEdit: () => void;
   createGathering: () => void;
   createPost: () => void;
-  discardWorkout: () => void;
   editPost: (post: FeedPost) => void;
-  endWorkout: () => void;
   openGathering: (gatheringId: string) => void;
   openPlayer: (playerId: string) => void;
   openPost: (post: FeedPost) => void;
-  pauseWorkout: () => void;
-  resumeWorkout: () => void;
   signOut: () => void;
-  startWorkout: () => void;
 };
 
 type Props = {
@@ -45,6 +38,7 @@ type Props = {
   feedRefreshToken: number;
   gameInvites: GameInvite[];
   gatherings: Gathering[];
+  hostedGatherings: Gathering[];
   city: string;
   latitude: number | null;
   longitude: number | null;
@@ -59,11 +53,7 @@ type Props = {
   postIsSaving: boolean;
   playerSearchQuery: string;
   playerSearchHasError: boolean;
-  setWorkoutTitle: (value: string) => void;
   snapshot?: WeeklySnapshotData;
-  workoutElapsedMilliseconds: number;
-  workoutPhase: WorkoutRecorderPhase;
-  workoutTitle: string;
 };
 
 export function HomeContent({
@@ -78,6 +68,7 @@ export function HomeContent({
   feedRefreshToken,
   gameInvites,
   gatherings,
+  hostedGatherings,
   notifications,
   onLocationChange,
   players,
@@ -87,11 +78,7 @@ export function HomeContent({
   postIsSaving,
   playerSearchQuery,
   playerSearchHasError,
-  setWorkoutTitle,
   snapshot,
-  workoutElapsedMilliseconds,
-  workoutPhase,
-  workoutTitle,
 }: Props) {
   if (activeTab === 'discover') {
     return (
@@ -114,39 +101,6 @@ export function HomeContent({
           />
         )}
       </>
-    );
-  }
-
-  if (activeTab === 'record') {
-    return (
-      <Section title={workoutPhase === 'review' ? 'Save activity' : 'Record activity'} itemCount={workoutPhase === 'review' ? 2 : 1}>
-        <WorkoutRecorder
-          elapsedMilliseconds={workoutElapsedMilliseconds}
-          onDiscard={actions.discardWorkout}
-          onEnd={actions.endWorkout}
-          onPause={actions.pauseWorkout}
-          onResume={actions.resumeWorkout}
-          onStart={actions.startWorkout}
-          onTitleChange={setWorkoutTitle}
-          phase={workoutPhase}
-          title={workoutTitle}
-        />
-        {workoutPhase === 'review' && (
-          <PostComposer
-            allowEmpty
-            contextLabel={`${formatElapsedTime(workoutElapsedMilliseconds)} recorded`}
-            draft={postDraft}
-            eyebrow="SAVE ACTIVITY"
-            isEditing={false}
-            isSaving={postIsSaving}
-            onCancelEdit={actions.cancelPostEdit}
-            onChange={onPostDraftChange}
-            onSubmit={actions.createPost}
-            submitLabel="Save & post activity"
-            title="How did it go?"
-          />
-        )}
-      </Section>
     );
   }
 
@@ -176,14 +130,22 @@ export function HomeContent({
 
   if (activeTab === 'you') {
     return (
-      <SettingsPanel
-        city={city}
-        displayName={currentUser.display_name}
-        email={currentUser.email}
-        notifications={notifications}
-        onLocationChange={onLocationChange}
-        onSignOut={actions.signOut}
-      />
+      <View style={styles.fullWidth}>
+        <SettingsPanel
+          city={city}
+          displayName={currentUser.display_name}
+          email={currentUser.email}
+          notifications={notifications}
+          onLocationChange={onLocationChange}
+          onSignOut={actions.signOut}
+        >
+          <HostedGatheringList
+            gatherings={hostedGatherings}
+            onCreateGathering={actions.createGathering}
+            onOpenGathering={actions.openGathering}
+          />
+        </SettingsPanel>
+      </View>
     );
   }
 
@@ -222,4 +184,5 @@ export function HomeContent({
 
 const styles = StyleSheet.create({
   feed: { marginHorizontal: -20 },
+  fullWidth: { marginHorizontal: -20, marginTop: -16 },
 });

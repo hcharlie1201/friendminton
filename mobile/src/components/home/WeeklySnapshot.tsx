@@ -47,7 +47,7 @@ function formatMinutes(minutes: number) {
 
 const styles = StyleSheet.create({
   wrapper: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderBottomColor: colors.border,
     borderBottomWidth: 8,
     gap: 26,
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    color: colors.ink,
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 19,
     fontWeight: '900',
@@ -82,13 +82,13 @@ const styles = StyleSheet.create({
     minWidth: 86,
   },
   metricLabel: {
-    color: '#555555',
+    color: colors.textMuted,
     fontFamily: fonts.medium,
     fontSize: 16,
     fontWeight: '500',
   },
   metricValue: {
-    color: '#050505',
+    color: colors.text,
     fontFamily: fonts.black,
     fontSize: 25,
     fontWeight: '900',
@@ -101,12 +101,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dot: {
-    backgroundColor: '#D8D8D8',
+    backgroundColor: colors.border,
     borderRadius: 5,
     height: 10,
     width: 10,
   },
   activeDot: {
-    backgroundColor: '#4C4C4C',
+    backgroundColor: colors.textMuted,
   },
 });

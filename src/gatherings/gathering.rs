@@ -186,6 +186,14 @@ pub struct GatheringParticipant {
     pub joined_at: OffsetDateTime,
 }
 
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct GatheringViewerState {
+    pub participant_status: Option<GatheringParticipantStatus>,
+    pub workout_id: Option<Uuid>,
+    pub post_id: Option<Uuid>,
+    pub can_finish: bool,
+}
+
 #[derive(Debug, FromRow)]
 pub(super) struct StoredGathering {
     pub id: Uuid,

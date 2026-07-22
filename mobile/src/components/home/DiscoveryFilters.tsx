@@ -33,7 +33,7 @@ export const DiscoveryFilters = memo(function DiscoveryFilters({ city, latitude,
           onPress={filterSheet.open}
           style={styles.filterButton}
         >
-          <Ionicons color={colors.primaryDark} name="options-outline" size={22} />
+          <Ionicons color={colors.primaryStrong} name="options-outline" size={22} />
           <Text style={styles.filterLabel}>Filters</Text>
           {skillLevel && <View style={styles.activeDot} />}
         </Pressable>
@@ -75,7 +75,7 @@ function levelLabel(skillLevel: SkillLevel | null) {
 const styles = StyleSheet.create({
   summary: {
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: 'row',
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   eyebrow: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.bold,
     fontSize: 11,
     fontWeight: '700',
@@ -102,21 +102,21 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   locationText: {
-    color: colors.ink,
+    color: colors.text,
     flex: 1,
     fontFamily: fonts.black,
     fontSize: 20,
     fontWeight: '900',
   },
   preferenceText: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.regular,
     fontSize: 13,
   },
   filterButton: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
-    borderColor: '#B9D8FF',
+    backgroundColor: colors.primarySurface,
+    borderColor: colors.borderStrong,
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
   },
   filterLabel: {
-    color: colors.primaryDark,
+    color: colors.primaryStrong,
     fontFamily: fonts.black,
     fontSize: 14,
     fontWeight: '900',

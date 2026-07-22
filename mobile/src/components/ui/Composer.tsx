@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Button } from './Button';
 import { TextField } from './TextField';
+import { colors } from './theme';
 
 type Props = {
   buttonLabel: string;
@@ -24,8 +25,8 @@ export function Composer({ buttonLabel, onChangeText, onSubmit, placeholder, val
 
 const styles = StyleSheet.create({
   composer: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#D8E5F5',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     gap: 10,

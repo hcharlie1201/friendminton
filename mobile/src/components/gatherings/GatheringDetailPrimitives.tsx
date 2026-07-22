@@ -88,7 +88,7 @@ function GatheringDetailFact({
       style={[styles.fact, !isLast && styles.factDivider]}
     >
       <View style={styles.factIcon}>
-        <Ionicons color={colors.primaryDark} name={icon} size={20} />
+        <Ionicons color={colors.primaryStrong} name={icon} size={20} />
       </View>
       <View style={styles.factCopy}>
         <Text style={styles.factLabel}>{label}</Text>
@@ -101,7 +101,7 @@ function GatheringDetailFact({
 
 const styles = StyleSheet.create({
   section: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 22,
     borderWidth: 1,
@@ -111,15 +111,15 @@ const styles = StyleSheet.create({
   sectionHeading: { alignItems: 'flex-start', flexDirection: 'row', gap: 11 },
   sectionIcon: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.primarySurface,
     borderRadius: 13,
     height: 42,
     justifyContent: 'center',
     width: 42,
   },
   sectionHeadingCopy: { flex: 1, gap: 2, paddingTop: 1 },
-  sectionTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 19, fontWeight: '900' },
-  sectionSubtitle: { color: colors.muted, fontFamily: fonts.regular, fontSize: 12, lineHeight: 18 },
+  sectionTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 19, fontWeight: '900' },
+  sectionSubtitle: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 12, lineHeight: 18 },
   factList: {
     borderColor: colors.border,
     borderRadius: 16,
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   fact: {
     alignItems: 'flex-start',
-    backgroundColor: '#FBFDFF',
+    backgroundColor: colors.surfaceElevated,
     flexDirection: 'row',
     gap: 12,
     minHeight: 74,
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   factDivider: { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
   factIcon: {
     alignItems: 'center',
-    backgroundColor: '#EAF4FF',
+    backgroundColor: colors.primarySurface,
     borderRadius: 11,
     height: 38,
     justifyContent: 'center',
@@ -145,24 +145,24 @@ const styles = StyleSheet.create({
   },
   factCopy: { flex: 1, gap: 2, minWidth: 0 },
   factLabel: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.black,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 0.7,
     textTransform: 'uppercase',
   },
-  factValue: { color: colors.ink, fontFamily: fonts.black, fontSize: 15, fontWeight: '900', lineHeight: 21 },
-  factDetail: { color: colors.muted, fontFamily: fonts.regular, fontSize: 12, lineHeight: 17 },
+  factValue: { color: colors.text, fontFamily: fonts.black, fontSize: 15, fontWeight: '900', lineHeight: 21 },
+  factDetail: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 12, lineHeight: 17 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    backgroundColor: '#F0F8D5',
-    borderColor: '#D5EA85',
+    backgroundColor: colors.accentSurface,
+    borderColor: colors.accentPressed,
     borderRadius: 99,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  chipText: { color: '#294D14', fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
-  body: { color: colors.ink, fontFamily: fonts.regular, fontSize: 15, lineHeight: 24 },
+  chipText: { color: colors.textOnAccent, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
+  body: { color: colors.text, fontFamily: fonts.regular, fontSize: 15, lineHeight: 24 },
 });

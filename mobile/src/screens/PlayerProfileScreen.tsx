@@ -79,7 +79,7 @@ function PlayerProfileHeader({ onBack }: { onBack: () => void }) {
         onPress={onBack}
         style={styles.headerButton}
       >
-        <Ionicons color={colors.ink} name="chevron-back" size={28} />
+        <Ionicons color={colors.text} name="chevron-back" size={28} />
       </Pressable>
       <Text style={styles.headerTitle}>Player Profile</Text>
       <View style={styles.headerButton} />
@@ -90,7 +90,7 @@ function PlayerProfileHeader({ onBack }: { onBack: () => void }) {
 function ProfileBadge({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
   return (
     <View style={styles.badge}>
-      <Ionicons color={colors.primaryDark} name={icon} size={16} />
+      <Ionicons color={colors.primaryStrong} name={icon} size={16} />
       <Text style={styles.badgeText}>{label}</Text>
     </View>
   );
@@ -108,7 +108,7 @@ function PlayerProfileLoading() {
 function PlayerProfileError({ onRetry }: { onRetry: () => void }) {
   return (
     <View style={styles.centeredState}>
-      <Ionicons color={colors.muted} name="person-circle-outline" size={42} />
+      <Ionicons color={colors.textMuted} name="person-circle-outline" size={42} />
       <Text style={styles.stateTitle}>Player unavailable</Text>
       <Text style={styles.stateText}>This profile may have been removed, or the API needs to be restarted.</Text>
       <Button onPress={onRetry} variant="secondary">Try again</Button>
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: colors.background, flex: 1 },
   header: {
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: 'row',
@@ -175,34 +175,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   headerButton: { alignItems: 'center', height: 42, justifyContent: 'center', width: 42 },
-  headerTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' },
+  headerTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' },
   content: { gap: 16, padding: 20, paddingBottom: 40 },
   hero: { alignItems: 'center', gap: 12, paddingVertical: 24 },
   avatar: {
     alignItems: 'center',
     backgroundColor: colors.primary,
-    borderColor: '#B9D8FF',
+    borderColor: colors.borderStrong,
     borderRadius: 52,
     borderWidth: 5,
     height: 104,
     justifyContent: 'center',
     width: 104,
   },
-  avatarText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 34, fontWeight: '900' },
-  name: { color: colors.ink, fontFamily: fonts.black, fontSize: 28, fontWeight: '900', textAlign: 'center' },
+  avatarText: { color: colors.textOnPrimary, fontFamily: fonts.black, fontSize: 34, fontWeight: '900' },
+  name: { color: colors.text, fontFamily: fonts.black, fontSize: 28, fontWeight: '900', textAlign: 'center' },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
   badge: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.primarySurface,
     borderRadius: 99,
     flexDirection: 'row',
     gap: 6,
     paddingHorizontal: 11,
     paddingVertical: 7,
   },
-  badgeText: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' },
+  badgeText: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' },
   card: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 20,
     borderWidth: 1,
@@ -210,8 +210,8 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   cardTitleRow: { alignItems: 'center', flexDirection: 'row', gap: 9 },
-  cardTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 17, fontWeight: '900' },
-  bio: { color: colors.muted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22 },
+  cardTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 17, fontWeight: '900' },
+  bio: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22 },
   centeredState: {
     alignItems: 'center',
     flex: 1,
@@ -219,6 +219,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 30,
   },
-  stateTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 21, fontWeight: '900' },
-  stateText: { color: colors.muted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  stateTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 21, fontWeight: '900' },
+  stateText: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, textAlign: 'center' },
 });

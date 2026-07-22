@@ -12,7 +12,7 @@ import { PostPhotoGallery } from '../components/feed/PostPhotoGallery';
 import { Button, colors, fonts } from '../components/ui';
 import { estimateBadmintonSession, type BadmintonEstimate } from '../features/posts/badmintonEstimates';
 import { findCachedFeedPost } from '../features/posts/feed';
-import { formatElapsedTime } from '../features/workouts/useWorkoutRecorder';
+import { formatElapsedTime } from '../lib/duration';
 import { formatDate } from '../lib/dates';
 
 export function PostDetailScreen() {
@@ -81,7 +81,7 @@ function DetailHeader({ onBack }: { onBack: () => void }) {
         onPress={onBack}
         style={styles.headerButton}
       >
-        <Ionicons color={colors.ink} name="chevron-back" size={28} />
+        <Ionicons color={colors.text} name="chevron-back" size={28} />
       </Pressable>
       <Text style={styles.headerTitle}>Badminton Activity</Text>
       <View style={styles.headerButton} />
@@ -173,13 +173,13 @@ function EstimatedCourtInsights({ estimates }: { estimates: BadmintonEstimate | 
         </View>
       ) : (
         <View style={styles.noEstimates}>
-          <Ionicons color={colors.muted} name="analytics-outline" size={24} />
+          <Ionicons color={colors.textMuted} name="analytics-outline" size={24} />
           <Text style={styles.noEstimatesText}>Record a timed workout to unlock estimated court insights.</Text>
         </View>
       )}
 
       <View style={styles.disclaimer}>
-        <Ionicons color={colors.primaryDark} name="information-circle-outline" size={19} />
+        <Ionicons color={colors.primaryStrong} name="information-circle-outline" size={19} />
         <Text style={styles.disclaimerText}>
           These are low-confidence estimates, not sensor or video measurements. Future wearable and camera data can replace them with observed footwork and shot analytics.
         </Text>
@@ -229,7 +229,7 @@ function DetailLoading() {
 function DetailError({ onRetry }: { onRetry: () => void }) {
   return (
     <View style={styles.centeredState}>
-      <Ionicons color={colors.muted} name="cloud-offline-outline" size={34} />
+      <Ionicons color={colors.textMuted} name="cloud-offline-outline" size={34} />
       <Text style={styles.stateTitle}>Activity unavailable</Text>
       <Text style={styles.stateText}>The post may have been removed, or the API needs to be restarted.</Text>
       <Button onPress={onRetry} variant="secondary">Try again</Button>
@@ -304,10 +304,10 @@ function initials(name: string) {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: colors.card, flex: 1 },
+  screen: { backgroundColor: colors.surface, flex: 1 },
   header: {
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderBottomColor: colors.border,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
@@ -316,14 +316,14 @@ const styles = StyleSheet.create({
   },
   headerButton: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
   headerTitle: {
-    color: colors.ink,
+    color: colors.text,
     flex: 1,
     fontFamily: fonts.black,
     fontSize: 18,
     fontWeight: '900',
     textAlign: 'center',
   },
-  scrollContent: { backgroundColor: colors.card, paddingBottom: 42 },
+  scrollContent: { backgroundColor: colors.surface, paddingBottom: 42 },
   identity: { alignItems: 'center', flexDirection: 'row', gap: 12, padding: 20, paddingBottom: 14 },
   avatar: {
     alignItems: 'center',
@@ -333,26 +333,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 46,
   },
-  avatarText: { color: '#FFFFFF', fontFamily: fonts.black, fontSize: 14, fontWeight: '900' },
+  avatarText: { color: colors.textOnPrimary, fontFamily: fonts.black, fontSize: 14, fontWeight: '900' },
   identityCopy: { flex: 1, gap: 3 },
-  name: { color: colors.ink, fontFamily: fonts.black, fontSize: 16, fontWeight: '900' },
-  meta: { color: colors.muted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 17 },
+  name: { color: colors.text, fontFamily: fonts.black, fontSize: 16, fontWeight: '900' },
+  meta: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12, lineHeight: 17 },
   heroCopy: { gap: 8, paddingBottom: 20, paddingHorizontal: 20 },
   eyebrow: {
-    color: colors.primaryDark,
+    color: colors.primaryStrong,
     fontFamily: fonts.black,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
-  title: { color: colors.ink, fontFamily: fonts.black, fontSize: 29, fontWeight: '900', lineHeight: 35 },
-  body: { color: colors.ink, fontFamily: fonts.medium, fontSize: 16, lineHeight: 24 },
+  title: { color: colors.text, fontFamily: fonts.black, fontSize: 29, fontWeight: '900', lineHeight: 35 },
+  body: { color: colors.text, fontFamily: fonts.medium, fontSize: 16, lineHeight: 24 },
   sectionDivider: { backgroundColor: colors.background, height: 8 },
   section: { gap: 22, paddingHorizontal: 20, paddingVertical: 26 },
   sectionHeading: { gap: 6 },
-  sectionTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 25, fontWeight: '900' },
-  sectionSubtitle: { color: colors.muted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 21 },
+  sectionTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 25, fontWeight: '900' },
+  sectionSubtitle: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 21 },
   metricGrid: {
     borderBottomColor: colors.border,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -363,17 +363,17 @@ const styles = StyleSheet.create({
   },
   metric: { gap: 5, paddingHorizontal: 14, paddingVertical: 18, width: '50%' },
   metricBorder: { borderRightColor: colors.border, borderRightWidth: StyleSheet.hairlineWidth },
-  metricLabel: { color: colors.muted, fontFamily: fonts.medium, fontSize: 13 },
-  metricValue: { color: colors.ink, fontFamily: fonts.black, fontSize: 20, fontWeight: '900' },
+  metricLabel: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13 },
+  metricValue: { color: colors.text, fontFamily: fonts.black, fontSize: 20, fontWeight: '900' },
   insightsTitleRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   experimentalBadge: {
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.primarySurface,
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   experimentalBadgeText: {
-    color: colors.primaryDark,
+    color: colors.primaryStrong,
     fontFamily: fonts.black,
     fontSize: 9,
     fontWeight: '900',
@@ -382,22 +382,22 @@ const styles = StyleSheet.create({
   insights: { gap: 26 },
   insight: { gap: 9 },
   insightHeader: { alignItems: 'baseline', flexDirection: 'row', gap: 10, justifyContent: 'space-between' },
-  insightLabel: { color: colors.ink, flex: 1, fontFamily: fonts.bold, fontSize: 16, fontWeight: '700' },
-  insightValue: { color: colors.ink, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' },
-  progressTrack: { backgroundColor: colors.primarySoft, borderRadius: 5, height: 10, overflow: 'hidden' },
+  insightLabel: { color: colors.text, flex: 1, fontFamily: fonts.bold, fontSize: 16, fontWeight: '700' },
+  insightValue: { color: colors.text, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' },
+  progressTrack: { backgroundColor: colors.primarySurface, borderRadius: 5, height: 10, overflow: 'hidden' },
   progressFill: { backgroundColor: colors.primary, borderRadius: 5, height: '100%' },
-  insightDescription: { color: colors.muted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
+  insightDescription: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
   noEstimates: { alignItems: 'center', flexDirection: 'row', gap: 10, paddingVertical: 8 },
-  noEstimatesText: { color: colors.muted, flex: 1, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
+  noEstimatesText: { color: colors.textMuted, flex: 1, fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
   disclaimer: {
     alignItems: 'flex-start',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.primarySurface,
     borderRadius: 10,
     flexDirection: 'row',
     gap: 9,
     padding: 13,
   },
-  disclaimerText: { color: colors.primaryDark, flex: 1, fontFamily: fonts.medium, fontSize: 12, lineHeight: 18 },
+  disclaimerText: { color: colors.primaryStrong, flex: 1, fontFamily: fonts.medium, fontSize: 12, lineHeight: 18 },
   centeredState: {
     alignItems: 'center',
     flex: 1,
@@ -405,6 +405,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 30,
   },
-  stateTitle: { color: colors.ink, fontFamily: fonts.black, fontSize: 22, fontWeight: '900' },
-  stateText: { color: colors.muted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 21, textAlign: 'center' },
+  stateTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 22, fontWeight: '900' },
+  stateText: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 21, textAlign: 'center' },
 });

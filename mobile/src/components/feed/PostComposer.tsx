@@ -52,7 +52,7 @@ export function PostComposer({
         </View>
         {isEditing && (
           <Pressable accessibilityLabel="Cancel editing" hitSlop={10} onPress={onCancelEdit}>
-            <Ionicons color={colors.muted} name="close" size={24} />
+            <Ionicons color={colors.textMuted} name="close" size={24} />
           </Pressable>
         )}
       </View>
@@ -77,7 +77,7 @@ export function PostComposer({
                 onPress={() => onChange({ ...draft, photos: draft.photos.filter((_, photoIndex) => photoIndex !== index) })}
                 style={styles.removePhoto}
               >
-                <Ionicons color="#FFFFFF" name="close" size={16} />
+                <Ionicons color={colors.textInverse} name="close" size={16} />
               </Pressable>
             </View>
           ))}
@@ -122,7 +122,7 @@ export function PostComposer({
 function ToolButton({ disabled = false, icon, label, onPress }: { disabled?: boolean; icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
   return (
     <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.tool, pressed && styles.toolPressed, disabled && styles.toolDisabled]}>
-      <Ionicons color={colors.primaryDark} name={icon} size={19} />
+      <Ionicons color={colors.primaryStrong} name={icon} size={19} />
       <Text style={styles.toolLabel}>{label}</Text>
     </Pressable>
   );
@@ -156,13 +156,13 @@ async function pickPhotos(draft: PostDraft, onChange: (draft: PostDraft) => void
 
 const styles = StyleSheet.create({
   composer: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
     gap: 14,
     padding: 16,
-    shadowColor: '#0B3B75',
+    shadowColor: colors.shadow,
     shadowOffset: { height: 7, width: 0 },
     shadowOpacity: 0.08,
     shadowRadius: 16,
@@ -170,23 +170,23 @@ const styles = StyleSheet.create({
   },
   headingRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   eyebrow: { color: colors.primary, fontFamily: fonts.black, fontSize: 10, fontWeight: '900' },
-  title: { color: colors.ink, fontFamily: fonts.black, fontSize: 20, fontWeight: '900' },
-  context: { color: colors.muted, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700', marginTop: 2 },
+  title: { color: colors.text, fontFamily: fonts.black, fontSize: 20, fontWeight: '900' },
+  context: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700', marginTop: 2 },
   bodyInput: { fontSize: 16, lineHeight: 23, minHeight: 88, paddingTop: 8 },
   photoStrip: { gap: 8 },
   photoFrame: { borderRadius: 8, height: 116, overflow: 'hidden', width: 116 },
   photo: { height: '100%', width: '100%' },
-  removePhoto: { alignItems: 'center', backgroundColor: 'rgba(15, 23, 42, 0.78)', borderRadius: 14, height: 26, justifyContent: 'center', position: 'absolute', right: 6, top: 6, width: 26 },
+  removePhoto: { alignItems: 'center', backgroundColor: colors.overlayStrong, borderRadius: 14, height: 26, justifyContent: 'center', position: 'absolute', right: 6, top: 6, width: 26 },
   tools: { flexDirection: 'row', gap: 8 },
-  tool: { alignItems: 'center', backgroundColor: colors.primarySoft, borderColor: '#B9D8FF', borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 6, minHeight: 40, paddingHorizontal: 11 },
-  toolPressed: { backgroundColor: '#D9EAFF' },
+  tool: { alignItems: 'center', backgroundColor: colors.primarySurface, borderColor: colors.borderStrong, borderRadius: 8, borderWidth: 1, flexDirection: 'row', gap: 6, minHeight: 40, paddingHorizontal: 11 },
+  toolPressed: { backgroundColor: colors.primarySurfacePressed },
   toolDisabled: { opacity: 0.45 },
-  toolLabel: { color: colors.primaryDark, fontFamily: fonts.extraBold, fontSize: 12, fontWeight: '800' },
+  toolLabel: { color: colors.primaryStrong, fontFamily: fonts.extraBold, fontSize: 12, fontWeight: '800' },
   effortSection: { gap: 7 },
-  fieldLabel: { color: colors.muted, fontFamily: fonts.black, fontSize: 10, fontWeight: '900' },
+  fieldLabel: { color: colors.textMuted, fontFamily: fonts.black, fontSize: 10, fontWeight: '900' },
   effortControl: { backgroundColor: colors.background, borderRadius: 8, flexDirection: 'row', padding: 3 },
   effortOption: { alignItems: 'center', borderRadius: 6, flex: 1, justifyContent: 'center', minHeight: 36, paddingHorizontal: 4 },
-  effortOptionActive: { backgroundColor: colors.primary, shadowColor: colors.primaryDark, shadowOffset: { height: 3, width: 0 }, shadowOpacity: 0.2, shadowRadius: 5, elevation: 2 },
-  effortLabel: { color: colors.muted, fontFamily: fonts.bold, fontSize: 11, fontWeight: '700' },
-  effortLabelActive: { color: '#FFFFFF', fontFamily: fonts.black, fontWeight: '900' },
+  effortOptionActive: { backgroundColor: colors.primary, shadowColor: colors.primaryStrong, shadowOffset: { height: 3, width: 0 }, shadowOpacity: 0.2, shadowRadius: 5, elevation: 2 },
+  effortLabel: { color: colors.textMuted, fontFamily: fonts.bold, fontSize: 11, fontWeight: '700' },
+  effortLabelActive: { color: colors.textOnPrimary, fontFamily: fonts.black, fontWeight: '900' },
 });

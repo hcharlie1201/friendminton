@@ -59,7 +59,7 @@ function SocialTagChoice({
       style={[styles.tag, selected && styles.tagSelected]}
     >
       <MaterialCommunityIcons
-        color={selected ? '#FFFFFF' : colors.primaryDark}
+        color={selected ? colors.textOnPrimary : colors.primaryStrong}
         name={socialTagIcon(tag.value)}
         size={17}
       />
@@ -91,8 +91,8 @@ const styles = StyleSheet.create({
   tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: {
     alignItems: 'center',
-    backgroundColor: colors.primarySoft,
-    borderColor: '#B9D8FF',
+    backgroundColor: colors.primarySurface,
+    borderColor: colors.borderStrong,
     borderRadius: 99,
     borderWidth: 1,
     flexDirection: 'row',
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
-  tagSelected: { backgroundColor: colors.primary, borderColor: colors.primaryDark },
-  tagText: { color: colors.primaryDark, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' },
-  tagTextSelected: { color: '#FFFFFF' },
+  tagSelected: { backgroundColor: colors.primary, borderColor: colors.primaryStrong },
+  tagText: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' },
+  tagTextSelected: { color: colors.textOnPrimary },
 });

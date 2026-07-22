@@ -66,7 +66,7 @@ function useThemeSelection(onSelect: (value: GatheringThemeId) => void, value: G
 const styles = StyleSheet.create({
   themeSection: { gap: 9 },
   themeLabel: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.black,
     fontSize: 11,
     fontWeight: '900',
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: 8,
   },
-  themeSwatchSelected: { borderColor: colors.ink },
+  themeSwatchSelected: { borderColor: colors.text },
   themeBirdie: {
     borderRadius: 20,
     height: 22,
@@ -94,11 +94,11 @@ const styles = StyleSheet.create({
     width: 22,
   },
   themeChoiceText: {
-    color: colors.muted,
+    color: colors.textMuted,
     fontFamily: fonts.bold,
     fontSize: 10,
     fontWeight: '700',
     textAlign: 'center',
   },
-  themeChoiceTextSelected: { color: colors.ink, fontFamily: fonts.black, fontWeight: '900' },
+  themeChoiceTextSelected: { color: colors.text, fontFamily: fonts.black, fontWeight: '900' },
 });

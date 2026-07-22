@@ -81,7 +81,7 @@ function PredictionRow({ onSelect, prediction }: {
   const select = usePredictionSelection(onSelect, prediction);
   return (
     <Pressable accessibilityRole="button" onPress={select} style={styles.prediction}>
-      <Ionicons color={colors.muted} name="location" size={18} />
+      <Ionicons color={colors.textMuted} name="location" size={18} />
       <View style={styles.predictionCopy}>
         <Text numberOfLines={1} style={styles.predictionTitle}>{prediction.primary_text}</Text>
         {prediction.secondary_text && (
@@ -188,15 +188,15 @@ function uuidNibble(character: string) {
 
 const styles = StyleSheet.create({
   container: { gap: 6, position: 'relative', zIndex: 10 },
-  inputRow: { alignItems: 'center', backgroundColor: colors.card, borderColor: colors.border, borderRadius: 10, borderWidth: 1, flexDirection: 'row', paddingLeft: 12, paddingRight: 10 },
+  inputRow: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 10, borderWidth: 1, flexDirection: 'row', paddingLeft: 12, paddingRight: 10 },
   input: { borderColor: 'transparent', flex: 1, paddingHorizontal: 9 },
-  results: { backgroundColor: colors.card, borderColor: colors.border, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+  results: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
   prediction: { alignItems: 'center', borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 10, minHeight: 58, paddingHorizontal: 12, paddingVertical: 8 },
   predictionCopy: { flex: 1, gap: 2, minWidth: 0 },
-  predictionTitle: { color: colors.ink, fontFamily: fonts.bold, fontSize: 14, fontWeight: '700' },
-  predictionSubtitle: { color: colors.muted, fontFamily: fonts.regular, fontSize: 12 },
+  predictionTitle: { color: colors.text, fontFamily: fonts.bold, fontSize: 14, fontWeight: '700' },
+  predictionSubtitle: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 12 },
   statusRow: { alignItems: 'center', flexDirection: 'row', gap: 9, padding: 14 },
-  statusText: { color: colors.muted, fontFamily: fonts.medium, fontSize: 13 },
+  statusText: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13 },
   errorText: { color: colors.danger, fontFamily: fonts.medium, fontSize: 12, padding: 12 },
-  attribution: { color: colors.muted, fontFamily: fonts.medium, fontSize: 10, paddingHorizontal: 12, paddingVertical: 7, textAlign: 'right' },
+  attribution: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 10, paddingHorizontal: 12, paddingVertical: 7, textAlign: 'right' },
 });
