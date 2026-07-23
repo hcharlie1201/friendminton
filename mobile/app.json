@@ -10,7 +10,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Friendminton uses your location to find nearby players, sessions, and socials."
+        "NSLocationWhenInUseUsageDescription": "Friendminton uses your location to find nearby players, sessions, and socials.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.hcharlie1201.friendminton"
     },
@@ -52,6 +53,13 @@
       "expo-font",
       "expo-status-bar",
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "googleMapsProvider": "google",
+      "router": {},
+      "eas": {
+        "projectId": "1cb0ab76-b933-4868-bd10-0903eeedf8fb"
+      }
+    }
   }
 }
