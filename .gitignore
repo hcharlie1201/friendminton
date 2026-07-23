@@ -5,3 +5,10 @@
 !.env.example
 !.env.staging.example
 !.env.production.example
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars
+*.auto.tfvars
+crash.log

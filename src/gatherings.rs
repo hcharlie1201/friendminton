@@ -17,7 +17,7 @@ pub use gathering::{
 use gathering::{GatheringKind, GatheringVisibility, PlayFormat, StoredGathering};
 
 const GATHERING_COLUMNS: &str = r#"
-    g.id, g.host_id, g.kind, g.visibility, g.join_policy, g.title,
+    g.id, g.host_id, g.group_id, g.kind, g.visibility, g.join_policy, g.title,
     g.starts_at, g.ends_at, g.venue, g.city, g.court_id, g.latitude, g.longitude,
     g.description, g.capacity,
     g.cost_per_person_cents, g.currency, g.skill_level, g.play_format,
@@ -43,27 +43,29 @@ pub async fn create_gathering(
 ) -> Result<Gathering, AppError> {
     normalize_gathering(&mut payload);
     resolve_gathering_court(pool, &mut payload).await?;
+    resolve_group_event_access(pool, host_id, &mut payload).await?;
     validate_gathering(host_id, &payload)?;
 
     let mut transaction = pool.begin().await?;
     let stored = sqlx::query_as::<_, StoredGathering>(
         r#"
         INSERT INTO gatherings (
-            host_id, kind, visibility, join_policy, title, starts_at, ends_at,
+            host_id, group_id, kind, visibility, join_policy, title, starts_at, ends_at,
             venue, city, court_id, latitude, longitude, description, capacity, cost_per_person_cents, currency,
             skill_level, play_format, court_setup, court_count, social_tags, theme, cover_image_key
         )
         VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-            $15, $16, $17, $18, $19, $20, $21, $22, $23
+            $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
         )
-        RETURNING id, host_id, kind, visibility, join_policy, title, starts_at,
+        RETURNING id, host_id, group_id, kind, visibility, join_policy, title, starts_at,
             ends_at, venue, city, court_id, latitude, longitude, description, capacity, cost_per_person_cents,
             currency, skill_level, play_format, court_setup, court_count, social_tags, theme,
             cover_image_key, created_at, updated_at
         "#,
     )
     .bind(host_id)
+    .bind(payload.group_id)
     .bind(payload.kind)
     .bind(payload.visibility)
     .bind(payload.join_policy)
@@ -198,18 +200,25 @@ pub async fn join_gathering(
     user_id: Uuid,
 ) -> Result<GatheringParticipant, AppError> {
     let mut transaction = pool.begin().await?;
-    let (join_policy, capacity, visibility) =
-        sqlx::query_as::<_, (GatheringJoinPolicy, Option<i32>, GatheringVisibility)>(
-            r#"
-        SELECT join_policy, capacity, visibility
+    let (join_policy, capacity, visibility, group_id) = sqlx::query_as::<
+        _,
+        (
+            GatheringJoinPolicy,
+            Option<i32>,
+            GatheringVisibility,
+            Option<Uuid>,
+        ),
+    >(
+        r#"
+        SELECT join_policy, capacity, visibility, group_id
         FROM gatherings
         WHERE id = $1
         FOR UPDATE
         "#,
-        )
-        .bind(gathering_id)
-        .fetch_one(&mut *transaction)
-        .await?;
+    )
+    .bind(gathering_id)
+    .fetch_one(&mut *transaction)
+    .await?;
 
     let existing = sqlx::query_as::<_, GatheringParticipant>(
         r#"
@@ -223,11 +232,25 @@ pub async fn join_gathering(
     .fetch_optional(&mut *transaction)
     .await?;
 
-    let status = next_join_status(
-        visibility,
-        join_policy,
-        existing.as_ref().map(|participant| participant.status),
-    )?;
+    let status = if let Some(group_id) = group_id {
+        group_event_join_status(&mut transaction, group_id, user_id).await?
+    } else {
+        next_join_status(
+            visibility,
+            join_policy,
+            existing.as_ref().map(|participant| participant.status),
+        )?
+    };
+
+    if existing.as_ref().is_some_and(|participant| {
+        participant.status == GatheringParticipantStatus::Going
+            || (participant.status == GatheringParticipantStatus::Pending
+                && status == GatheringParticipantStatus::Pending)
+    }) {
+        return Err(AppError::BadRequest(
+            "gathering is already joined or awaiting approval".to_owned(),
+        ));
+    }
 
     if status == GatheringParticipantStatus::Going
         && let Some(capacity) = capacity
@@ -442,6 +465,57 @@ pub async fn finish_gathering(
     Ok(workout)
 }
 
+async fn group_event_join_status(
+    transaction: &mut sqlx::Transaction<'_, Postgres>,
+    group_id: Uuid,
+    user_id: Uuid,
+) -> Result<GatheringParticipantStatus, AppError> {
+    let (visibility, join_policy) = sqlx::query_as::<_, (String, String)>(
+        "SELECT visibility, join_policy FROM badminton_groups WHERE id = $1 FOR UPDATE",
+    )
+    .bind(group_id)
+    .fetch_one(&mut **transaction)
+    .await?;
+    let membership_status = sqlx::query_scalar::<_, String>(
+        "SELECT status FROM badminton_group_members WHERE group_id = $1 AND user_id = $2",
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .fetch_optional(&mut **transaction)
+    .await?;
+
+    let (member_status, participant_status) = match membership_status.as_deref() {
+        Some("member") => return Ok(GatheringParticipantStatus::Going),
+        Some("invited") => ("member", GatheringParticipantStatus::Going),
+        Some("pending") => return Ok(GatheringParticipantStatus::Pending),
+        None if visibility == "public" && join_policy == "open" => {
+            ("member", GatheringParticipantStatus::Going)
+        }
+        None => ("pending", GatheringParticipantStatus::Pending),
+        Some(_) => {
+            return Err(AppError::BadRequest(
+                "group membership has an unsupported status".to_owned(),
+            ));
+        }
+    };
+
+    sqlx::query(
+        r#"
+        INSERT INTO badminton_group_members (group_id, user_id, role, status)
+        VALUES ($1, $2, 'member', $3)
+        ON CONFLICT (group_id, user_id) DO UPDATE
+        SET status = EXCLUDED.status, joined_at = now()
+        "#,
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .bind(member_status)
+    .execute(&mut **transaction)
+    .await?;
+
+    Ok(participant_status)
+}
+
 fn next_join_status(
     visibility: GatheringVisibility,
     join_policy: GatheringJoinPolicy,
@@ -502,6 +576,7 @@ async fn hydrate_gathering(
     Ok(Gathering {
         id: stored.id,
         host_id: stored.host_id,
+        group_id: stored.group_id,
         kind: stored.kind,
         visibility: stored.visibility,
         join_policy: stored.join_policy,
@@ -556,6 +631,38 @@ async fn resolve_gathering_court(
     payload.city = city;
     payload.latitude = Some(latitude);
     payload.longitude = Some(longitude);
+    Ok(())
+}
+
+async fn resolve_group_event_access(
+    pool: &Pool<Postgres>,
+    host_id: Uuid,
+    payload: &mut CreateGathering,
+) -> Result<(), AppError> {
+    let Some(group_id) = payload.group_id else {
+        return Ok(());
+    };
+    let can_host = sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM badminton_group_members
+            WHERE group_id = $1 AND user_id = $2
+                AND status = 'member' AND role IN ('owner', 'admin')
+        )
+        "#,
+    )
+    .bind(group_id)
+    .bind(host_id)
+    .fetch_one(pool)
+    .await?;
+    if !can_host {
+        return Err(AppError::BadRequest(
+            "only group owners and admins can publish group events".to_owned(),
+        ));
+    }
+    payload.visibility = GatheringVisibility::Public;
+    payload.join_policy = GatheringJoinPolicy::MembersOnly;
     Ok(())
 }
 
@@ -787,6 +894,7 @@ mod tests {
     fn valid_payload() -> CreateGathering {
         let starts_at = OffsetDateTime::from_unix_timestamp(1_800_000_000).unwrap();
         CreateGathering {
+            group_id: None,
             kind: GatheringKind::PlayAndSocial,
             visibility: GatheringVisibility::Public,
             join_policy: GatheringJoinPolicy::ApprovalRequired,

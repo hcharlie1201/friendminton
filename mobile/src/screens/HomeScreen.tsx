@@ -17,17 +17,20 @@ import {
 } from '@tanstack/react-query';
 
 import {
+  type BadmintonGroup,
   getApiEngagementNotifications,
   getApiEngagementNotificationsUnreadCount,
   getApiEngagementWeeklySnapshot,
-  getApiGameInvites,
+  getApiGroups,
+  getApiGroupsMine,
   getApiPostsFeed,
+  getApiUsersById,
   postApiEngagementNotificationsRead,
   putApiPosts,
   type FeedPage,
   type FeedPost,
-  type GameInvite,
   type Notification,
+  type Player,
   type UnreadNotificationCount,
   type User,
   type WeeklySnapshot,
@@ -150,6 +153,7 @@ export function HomeScreen() {
   const homeRefresh = useHomeRefresh(queryClient, currentUser.id);
   const openPost = usePostNavigation();
   const openGathering = useGatheringDetailNavigation();
+  const openGroup = useGroupDetailNavigation();
   const openPlayer = usePlayerProfileNavigation();
   const openGatheringCreator = useGatheringCreatorNavigation(city);
 
@@ -173,6 +177,26 @@ export function HomeScreen() {
     userId: currentUser.id,
   });
   const hostedGatheringsQuery = useHostedGatherings(currentUser.id, activeTab === 'you');
+  const profileQuery = useQuery({
+    enabled: activeTab === 'you',
+    queryKey: ['players', 'profile', currentUser.id],
+    queryFn: () => apiData<Player>(getApiUsersById({ path: { id: currentUser.id } })),
+  });
+  const joinedGroupsQuery = useQuery({
+    enabled: activeTab === 'groups' || activeTab === 'you',
+    queryKey: ['groups', 'mine', currentUser.id],
+    queryFn: () => apiData<BadmintonGroup[]>(getApiGroupsMine({
+      headers: authHeaders(currentUser.id),
+    })),
+  });
+  const groupsQuery = useQuery({
+    enabled: activeTab === 'groups',
+    queryKey: ['groups', 'discover', city, currentUser.id],
+    queryFn: () => apiData<BadmintonGroup[]>(getApiGroups({
+      headers: authHeaders(currentUser.id),
+      query: { city, limit: 50 },
+    })),
+  });
   const feedQuery = useInfiniteQuery({
     queryKey: feedQueryKey,
     queryFn: loadFeedPage,
@@ -199,16 +223,6 @@ export function HomeScreen() {
     queryFn: () =>
       apiData<UnreadNotificationCount>(getApiEngagementNotificationsUnreadCount({
         headers: authHeaders(currentUser.id),
-      })),
-  });
-  const gameInvitesQuery = useQuery({
-    queryKey: ['gameInvites', city, skillLevel],
-    queryFn: () =>
-      apiData<GameInvite[]>(getApiGameInvites({
-        query: {
-          city,
-          skill_level: skillLevel ?? undefined,
-        },
       })),
   });
   const createPostMutation = useMutation({
@@ -240,7 +254,6 @@ export function HomeScreen() {
   });
   const players = playersQuery.data ?? [];
   const feed = feedQuery.data?.pages.flatMap((page) => page.items) ?? [];
-  const gameInvites = gameInvitesQuery.data ?? [];
   const notifications = notificationsQuery.data ?? [];
   const unreadNotificationCount = unreadNotificationsQuery.data?.count ?? 0;
   const isLoading =
@@ -248,14 +261,17 @@ export function HomeScreen() {
     playersQuery.isFetching ||
     gatheringsQuery.isFetching ||
     hostedGatheringsQuery.isFetching ||
+    profileQuery.isFetching ||
+    joinedGroupsQuery.isFetching ||
+    groupsQuery.isFetching ||
     (feedQuery.isFetching && !feedQuery.isFetchingNextPage) ||
     snapshotQuery.isFetching ||
-    gameInvitesQuery.isFetching ||
     createPostMutation.isPending ||
     markNotificationsReadMutation.isPending;
   const actions = useHomeActions({
     createPostMutation,
     openGathering,
+    openGroup,
     openPlayer,
     openPost,
     openGatheringCreator,
@@ -322,14 +338,16 @@ export function HomeScreen() {
           editingPostId={editingPostId}
           feed={feed}
           feedRefreshToken={homeRefresh.imageRefreshToken}
-          gameInvites={gameInvites}
           gatherings={gatheringsQuery.gatherings}
           hostedGatherings={hostedGatheringsQuery.data ?? []}
+          groups={groupsQuery.data ?? []}
+          joinedGroups={joinedGroupsQuery.data ?? []}
           notifications={notifications}
           onLocationChange={discoveryPreferences.setLocation}
           onPostDraftChange={setPostDraft}
           onRetryPlayerSearch={playersQuery.refetch}
           players={players}
+          profile={profileQuery.data}
           playerSearchQuery={playersQuery.effectiveQuery}
           playerSearchHasError={playersQuery.isError}
           postDraft={postDraft}
@@ -394,6 +412,7 @@ function requireSessionUser(user: ReturnType<typeof useSession>['user']) {
 function useHomeActions({
   createPostMutation,
   openGathering,
+  openGroup,
   openPlayer,
   openPost,
   openGatheringCreator,
@@ -405,6 +424,7 @@ function useHomeActions({
 }: {
   createPostMutation: WriteMutation;
   openGathering: (gatheringId: string) => void;
+  openGroup: (groupId: string) => void;
   openPlayer: (playerId: string) => void;
   openPost: (post: FeedPost) => void;
   openGatheringCreator: () => void;
@@ -422,6 +442,7 @@ function useHomeActions({
       editPost: (post: FeedPost) =>
         beginPostEdit(post, setPostDraft, setEditingPostId, setActiveTab, homeScrollRef),
       openGathering,
+      openGroup,
       openPlayer,
       openPost,
       signOut: () => void signOut(),
@@ -429,6 +450,7 @@ function useHomeActions({
     [
       createPostMutation,
       openGathering,
+      openGroup,
       openPlayer,
       openPost,
       openGatheringCreator,
@@ -452,6 +474,13 @@ function useGatheringDetailNavigation() {
   const router = useRouter();
   return useCallback((gatheringId: string) => {
     router.push({ pathname: '/gatherings/[gatheringId]', params: { gatheringId } });
+  }, [router]);
+}
+
+function useGroupDetailNavigation() {
+  const router = useRouter();
+  return useCallback((groupId: string) => {
+    router.push({ pathname: '/groups/[groupId]', params: { groupId } });
   }, [router]);
 }
 
@@ -586,6 +615,8 @@ async function refreshHomeData(queryClient: ReturnType<typeof useQueryClient>, u
     invalidateHomeData(queryClient, userId),
     queryClient.invalidateQueries({ queryKey: ['players'] }),
     queryClient.invalidateQueries({ queryKey: ['gatherings'] }),
+    queryClient.invalidateQueries({ queryKey: ['groups', 'mine', userId] }),
+    queryClient.invalidateQueries({ queryKey: ['players', 'profile', userId] }),
     queryClient.invalidateQueries({ queryKey: ['gameInvites'] }),
   ]);
 }
@@ -595,7 +626,7 @@ function supportsPullToRefresh(tab: Tab) {
 }
 
 function pullToRefreshTitle(tab: Tab) {
-  if (tab === 'you') return 'Refreshing your gatherings...';
+  if (tab === 'you') return 'Refreshing your profile...';
   return tab === 'discover' ? 'Refreshing discoveries...' : 'Refreshing activity...';
 }
 

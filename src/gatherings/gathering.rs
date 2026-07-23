@@ -90,6 +90,7 @@ pub enum SocialTag {
 pub struct Gathering {
     pub id: Uuid,
     pub host_id: Uuid,
+    pub group_id: Option<Uuid>,
     pub kind: GatheringKind,
     pub visibility: GatheringVisibility,
     pub join_policy: GatheringJoinPolicy,
@@ -127,6 +128,7 @@ pub struct Gathering {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CreateGathering {
+    pub group_id: Option<Uuid>,
     pub kind: GatheringKind,
     #[serde(default)]
     pub visibility: GatheringVisibility,
@@ -198,6 +200,7 @@ pub struct GatheringViewerState {
 pub(super) struct StoredGathering {
     pub id: Uuid,
     pub host_id: Uuid,
+    pub group_id: Option<Uuid>,
     pub kind: GatheringKind,
     pub visibility: GatheringVisibility,
     pub join_policy: GatheringJoinPolicy,

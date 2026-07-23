@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import type { Notification } from '../../api/generated';
@@ -9,26 +9,22 @@ import { Button, colors, fonts } from '../ui';
 import type { DiscoveryLocation } from './types';
 
 type Props = {
-  children?: ReactNode;
   city: string;
-  displayName: string;
   email: string;
   notifications: Notification[];
   onLocationChange: (location: DiscoveryLocation) => void;
   onSignOut: () => void;
 };
 
-export function SettingsPanel({ children, city, displayName, email, notifications, onLocationChange, onSignOut }: Props) {
+export function SettingsPanel({ city, email, notifications, onLocationChange, onSignOut }: Props) {
   const location = useSettingsLocation(onLocationChange);
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.profileSection}>
-        <Text style={styles.title}>{displayName}</Text>
+      <View style={styles.accountSection}>
+        <Text style={styles.title}>Account & settings</Text>
         <Text style={styles.meta}>{email}</Text>
       </View>
-
-      {children}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Discovery Settings</Text>
@@ -123,7 +119,7 @@ const styles = StyleSheet.create({
   wrapper: {
     backgroundColor: colors.background,
   },
-  profileSection: {
+  accountSection: {
     backgroundColor: colors.surface,
     borderBottomColor: colors.border,
     borderBottomWidth: 8,

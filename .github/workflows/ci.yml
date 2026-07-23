@@ -91,7 +91,6 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - name: Validate deployment scripts
         run: |
-          test -x scripts/bootstrap-ecr.sh
           test -x scripts/deploy-release.sh
           test -x scripts/deploy-on-host.sh
           test -x scripts/test-deploy-on-host.sh
@@ -103,3 +102,24 @@ jobs:
         run: API_IMAGE=friendminton-api:ci docker compose --env-file .env.production.example -f docker-compose.prod.yml config --quiet
       - name: Build API image
         run: docker build --tag friendminton-api:ci .
+
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.8
+      - name: Check formatting
+        run: terraform fmt -check -recursive infra
+      - name: Validate stacks
+        run: |
+          set -euo pipefail
+          for stack in state-bootstrap shared staging production; do
+            terraform -chdir="infra/$stack" init -backend=false -input=false
+            terraform -chdir="infra/$stack" validate
+          done

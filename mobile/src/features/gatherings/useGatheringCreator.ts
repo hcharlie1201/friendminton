@@ -19,16 +19,19 @@ export function useGatheringPublisher(
   draft: GatheringDraft,
   userId: string,
   allowCreatorRemoval: () => void,
+  groupId = '',
 ) {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const mutationFn = useCallback(() => createGathering(draft, userId), [draft, userId]);
+  const mutationFn = useCallback(() => createGathering(draft, userId, groupId), [draft, groupId, userId]);
   const mutation = useMutation({
     mutationFn,
     onError: showCreateError,
     onSuccess: async (gathering) => {
       await queryClient.invalidateQueries({ queryKey: ['gatherings'] });
-      const destination = gathering.visibility === 'public' ? 'live in Discover' : 'published privately';
+      const destination = gathering.group_id
+        ? 'live in the group events tab'
+        : gathering.visibility === 'public' ? 'live in Discover' : 'published privately';
       Alert.alert('Gathering published', `${gathering.title} is ${destination}.`);
       allowCreatorRemoval();
       router.back();
@@ -126,7 +129,7 @@ export function validateGatheringDraft(draft: GatheringDraft, userId: string) {
   return null;
 }
 
-async function createGathering(draft: GatheringDraft, userId: string) {
+async function createGathering(draft: GatheringDraft, userId: string, groupId: string) {
   const coverImageKey = draft.coverPhoto
     ? await uploadGatheringCover(userId, draft.coverPhoto)
     : null;
@@ -142,6 +145,7 @@ async function createGathering(draft: GatheringDraft, userId: string) {
     currency: 'USD',
     description: draft.description.trim() || null,
     ends_at: draft.endsAt.toISOString(),
+    group_id: groupId || null,
     join_policy: draft.joinPolicy,
     kind: draft.kind,
     latitude: draft.latitude,

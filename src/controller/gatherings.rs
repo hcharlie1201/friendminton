@@ -178,6 +178,89 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn group_events_are_visible_and_closed_group_access_is_requested() {
+        let api = TestApi::new().await;
+        let owner_id = api.insert_user("group-event-owner").await;
+        let guest_id = api.insert_user("group-event-guest").await;
+        let city = unique_city();
+        let group_id = sqlx::query_scalar::<_, Uuid>(
+            r#"
+            INSERT INTO badminton_groups (owner_id, name, city, visibility, join_policy)
+            VALUES ($1, 'Closed rally crew', $2, 'public', 'approval_required')
+            RETURNING id
+            "#,
+        )
+        .bind(owner_id)
+        .bind(&city)
+        .fetch_one(&api.pool)
+        .await
+        .expect("insert group fixture");
+        sqlx::query(
+            "INSERT INTO badminton_group_members (group_id, user_id, role, status) VALUES ($1, $2, 'owner', 'member')",
+        )
+        .bind(group_id)
+        .bind(owner_id)
+        .execute(&api.pool)
+        .await
+        .expect("insert group owner fixture");
+
+        let mut payload =
+            gathering_payload("Closed crew doubles", &city, "private", "open", Some(12));
+        payload["group_id"] = json!(group_id);
+        let created = api
+            .json(
+                Method::POST,
+                "/api/gatherings",
+                Some(owner_id),
+                Some(payload),
+            )
+            .await;
+        assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+        assert_eq!(created.body["group_id"], group_id.to_string());
+        assert_eq!(created.body["visibility"], "public");
+        assert_eq!(created.body["join_policy"], "members_only");
+        let gathering_id = response_uuid(&created.body, "id");
+
+        let discovered = api
+            .json(
+                Method::GET,
+                &format!("/api/gatherings?city={city}"),
+                Some(guest_id),
+                None,
+            )
+            .await;
+        assert_eq!(discovered.status, StatusCode::OK, "{}", discovered.body);
+        assert!(discovered.body.as_array().is_some_and(|gatherings| {
+            gatherings.iter().any(|gathering| {
+                gathering["id"] == gathering_id.to_string()
+                    && gathering["group_id"] == group_id.to_string()
+            })
+        }));
+
+        let requested = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/join"),
+                Some(guest_id),
+                None,
+            )
+            .await;
+        assert_eq!(requested.status, StatusCode::OK, "{}", requested.body);
+        assert_eq!(requested.body["status"], "pending");
+        let membership_status = sqlx::query_scalar::<_, String>(
+            "SELECT status FROM badminton_group_members WHERE group_id = $1 AND user_id = $2",
+        )
+        .bind(group_id)
+        .bind(guest_id)
+        .fetch_one(&api.pool)
+        .await
+        .expect("load requested group membership");
+        assert_eq!(membership_status, "pending");
+
+        api.cleanup_users(&[owner_id, guest_id]).await;
+    }
+
+    #[tokio::test]
     async fn list_and_detail_routes_enforce_private_visibility() {
         let api = TestApi::new().await;
         let host_id = api.insert_user("visibility-host").await;

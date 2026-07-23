@@ -66,18 +66,25 @@ The workflow uploads `docker-compose.prod.yml` and `Caddyfile` into this directo
 does not build Rust or need GitHub repository credentials. It receives a temporary ECR login,
 pulls the immutable image, starts Compose, and then discards the registry login.
 
-## AWS OIDC And ECR
+## Terraform Infrastructure
 
-Run the bootstrap from an AWS CLI session with IAM and ECR administration access and a GitHub CLI
-session authenticated for `hcharlie1201/friendminton`:
+Terraform owns the Lightsail, ECR, IAM/OIDC, and repository-level GitHub Actions variable
+configuration. The states are separated into `shared`, `staging`, and `production` so a production
+change cannot accidentally alter staging. See [`infra/README.md`](../infra/README.md) for state,
+planning, import, and production provisioning instructions.
+
+Initialize the shared stack from AWS and GitHub CLI sessions authenticated for the Friendminton
+accounts:
 
 ```sh
 aws sts get-caller-identity
 gh auth status
-AWS_REGION=us-west-2 ./scripts/bootstrap-ecr.sh
+cd infra/shared
+terraform init -backend-config=../backend/shared.hcl
+terraform plan
 ```
 
-The script creates or updates:
+The shared stack manages:
 
 - The GitHub Actions OIDC provider in IAM.
 - The staging-only `friendminton-github-publish` role with push and pull access.
@@ -153,6 +160,7 @@ Production should use a separate Lightsail instance, PostgreSQL volume, object-s
 domain, deployment SSH key, and GitHub Environment secrets. Never point production at the staging
 database or `friendminton-media-us-west-2` bucket.
 
-On the future production host, create `.env.production` from `.env.production.example`, attach the
-production bucket, configure the same two-hop IMDS setting described above, and perform one
-manual deployment before enabling the GitHub workflow.
+The `infra/production` stack creates the isolated host, static IP, firewall, bucket attachment,
+bucket safety settings, and required two-hop IMDS configuration. After applying its reviewed plan,
+create `.env.production` from `.env.production.example` on the new host and perform one manual
+deployment before enabling the GitHub workflow.

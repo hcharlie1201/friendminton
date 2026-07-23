@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+apt-get update
+apt-get install -y docker.io docker-compose-v2
+systemctl enable --now docker
+usermod -aG docker ubuntu
+install -d -o ubuntu -g ubuntu -m 700 /home/ubuntu/.ssh
+printf '%s' '${deploy_public_key_base64}' | base64 -d >> /home/ubuntu/.ssh/authorized_keys
+printf '\n' >> /home/ubuntu/.ssh/authorized_keys
+chown ubuntu:ubuntu /home/ubuntu/.ssh/authorized_keys
+chmod 600 /home/ubuntu/.ssh/authorized_keys
+install -d -o ubuntu -g ubuntu -m 750 /home/ubuntu/friendminton

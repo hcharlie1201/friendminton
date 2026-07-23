@@ -97,6 +97,27 @@ pub async fn find_groups(
         .await?)
 }
 
+pub async fn find_joined_groups(
+    pool: &Pool<Postgres>,
+    user_id: Uuid,
+) -> Result<Vec<BadmintonGroup>, AppError> {
+    Ok(sqlx::query_as::<_, BadmintonGroup>(&format!(
+        r#"
+        SELECT {GROUP_COLUMNS}
+        FROM badminton_groups AS g
+        INNER JOIN badminton_group_members AS own_membership
+            ON own_membership.group_id = g.id
+        WHERE own_membership.user_id = $1
+            AND own_membership.status = 'member'
+        ORDER BY own_membership.joined_at DESC, g.created_at DESC
+        LIMIT 100
+        "#
+    ))
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?)
+}
+
 pub async fn get_group(
     pool: &Pool<Postgres>,
     group_id: Uuid,

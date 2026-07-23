@@ -165,6 +165,8 @@ function GatheringParticipationActions({
   const hasPost = Boolean(viewerState?.post_id);
   const joinLabel = status === 'invited'
     ? 'Accept invitation'
+    : gathering.join_policy === 'members_only'
+      ? 'Request group access'
     : gathering.join_policy === 'approval_required'
       ? 'Request to join'
       : 'Join gathering';
@@ -325,7 +327,11 @@ function useGatheringParticipation(gatheringId: string, userId: string) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const refreshViewerState = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['gatherings', 'viewer', gatheringId, userId] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['gatherings', 'viewer', gatheringId, userId] }),
+      queryClient.invalidateQueries({ queryKey: ['gatherings'] }),
+      queryClient.invalidateQueries({ queryKey: ['groups'] }),
+    ]);
   }, [gatheringId, queryClient, userId]);
   const joinMutation = useMutation({
     mutationFn: () => apiData<GatheringParticipant>(postApiGatheringsByGatheringIdJoin({

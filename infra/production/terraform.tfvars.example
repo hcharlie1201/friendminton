@@ -1,0 +1,3 @@
+deploy_public_key = "ssh-ed25519 AAAA... friendminton-production-github-actions"
+bucket_name       = "friendminton-media-production"
+key_pair_name     = "LightsailDefaultKeyPair"

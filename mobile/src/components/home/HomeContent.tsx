@@ -1,6 +1,6 @@
 import type {
+  BadmintonGroup,
   FeedPost,
-  GameInvite,
   Gathering,
   Notification,
   Player,
@@ -10,11 +10,11 @@ import type {
 import { StyleSheet, View } from 'react-native';
 import { ActivityPostCard } from '../feed/ActivityPostCard';
 import { DiscoverHub } from '../discovery';
-import { DiscoverGatheringSections, HostedGatheringList } from '../gatherings';
+import { HostedGatheringList } from '../gatherings';
+import { GroupsHub } from '../groups';
 import { PostComposer } from '../feed/PostComposer';
+import { JoinedGroupsList, PersonalProfileHero } from '../profile';
 import type { PostDraft } from '../../features/posts/postDraft';
-import { Button, Section } from '../ui';
-import { GameInviteCard } from './GameInviteCard';
 import { PlayerSearchResults } from './PlayerSearchResults';
 import { SettingsPanel } from './SettingsPanel';
 import type { DiscoveryLocation, Tab } from './types';
@@ -26,6 +26,7 @@ export type HomeActions = {
   createPost: () => void;
   editPost: (post: FeedPost) => void;
   openGathering: (gatheringId: string) => void;
+  openGroup: (groupId: string) => void;
   openPlayer: (playerId: string) => void;
   openPost: (post: FeedPost) => void;
   signOut: () => void;
@@ -36,9 +37,10 @@ type Props = {
   activeTab: Tab;
   feed: FeedPost[];
   feedRefreshToken: number;
-  gameInvites: GameInvite[];
   gatherings: Gathering[];
   hostedGatherings: Gathering[];
+  groups: BadmintonGroup[];
+  joinedGroups: BadmintonGroup[];
   city: string;
   latitude: number | null;
   longitude: number | null;
@@ -47,6 +49,7 @@ type Props = {
   notifications: Notification[];
   onLocationChange: (location: DiscoveryLocation) => void;
   players: Player[];
+  profile?: Player;
   onPostDraftChange: (draft: PostDraft) => void;
   onRetryPlayerSearch: () => void;
   postDraft: PostDraft;
@@ -66,12 +69,14 @@ export function HomeContent({
   editingPostId,
   feed,
   feedRefreshToken,
-  gameInvites,
   gatherings,
   hostedGatherings,
+  groups,
+  joinedGroups,
   notifications,
   onLocationChange,
   players,
+  profile,
   onPostDraftChange,
   onRetryPlayerSearch,
   postDraft,
@@ -106,45 +111,41 @@ export function HomeContent({
 
   if (activeTab === 'groups') {
     return (
-      <>
-        <Section
-          title="Sessions & socials"
-          emptyText="Nothing nearby yet. Host the first gathering."
-          itemCount={gatherings.length}
-        >
-          <Button icon="add-circle" onPress={actions.createGathering}>
-            Host a session or social
-          </Button>
-          <DiscoverGatheringSections gatherings={gatherings} onOpenGathering={actions.openGathering} />
-        </Section>
-        {gameInvites.length > 0 && (
-          <Section title="Game invites" itemCount={gameInvites.length}>
-            {gameInvites.map((invite) => (
-              <GameInviteCard invite={invite} key={invite.id} />
-            ))}
-          </Section>
-        )}
-      </>
+      <View style={styles.fullWidth}>
+        <GroupsHub
+          city={city}
+          discoveredGroups={groups}
+          gatherings={gatherings}
+          joinedGroups={joinedGroups}
+          onOpenGathering={actions.openGathering}
+          onOpenGroup={actions.openGroup}
+        />
+      </View>
     );
   }
 
   if (activeTab === 'you') {
     return (
       <View style={styles.fullWidth}>
+        <PersonalProfileHero
+          displayName={currentUser.display_name}
+          groupCount={joinedGroups.length}
+          player={profile}
+          snapshot={snapshot}
+        />
+        <JoinedGroupsList groups={joinedGroups} onOpenGroup={actions.openGroup} />
+        <HostedGatheringList
+          gatherings={hostedGatherings}
+          onCreateGathering={actions.createGathering}
+          onOpenGathering={actions.openGathering}
+        />
         <SettingsPanel
           city={city}
-          displayName={currentUser.display_name}
           email={currentUser.email}
           notifications={notifications}
           onLocationChange={onLocationChange}
           onSignOut={actions.signOut}
-        >
-          <HostedGatheringList
-            gatherings={hostedGatherings}
-            onCreateGathering={actions.createGathering}
-            onOpenGathering={actions.openGathering}
-          />
-        </SettingsPanel>
+        />
       </View>
     );
   }

@@ -206,6 +206,7 @@ export type CreateGathering = {
     cover_image_key?: string | null;
     currency?: string;
     ends_at?: string | null;
+    group_id?: string | null;
     join_policy?: GatheringJoinPolicy;
     kind: GatheringKind;
     latitude?: number | null;
@@ -427,6 +428,7 @@ export type Gathering = {
     created_at: string;
     currency: string;
     ends_at?: string | null;
+    group_id?: string | null;
     host_id: string;
     id: string;
     join_policy: GatheringJoinPolicy;
@@ -2278,6 +2280,30 @@ export type PostApiGroupsResponses = {
 };
 
 export type PostApiGroupsResponse = PostApiGroupsResponses[keyof PostApiGroupsResponses];
+
+export type GetApiGroupsMineData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/groups/mine';
+};
+
+export type GetApiGroupsMineErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    404: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiGroupsMineError = GetApiGroupsMineErrors[keyof GetApiGroupsMineErrors];
+
+export type GetApiGroupsMineResponses = {
+    200: Array<BadmintonGroup>;
+};
+
+export type GetApiGroupsMineResponse = GetApiGroupsMineResponses[keyof GetApiGroupsMineResponses];
 
 export type GetApiGroupsByGroupIdData = {
     body?: never;

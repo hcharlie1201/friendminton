@@ -20,8 +20,18 @@ use crate::{
 pub fn routes() -> ApiRouter<AppState> {
     ApiRouter::new()
         .api_route("/", post(create_group).get(find_groups))
+        .api_route("/mine", get(find_joined_groups))
         .api_route("/{group_id}", get(get_group))
         .api_route("/{group_id}/join", post(join_group))
+}
+
+pub(crate) async fn find_joined_groups(
+    State(state): State<AppState>,
+    CurrentUser { id: user_id }: CurrentUser,
+) -> Result<Json<Vec<BadmintonGroup>>, AppError> {
+    Ok(Json(
+        groups::find_joined_groups(&state.pool, user_id).await?,
+    ))
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -126,6 +136,19 @@ mod tests {
             .await;
         assert_eq!(joined.status, StatusCode::OK, "{}", joined.body);
         assert_eq!(joined.body["status"], "member");
+
+        let member_groups = api
+            .json(Method::GET, "/api/groups/mine", Some(member_id), None)
+            .await;
+        assert_eq!(
+            member_groups.status,
+            StatusCode::OK,
+            "{}",
+            member_groups.body
+        );
+        assert!(member_groups.body.as_array().is_some_and(|groups| {
+            groups.len() == 1 && groups[0]["id"] == group_id.to_string()
+        }));
 
         api.cleanup_users(&[owner_id, member_id]).await;
     }

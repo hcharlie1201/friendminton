@@ -38,11 +38,18 @@ import {
 import { useGatheringDraft } from '../features/gatherings/useGatheringDraft';
 
 export function CreateGatheringScreen() {
-  const params = useLocalSearchParams<{ city?: string | string[]; kind?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    city?: string | string[];
+    groupId?: string | string[];
+    groupName?: string | string[];
+    kind?: string | string[];
+  }>();
   const { user } = useSession();
+  const groupId = singleParam(params.groupId);
+  const groupName = singleParam(params.groupName);
   const draft = useGatheringDraft(singleParam(params.city) || 'Oakland', parseGatheringKind(params.kind));
   const close = useGatheringCreatorClose(draft.isDirty);
-  const publisher = useGatheringPublisher(draft.value, user?.id ?? '', close.allowNextRemoval);
+  const publisher = useGatheringPublisher(draft.value, user?.id ?? '', close.allowNextRemoval, groupId);
   const pickCover = useGatheringCoverPicker(draft.setCoverPhoto);
 
   return (
@@ -75,6 +82,14 @@ export function CreateGatheringScreen() {
             style={styles.titleInput}
             value={draft.value.title}
           />
+
+          {groupId && (
+            <View style={styles.groupAffiliation}>
+              <Text style={styles.groupAffiliationLabel}>GROUP EVENT</Text>
+              <Text style={styles.groupAffiliationName}>{groupName || 'Your badminton group'}</Text>
+              <Text style={styles.groupAffiliationBody}>This event will appear in the group Events tab. Closed-group access requests stay pending until approved.</Text>
+            </View>
+          )}
 
           <GatheringKindPicker onChange={draft.setKind} value={draft.value.kind} />
 
@@ -110,10 +125,12 @@ export function CreateGatheringScreen() {
             />
           )}
 
-          <GatheringAccessDetails
-            onVisibilityChange={draft.setVisibility}
-            visibility={draft.value.visibility}
-          />
+          {!groupId && (
+            <GatheringAccessDetails
+              onVisibilityChange={draft.setVisibility}
+              visibility={draft.value.visibility}
+            />
+          )}
 
           <GatheringDetailsFields
             capacity={draft.value.capacity}
@@ -130,7 +147,9 @@ export function CreateGatheringScreen() {
             Publish {gatheringKindLabel(draft.value.kind).toLowerCase()}
           </Button>
           <Text style={styles.footerNote}>
-            {draft.value.visibility === 'public'
+            {groupId
+              ? 'Group events stay visible; participation follows the group access rules.'
+              : draft.value.visibility === 'public'
               ? 'It will appear in Discover as soon as it is published.'
               : 'Private gatherings stay out of public Discover.'}
           </Text>
@@ -167,6 +186,17 @@ const styles = StyleSheet.create({
     minHeight: 62,
     paddingHorizontal: 2,
   },
+  groupAffiliation: {
+    backgroundColor: colors.playAccentSurface,
+    borderColor: colors.playAccent,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 4,
+    padding: 14,
+  },
+  groupAffiliationLabel: { color: colors.playAccentStrong, fontFamily: fonts.black, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+  groupAffiliationName: { color: colors.text, fontFamily: fonts.black, fontSize: 16, fontWeight: '900' },
+  groupAffiliationBody: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 11, lineHeight: 16 },
   footer: {
     backgroundColor: colors.surface,
     borderTopColor: colors.border,
