@@ -90,7 +90,7 @@ pub async fn find_groups(
     if !has_coordinate_search && let Some(city) = &fallback_city {
         query
             .push(" AND g.city ILIKE ")
-            .push_bind(format!("%{}%", escape_like(&city)))
+            .push_bind(format!("%{}%", escape_like(city)))
             .push(" ESCAPE '\\'");
     }
     if let Some(term) = normalized_optional(search.query) {
