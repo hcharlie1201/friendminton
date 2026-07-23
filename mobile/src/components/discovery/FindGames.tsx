@@ -2,8 +2,9 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { isRunningInExpoGo } from 'expo';
 import Constants from 'expo-constants';
 import type { Court, Gathering } from '../../api/generated';
-import { useCallback, useMemo, useState } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
+import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE, type Provider, type Region } from 'react-native-maps';
 
 import {
@@ -210,43 +211,154 @@ function GameMap({ city, games, onOpenGathering }: {
   const mappedGames = games.filter(hasCoordinates);
   const region = mapRegion(mappedGames);
   return (
-    <View style={styles.mapContainer}>
-      <MapView
-        accessibilityLabel={`${mappedGames.length} mapped games near ${city}`}
-        initialRegion={region}
-        loadingEnabled
-        provider={mapProvider()}
-        showsUserLocation
-        style={styles.map}
-      >
-        {mappedGames.map((game) => (
-          <GameMarker game={game} key={game.id} onOpen={onOpenGathering} />
-        ))}
-      </MapView>
-      {mappedGames.length === 0 && (
+    <ExpandableMap
+      accessibilityLabel={`${mappedGames.length} mapped games near ${city}`}
+      initialRegion={region}
+      mapName="games map"
+      overlay={mappedGames.length === 0 ? (
         <View pointerEvents="none" style={styles.mapEmpty}>
           <MaterialCommunityIcons color={colors.primary} name="map-marker-off-outline" size={34} />
           <Text style={styles.mapTitle}>No mapped games near {city}</Text>
           <Text style={styles.mapBody}>New sessions will appear here after a location is selected.</Text>
         </View>
-      )}
-    </View>
+      ) : undefined}
+    >
+      {mappedGames.map((game) => (
+        <GameMarker game={game} key={game.id} onOpen={onOpenGathering} />
+      ))}
+    </ExpandableMap>
   );
 }
 
 function CourtMap({ city, courts }: { city: string; courts: readonly Court[] }) {
   return (
-    <View style={styles.mapContainer}>
+    <ExpandableMap
+      accessibilityLabel={`${courts.length} badminton courts near ${city}`}
+      initialRegion={mapRegion(courts)}
+      mapName="courts map"
+    >
+      {courts.map((court) => <CourtMarker court={court} key={court.id} />)}
+    </ExpandableMap>
+  );
+}
+
+function ExpandableMap({
+  accessibilityLabel,
+  children,
+  initialRegion,
+  mapName,
+  overlay,
+}: {
+  accessibilityLabel: string;
+  children: ReactNode;
+  initialRegion: Region;
+  mapName: string;
+  overlay?: ReactNode;
+}) {
+  const expansion = useMapExpansion(initialRegion);
+  const insets = useSafeAreaInsets();
+  const map = (
+    <MapSurface
+      accessibilityLabel={accessibilityLabel}
+      expanded={expansion.expanded}
+      initialRegion={expansion.region.current}
+      mapName={mapName}
+      onRegionChangeComplete={expansion.rememberRegion}
+      onToggle={expansion.toggle}
+      overlay={overlay}
+      safeAreaRight={insets.right}
+      safeAreaTop={insets.top}
+    >
+      {children}
+    </MapSurface>
+  );
+
+  if (!expansion.expanded) return map;
+
+  return (
+    <>
+      <View style={styles.mapContainer} />
+      <Modal
+        animationType="fade"
+        navigationBarTranslucent
+        onRequestClose={expansion.toggle}
+        presentationStyle="fullScreen"
+        statusBarTranslucent
+        visible
+      >
+        {map}
+      </Modal>
+    </>
+  );
+}
+
+function useMapExpansion(initialRegion: Region) {
+  const [expanded, setExpanded] = useState(false);
+  const region = useRef(initialRegion);
+  const toggle = useCallback(() => setExpanded((current) => !current), []);
+  const rememberRegion = useCallback((nextRegion: Region) => {
+    region.current = nextRegion;
+  }, []);
+  return { expanded, region, rememberRegion, toggle };
+}
+
+function MapSurface({
+  accessibilityLabel,
+  children,
+  expanded,
+  initialRegion,
+  mapName,
+  onRegionChangeComplete,
+  onToggle,
+  overlay,
+  safeAreaRight,
+  safeAreaTop,
+}: {
+  accessibilityLabel: string;
+  children: ReactNode;
+  expanded: boolean;
+  initialRegion: Region;
+  mapName: string;
+  onRegionChangeComplete: (region: Region) => void;
+  onToggle: () => void;
+  overlay?: ReactNode;
+  safeAreaRight: number;
+  safeAreaTop: number;
+}) {
+  const controlPosition = expanded
+    ? { right: Math.max(safeAreaRight, 12), top: Math.max(safeAreaTop, 12) }
+    : styles.mapExpandButtonInset;
+  return (
+    <View style={[styles.mapContainer, expanded && styles.mapContainerExpanded]}>
       <MapView
-        accessibilityLabel={`${courts.length} badminton courts near ${city}`}
-        initialRegion={mapRegion(courts)}
+        accessibilityLabel={accessibilityLabel}
+        initialRegion={initialRegion}
         loadingEnabled
+        onRegionChangeComplete={onRegionChangeComplete}
         provider={mapProvider()}
         showsUserLocation
         style={styles.map}
       >
-        {courts.map((court) => <CourtMarker court={court} key={court.id} />)}
+        {children}
       </MapView>
+      {overlay}
+      <Pressable
+        accessibilityLabel={`${expanded ? 'Collapse' : 'Expand'} ${mapName}`}
+        accessibilityRole="button"
+        hitSlop={8}
+        onPress={onToggle}
+        style={({ pressed }) => [
+          styles.mapExpandButton,
+          controlPosition,
+          pressed && styles.mapExpandButtonPressed,
+        ]}
+      >
+        <Ionicons
+          color={colors.primaryStrong}
+          name={expanded ? 'contract-outline' : 'expand-outline'}
+          size={24}
+        />
+      </Pressable>
     </View>
   );
 }
@@ -338,7 +450,11 @@ const styles = StyleSheet.create({
   gameCopy: { flex: 1, gap: 2, minWidth: 0 }, gameTime: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 12, fontWeight: '900' }, gameTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 16, fontWeight: '900' }, gameVenue: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12 }, gameMetadata: { color: colors.text, fontFamily: fonts.bold, fontSize: 11, marginTop: 4 },
   emptyState: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, gap: 7, padding: 28 }, emptyTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' }, emptyBody: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 13, textAlign: 'center' }, hostButton: { backgroundColor: colors.primary, borderRadius: 12, marginTop: 8, paddingHorizontal: 18, paddingVertical: 11 }, hostButtonText: { color: colors.textOnPrimary, fontFamily: fonts.black, fontSize: 13, fontWeight: '900' },
   mapContainer: { borderColor: colors.borderStrong, borderRadius: 18, borderWidth: 1, height: 410, overflow: 'hidden' },
+  mapContainerExpanded: { borderRadius: 0, borderWidth: 0, flex: 1, height: undefined },
   map: { height: '100%', width: '100%' },
   mapEmpty: { alignItems: 'center', backgroundColor: colors.surfaceOverlay, borderRadius: 16, bottom: 18, gap: 5, left: 18, padding: 14, position: 'absolute', right: 18 },
+  mapExpandButton: { alignItems: 'center', backgroundColor: colors.surfaceOverlay, borderColor: colors.borderStrong, borderRadius: 23, borderWidth: 1, height: 46, justifyContent: 'center', position: 'absolute', width: 46 },
+  mapExpandButtonInset: { right: 12, top: 12 },
+  mapExpandButtonPressed: { backgroundColor: colors.primarySurfacePressed },
   mapTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 18, fontWeight: '900', textAlign: 'center' }, mapBody: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 12, maxWidth: 260, textAlign: 'center' },
 });
