@@ -52,17 +52,25 @@ pub enum GroupMemberStatus {
     Invited,
 }
 
-#[derive(Debug, Serialize, FromRow, JsonSchema)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct BadmintonGroup {
     pub id: Uuid,
     pub owner_id: Uuid,
     pub name: String,
     pub description: Option<String>,
     pub city: String,
+    pub location_label: Option<String>,
+    pub google_place_id: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     pub visibility: GroupVisibility,
     pub join_policy: GroupJoinPolicy,
     pub primary_court_id: Option<Uuid>,
     pub goal_tags: Vec<GroupGoal>,
+    pub image_keys: Vec<String>,
+    pub image_urls: Vec<String>,
+    pub cover_image_key: Option<String>,
+    pub cover_image_url: Option<String>,
     pub member_count: i64,
     #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
@@ -72,16 +80,45 @@ pub struct BadmintonGroup {
     pub updated_at: OffsetDateTime,
 }
 
+#[derive(Debug, FromRow)]
+pub(crate) struct StoredBadmintonGroup {
+    pub id: Uuid,
+    pub owner_id: Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub city: String,
+    pub location_label: Option<String>,
+    pub google_place_id: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    pub visibility: GroupVisibility,
+    pub join_policy: GroupJoinPolicy,
+    pub primary_court_id: Option<Uuid>,
+    pub goal_tags: Vec<GroupGoal>,
+    pub image_keys: Vec<String>,
+    pub cover_image_key: Option<String>,
+    pub member_count: i64,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
+}
+
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CreateBadmintonGroup {
     pub name: String,
     pub description: Option<String>,
     pub city: String,
+    pub location_label: Option<String>,
+    pub google_place_id: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
     #[serde(default)]
     pub visibility: GroupVisibility,
     #[serde(default)]
     pub join_policy: GroupJoinPolicy,
     pub primary_court_id: Option<Uuid>,
+    #[serde(default)]
+    pub image_keys: Vec<String>,
+    pub cover_image_key: Option<String>,
     #[serde(default)]
     pub goal_tags: Vec<GroupGoal>,
 }
@@ -90,6 +127,9 @@ pub struct CreateBadmintonGroup {
 pub struct GroupSearch {
     pub city: Option<String>,
     pub query: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    pub radius_km: Option<f64>,
     pub limit: Option<i64>,
 }
 

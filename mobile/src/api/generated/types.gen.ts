@@ -9,10 +9,18 @@ export type ApiKeyLocation = 'query' | 'header' | 'cookie';
 export type BadmintonGroup = {
     description?: string | null;
     city: string;
+    cover_image_key?: string | null;
+    cover_image_url?: string | null;
     created_at: string;
     goal_tags: Array<GroupGoal>;
+    google_place_id?: string | null;
     id: string;
+    image_keys: Array<string>;
+    image_urls: Array<string>;
     join_policy: GroupJoinPolicy;
+    latitude?: number | null;
+    location_label?: string | null;
+    longitude?: number | null;
     member_count: number;
     name: string;
     owner_id: string;
@@ -161,8 +169,14 @@ export type CourtSource = 'community' | 'google_places' | 'admin';
 export type CreateBadmintonGroup = {
     description?: string | null;
     city: string;
+    cover_image_key?: string | null;
     goal_tags?: Array<GroupGoal>;
+    google_place_id?: string | null;
+    image_keys?: Array<string>;
     join_policy?: GroupJoinPolicy;
+    latitude?: number | null;
+    location_label?: string | null;
+    longitude?: number | null;
     name: string;
     primary_court_id?: string | null;
     visibility?: GroupVisibility;
@@ -506,8 +520,11 @@ export type GroupRole = 'owner' | 'admin' | 'member';
 
 export type GroupSearch = {
     city?: string | null;
+    latitude?: number | null;
     limit?: number | null;
+    longitude?: number | null;
     query?: string | null;
+    radius_km?: number | null;
 };
 
 export type GroupVisibility = 'public' | 'private';
@@ -1712,7 +1729,7 @@ export type UpdatePost = {
     workout_id: string;
 };
 
-export type UploadPurpose = 'post' | 'gathering_cover';
+export type UploadPurpose = 'post' | 'gathering_cover' | 'group_cover';
 
 export type UploadTarget = {
     headers: {
@@ -2234,8 +2251,11 @@ export type GetApiGroupsData = {
     path?: never;
     query?: {
         city?: string | null;
+        latitude?: number | null;
         limit?: number | null;
+        longitude?: number | null;
         query?: string | null;
+        radius_km?: number | null;
     };
     url: '/api/groups';
 };

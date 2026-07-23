@@ -30,7 +30,7 @@ pub(crate) async fn find_joined_groups(
     CurrentUser { id: user_id }: CurrentUser,
 ) -> Result<Json<Vec<BadmintonGroup>>, AppError> {
     Ok(Json(
-        groups::find_joined_groups(&state.pool, user_id).await?,
+        groups::find_joined_groups(&state.pool, &state.media, user_id).await?,
     ))
 }
 
@@ -45,7 +45,7 @@ pub(crate) async fn create_group(
     Json(payload): Json<CreateBadmintonGroup>,
 ) -> Result<Json<BadmintonGroup>, AppError> {
     Ok(Json(
-        groups::create_group(&state.pool, user_id, payload).await?,
+        groups::create_group(&state.pool, &state.media, user_id, payload).await?,
     ))
 }
 
@@ -55,7 +55,7 @@ pub(crate) async fn find_groups(
     Query(search): Query<GroupSearch>,
 ) -> Result<Json<Vec<BadmintonGroup>>, AppError> {
     Ok(Json(
-        groups::find_groups(&state.pool, user_id, search).await?,
+        groups::find_groups(&state.pool, &state.media, user_id, search).await?,
     ))
 }
 
@@ -65,7 +65,7 @@ pub(crate) async fn get_group(
     Path(path): Path<GroupPath>,
 ) -> Result<Json<BadmintonGroup>, AppError> {
     Ok(Json(
-        groups::get_group(&state.pool, path.group_id, user_id).await?,
+        groups::get_group(&state.pool, &state.media, path.group_id, user_id).await?,
     ))
 }
 
@@ -91,6 +91,7 @@ mod tests {
         let api = TestApi::new().await;
         let owner_id = api.insert_user("group-owner").await;
         let member_id = api.insert_user("group-member").await;
+        let cover_image_key = format!("groups/{owner_id}/cover.jpg");
         let created = api
             .json(
                 Method::POST,
@@ -100,21 +101,54 @@ mod tests {
                     "name": "Oakland Fitness Birdies",
                     "description": "Consistent badminton for fitness and fun.",
                     "city": "RouteTestOnly",
+                    "location_label": "Near Lake Merritt",
+                    "google_place_id": null,
+                    "latitude": 37.8044,
+                    "longitude": -122.2712,
                     "visibility": "public",
                     "join_policy": "open",
                     "primary_court_id": null,
+                    "cover_image_key": cover_image_key,
+                    "image_keys": [cover_image_key],
                     "goal_tags": ["fitness", "consistent_play"]
                 })),
             )
             .await;
         assert_eq!(created.status, StatusCode::OK, "{}", created.body);
         assert_eq!(created.body["member_count"], 1);
+        assert_eq!(created.body["location_label"], "Near Lake Merritt");
+        assert_eq!(created.body["cover_image_key"], cover_image_key);
+        assert_eq!(created.body["image_keys"], json!([cover_image_key]));
+        assert_eq!(
+            created.body["image_urls"],
+            json!([format!("/uploads/{cover_image_key}")])
+        );
+        assert_eq!(
+            created.body["cover_image_url"],
+            format!("/uploads/{cover_image_key}")
+        );
         let group_id = response_uuid(&created.body, "id");
+
+        let too_many_images = api
+            .json(
+                Method::POST,
+                "/api/groups",
+                Some(owner_id),
+                Some(json!({
+                    "name": "Too Many Photos",
+                    "city": "RouteTestOnly",
+                    "image_keys": (0..6)
+                        .map(|index| format!("groups/{owner_id}/{index}.jpg"))
+                        .collect::<Vec<_>>()
+                })),
+            )
+            .await;
+        assert_eq!(too_many_images.status, StatusCode::BAD_REQUEST);
 
         let found = api
             .json(
                 Method::GET,
-                "/api/groups?city=RouteTestOnly",
+                "/api/groups?city=RouteTestOnly&latitude=37.81&longitude=-122.27&radius_km=10",
                 Some(member_id),
                 None,
             )

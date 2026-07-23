@@ -104,6 +104,7 @@ pub enum UploadPurpose {
     #[default]
     Post,
     GatheringCover,
+    GroupCover,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -154,6 +155,7 @@ impl MediaStorage {
         let namespace = match purpose {
             UploadPurpose::Post => "posts",
             UploadPurpose::GatheringCover => "gatherings",
+            UploadPurpose::GroupCover => "groups",
         };
         let object_key = format!("{namespace}/{user_id}/{}.{}", Uuid::new_v4(), extension);
         let (upload_url, headers) = match self {
@@ -239,6 +241,15 @@ pub fn validate_gathering_cover_key(user_id: Uuid, object_key: &str) -> Result<(
     Ok(())
 }
 
+pub fn validate_group_cover_key(user_id: Uuid, object_key: &str) -> Result<(), AppError> {
+    if !is_scoped_object_key(user_id, object_key, "groups") {
+        return Err(AppError::BadRequest(
+            "invalid group cover object key".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 fn validate_post_object_key(user_id: Uuid, object_key: &str) -> Result<(), AppError> {
     if !is_scoped_object_key(user_id, object_key, "posts") {
         return Err(AppError::BadRequest("invalid photo object key".to_owned()));
@@ -249,6 +260,7 @@ fn validate_post_object_key(user_id: Uuid, object_key: &str) -> Result<(), AppEr
 fn validate_upload_object_key(user_id: Uuid, object_key: &str) -> Result<(), AppError> {
     if !is_scoped_object_key(user_id, object_key, "posts")
         && !is_scoped_object_key(user_id, object_key, "gatherings")
+        && !is_scoped_object_key(user_id, object_key, "groups")
     {
         return Err(AppError::BadRequest("invalid photo object key".to_owned()));
     }
@@ -286,7 +298,7 @@ fn presigning_config(expires_in: Duration) -> Result<PresigningConfig, AppError>
 mod tests {
     use super::{
         MAX_IMAGE_BYTES, MediaStorage, ObjectStore, SignedUpload, StorageFuture, UploadPurpose,
-        validate_gathering_cover_key, validate_object_keys,
+        validate_gathering_cover_key, validate_group_cover_key, validate_object_keys,
     };
     use std::{collections::HashMap, path::PathBuf, sync::Arc};
     use uuid::Uuid;
@@ -341,6 +353,11 @@ mod tests {
         assert!(
             validate_gathering_cover_key(user_id, &format!("posts/{user_id}/cover.jpg")).is_err()
         );
+        assert!(validate_group_cover_key(user_id, &format!("groups/{user_id}/cover.jpg")).is_ok());
+        assert!(
+            validate_group_cover_key(user_id, &format!("groups/{other_user_id}/cover.jpg"))
+                .is_err()
+        );
     }
 
     #[tokio::test]
@@ -368,6 +385,15 @@ mod tests {
             gathering_cover
                 .object_key
                 .starts_with(&format!("gatherings/{user_id}/"))
+        );
+        let group_cover = storage
+            .create_upload_target_for(user_id, "image/png", 1024, UploadPurpose::GroupCover)
+            .await
+            .expect("valid group cover target");
+        assert!(
+            group_cover
+                .object_key
+                .starts_with(&format!("groups/{user_id}/"))
         );
         assert!(
             storage

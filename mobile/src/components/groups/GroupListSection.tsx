@@ -1,8 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View, type PressableStateCallbackType } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View, type PressableStateCallbackType } from 'react-native';
 
 import type { BadmintonGroup, GroupGoal } from '../../api/generated';
+import { resolveGroupCoverUrl } from '../../features/groups/groupPresentation';
 import { colors, fonts } from '../ui';
 
 type Props = {
@@ -54,18 +55,23 @@ export function GroupListSection({
 function GroupRow({ group, onOpenGroup }: { group: BadmintonGroup; onOpenGroup: Props['onOpenGroup'] }) {
   const open = useGroupAction(group.id, onOpenGroup);
   const tone = groupTone(group.goal_tags[0]);
+  const coverUrl = resolveGroupCoverUrl(group.image_urls?.[0] ?? group.cover_image_url);
 
   return (
     <Pressable
       accessibilityHint="Opens group details"
-      accessibilityLabel={`${group.name}, ${group.member_count} members, ${group.city}`}
+      accessibilityLabel={`${group.name}, ${group.member_count} members, ${group.location_label ?? group.city}`}
       accessibilityRole="button"
       onPress={open}
       style={groupRowStyle}
     >
-      <View style={[styles.iconTile, tone.surface]}>
-        <MaterialCommunityIcons color={tone.strong} name={tone.icon} size={25} />
-      </View>
+      {coverUrl ? (
+        <Image accessibilityLabel="" resizeMode="cover" source={{ uri: coverUrl }} style={styles.coverImage} />
+      ) : (
+        <View style={[styles.iconTile, tone.surface]}>
+          <MaterialCommunityIcons color={tone.strong} name={tone.icon} size={25} />
+        </View>
+      )}
       <View style={styles.groupCopy}>
         <View style={styles.nameRow}>
           <Text numberOfLines={1} style={styles.groupName}>{group.name}</Text>
@@ -76,7 +82,7 @@ function GroupRow({ group, onOpenGroup }: { group: BadmintonGroup; onOpenGroup: 
           />
         </View>
         <Text numberOfLines={1} style={styles.groupMeta}>
-          {group.city} · {memberCountLabel(group.member_count)}
+          {group.location_label ?? group.city} · {memberCountLabel(group.member_count)}
         </Text>
         <Text numberOfLines={1} style={[styles.groupGoals, tone.text]}>{groupGoalsLabel(group.goal_tags)}</Text>
       </View>
@@ -159,6 +165,7 @@ const styles = StyleSheet.create({
   },
   rowPressed: { backgroundColor: colors.primarySurface },
   iconTile: { alignItems: 'center', borderRadius: 15, height: 58, justifyContent: 'center', width: 58 },
+  coverImage: { borderRadius: 15, height: 58, width: 58 },
   playSurface: { backgroundColor: colors.playAccentSurface },
   socialSurface: { backgroundColor: colors.socialAccentSurface },
   energySurface: { backgroundColor: colors.energyAccentSurface },

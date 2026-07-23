@@ -156,6 +156,7 @@ export function HomeScreen() {
   const openGroup = useGroupDetailNavigation();
   const openPlayer = usePlayerProfileNavigation();
   const openGatheringCreator = useGatheringCreatorNavigation(city);
+  const openGroupCreator = useGroupCreatorNavigation(city);
 
   const healthQuery = useQuery({
     queryKey: ['health'],
@@ -191,10 +192,16 @@ export function HomeScreen() {
   });
   const groupsQuery = useQuery({
     enabled: activeTab === 'groups',
-    queryKey: ['groups', 'discover', city, currentUser.id],
+    queryKey: ['groups', 'discover', city, latitude, longitude, currentUser.id],
     queryFn: () => apiData<BadmintonGroup[]>(getApiGroups({
       headers: authHeaders(currentUser.id),
-      query: { city, limit: 50 },
+      query: {
+        city,
+        latitude,
+        limit: 50,
+        longitude,
+        radius_km: latitude !== null && longitude !== null ? 40 : null,
+      },
     })),
   });
   const feedQuery = useInfiniteQuery({
@@ -272,6 +279,7 @@ export function HomeScreen() {
     createPostMutation,
     openGathering,
     openGroup,
+    openGroupCreator,
     openPlayer,
     openPost,
     openGatheringCreator,
@@ -413,6 +421,7 @@ function useHomeActions({
   createPostMutation,
   openGathering,
   openGroup,
+  openGroupCreator,
   openPlayer,
   openPost,
   openGatheringCreator,
@@ -425,6 +434,7 @@ function useHomeActions({
   createPostMutation: WriteMutation;
   openGathering: (gatheringId: string) => void;
   openGroup: (groupId: string) => void;
+  openGroupCreator: () => void;
   openPlayer: (playerId: string) => void;
   openPost: (post: FeedPost) => void;
   openGatheringCreator: () => void;
@@ -438,6 +448,7 @@ function useHomeActions({
     () => ({
       cancelPostEdit: () => resetPostEditor(setPostDraft, setEditingPostId),
       createGathering: openGatheringCreator,
+      createGroup: openGroupCreator,
       createPost: () => createPostMutation.mutate(),
       editPost: (post: FeedPost) =>
         beginPostEdit(post, setPostDraft, setEditingPostId, setActiveTab, homeScrollRef),
@@ -451,6 +462,7 @@ function useHomeActions({
       createPostMutation,
       openGathering,
       openGroup,
+      openGroupCreator,
       openPlayer,
       openPost,
       openGatheringCreator,
@@ -482,6 +494,13 @@ function useGroupDetailNavigation() {
   return useCallback((groupId: string) => {
     router.push({ pathname: '/groups/[groupId]', params: { groupId } });
   }, [router]);
+}
+
+function useGroupCreatorNavigation(city: string) {
+  const router = useRouter();
+  return useCallback(() => {
+    router.push({ pathname: '/groups/new', params: { city } });
+  }, [city, router]);
 }
 
 function usePlayerProfileNavigation() {

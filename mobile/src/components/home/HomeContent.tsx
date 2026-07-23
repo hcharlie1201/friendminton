@@ -23,6 +23,7 @@ import { WeeklySnapshot } from './WeeklySnapshot';
 export type HomeActions = {
   cancelPostEdit: () => void;
   createGathering: () => void;
+  createGroup: () => void;
   createPost: () => void;
   editPost: (post: FeedPost) => void;
   openGathering: (gatheringId: string) => void;
@@ -117,6 +118,7 @@ export function HomeContent({
           discoveredGroups={groups}
           gatherings={gatherings}
           joinedGroups={joinedGroups}
+          onCreateGroup={actions.createGroup}
           onOpenGathering={actions.openGathering}
           onOpenGroup={actions.openGroup}
         />

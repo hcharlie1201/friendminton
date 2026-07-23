@@ -124,6 +124,26 @@ mod tests {
             .expect("gathering object key");
         assert!(object_key.starts_with(&format!("gatherings/{user_id}/")));
 
+        let group_target = api
+            .json(
+                Method::POST,
+                "/api/uploads/presign",
+                Some(user_id),
+                Some(json!({
+                    "content_type": "image/jpeg",
+                    "size_bytes": 4,
+                    "purpose": "group_cover"
+                })),
+            )
+            .await;
+        assert_eq!(group_target.status, StatusCode::OK, "{}", group_target.body);
+        assert!(
+            group_target.body["object_key"]
+                .as_str()
+                .expect("group object key")
+                .starts_with(&format!("groups/{user_id}/"))
+        );
+
         let upload_url = gathering_target.body["upload_url"]
             .as_str()
             .expect("local upload URL");

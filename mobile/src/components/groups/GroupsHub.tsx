@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type PressableStateCallbackType } from 'react-native';
 
 import type { BadmintonGroup, Gathering } from '../../api/generated';
-import { colors, fonts } from '../ui';
+import { Button, colors, fonts } from '../ui';
 import { GroupEventsPanel } from './GroupEventsPanel';
 import { GroupListSection } from './GroupListSection';
 
@@ -14,6 +14,7 @@ type Props = {
   discoveredGroups: readonly BadmintonGroup[];
   gatherings: readonly Gathering[];
   joinedGroups: readonly BadmintonGroup[];
+  onCreateGroup: () => void;
   onOpenGathering: (gatheringId: string) => void;
   onOpenGroup: (groupId: string) => void;
 };
@@ -23,6 +24,7 @@ export function GroupsHub({
   discoveredGroups,
   gatherings,
   joinedGroups,
+  onCreateGroup,
   onOpenGathering,
   onOpenGroup,
 }: Props) {
@@ -44,6 +46,9 @@ export function GroupsHub({
         <Text style={styles.eyebrow}>YOUR BADMINTON COMMUNITY</Text>
         <Text accessibilityRole="header" style={styles.title}>Find your regular crew</Text>
         <Text style={styles.body}>Keep up with groups you joined and discover welcoming communities around {city}.</Text>
+        <View style={styles.createAction}>
+          <Button icon="add-circle-outline" onPress={onCreateGroup}>Create a group</Button>
+        </View>
       </LinearGradient>
 
       <View style={styles.tabs}>
@@ -104,6 +109,7 @@ function tabTextStyle(isActive: boolean) {
 const styles = StyleSheet.create({
   container: { backgroundColor: colors.background },
   hero: { gap: 9, paddingHorizontal: 20, paddingBottom: 26, paddingTop: 30 },
+  createAction: { marginTop: 8 },
   eyebrow: { color: colors.playAccentStrong, fontFamily: fonts.black, fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
   title: { color: colors.text, fontFamily: fonts.black, fontSize: 29, fontWeight: '900', lineHeight: 35 },
   body: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14, lineHeight: 21, maxWidth: 350 },

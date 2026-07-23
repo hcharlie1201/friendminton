@@ -4,13 +4,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getApiGroupsByGroupId, type BadmintonGroup, type GroupGoal } from '../api/generated';
 import { apiData, authHeaders } from '../api/runtime';
 import { useSession } from '../auth/session';
 import { Button, colors, fonts } from '../components/ui';
+import { resolveGroupCoverUrl } from '../features/groups/groupPresentation';
 
 export function GroupDetailScreen() {
   const params = useLocalSearchParams<{ groupId?: string | string[] }>();
@@ -50,10 +51,20 @@ function GroupDetailContent({
   onHostEvent: () => void;
 }) {
   const tone = groupDetailTone(group.goal_tags[0]);
+  const imageUrls = (group.image_urls ?? [])
+    .map(resolveGroupCoverUrl)
+    .filter((value): value is string => Boolean(value));
+  const coverUrl = imageUrls[0] ?? resolveGroupCoverUrl(group.cover_image_url);
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <LinearGradient colors={tone.gradient} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.hero}>
+        {coverUrl && (
+          <>
+            <Image accessibilityLabel="" resizeMode="cover" source={{ uri: coverUrl }} style={styles.heroCoverImage} />
+            <View style={styles.heroCoverShade} />
+          </>
+        )}
         <View style={styles.heroIcon}>
           <MaterialCommunityIcons color={colors.textInverse} name={tone.icon} size={38} />
         </View>
@@ -66,8 +77,29 @@ function GroupDetailContent({
           <Text style={styles.visibilityText}>{visibilityLabel(group.visibility)}</Text>
         </View>
         <Text accessibilityRole="header" style={styles.name}>{group.name}</Text>
-        <Text style={styles.city}>{group.city}</Text>
+        <Text style={styles.city}>{group.location_label ?? group.city}</Text>
       </LinearGradient>
+
+      {imageUrls.length > 1 && (
+        <View style={styles.gallerySection}>
+          <Text style={styles.galleryTitle}>Group gallery</Text>
+          <ScrollView
+            contentContainerStyle={styles.galleryStrip}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+          >
+            {imageUrls.map((url, index) => (
+              <Image
+                accessibilityLabel={`Group picture ${index + 1}`}
+                key={url}
+                resizeMode="cover"
+                source={{ uri: url }}
+                style={styles.galleryImage}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       <View style={styles.stats}>
         <GroupStat label="Members" value={`${group.member_count}`} />
@@ -233,6 +265,12 @@ const styles = StyleSheet.create({
   headerTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' },
   content: { gap: 16, padding: 20, paddingBottom: 40 },
   hero: { borderRadius: 24, gap: 8, minHeight: 230, overflow: 'hidden', padding: 22 },
+  heroCoverImage: { height: '100%', left: 0, position: 'absolute', top: 0, width: '100%' },
+  heroCoverShade: { backgroundColor: colors.overlayStrong, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
+  gallerySection: { gap: 9 },
+  galleryTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 15, fontWeight: '900' },
+  galleryStrip: { gap: 10, paddingRight: 4 },
+  galleryImage: { borderRadius: 16, height: 116, width: 154 },
   heroIcon: {
     alignItems: 'center',
     backgroundColor: colors.imageOverlay,
