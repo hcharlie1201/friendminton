@@ -5,32 +5,9 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 
-pub use user::{CreateUser, Player, PlayerSearch, User};
+pub use user::{Player, PlayerSearch, User};
 
 const MAX_PLAYER_SEARCH_CHARS: usize = 80;
-
-pub async fn create_user(pool: &Pool<Postgres>, payload: CreateUser) -> Result<User, AppError> {
-    validate_user(&payload)?;
-    let email = normalize_email(&payload.email);
-
-    let user = sqlx::query_as::<_, User>(
-        r#"
-        INSERT INTO users (email, display_name, city, skill_level, bio)
-        VALUES ($1, $2, $3, COALESCE($4, 'beginner'), $5)
-        ON CONFLICT (email) DO NOTHING
-        RETURNING id, email, display_name, city, skill_level, bio, created_at, updated_at
-        "#,
-    )
-    .bind(email)
-    .bind(payload.display_name)
-    .bind(payload.city)
-    .bind(payload.skill_level)
-    .bind(payload.bio)
-    .fetch_optional(pool)
-    .await?;
-
-    user.ok_or_else(|| AppError::Conflict("email is already registered".to_owned()))
-}
 
 pub async fn get_player(pool: &Pool<Postgres>, id: Uuid) -> Result<Player, AppError> {
     let player = sqlx::query_as::<_, Player>(
@@ -45,6 +22,67 @@ pub async fn get_player(pool: &Pool<Postgres>, id: Uuid) -> Result<Player, AppEr
     .await?;
 
     Ok(player)
+}
+
+pub async fn get_user(pool: &Pool<Postgres>, id: Uuid) -> Result<User, AppError> {
+    let user = sqlx::query_as::<_, User>(
+        r#"
+        SELECT id, email, display_name, city, skill_level, bio, created_at, updated_at
+        FROM users
+        WHERE id = $1
+        "#,
+    )
+    .bind(id)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(user)
+}
+
+pub async fn get_user_by_auth_id(
+    pool: &Pool<Postgres>,
+    auth_user_id: &str,
+) -> Result<User, AppError> {
+    let user = sqlx::query_as::<_, User>(
+        r#"
+        SELECT id, email, display_name, city, skill_level, bio, created_at, updated_at
+        FROM users
+        WHERE auth_user_id = $1
+        "#,
+    )
+    .bind(auth_user_id)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(user)
+}
+
+pub async fn update_signup_profile(
+    pool: &Pool<Postgres>,
+    auth_user_id: &str,
+    city: Option<String>,
+    skill_level: String,
+    bio: Option<String>,
+) -> Result<User, AppError> {
+    let user = sqlx::query_as::<_, User>(
+        r#"
+        UPDATE users
+        SET city = $2,
+            skill_level = $3,
+            bio = $4,
+            updated_at = now()
+        WHERE auth_user_id = $1
+        RETURNING id, email, display_name, city, skill_level, bio, created_at, updated_at
+        "#,
+    )
+    .bind(auth_user_id)
+    .bind(city)
+    .bind(skill_level)
+    .bind(bio)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(user)
 }
 
 pub async fn find_players(
@@ -123,21 +161,7 @@ fn player_search_pattern(query: &str) -> String {
     format!("%{escaped}%")
 }
 
-fn validate_user(payload: &CreateUser) -> Result<(), AppError> {
-    if !normalize_email(&payload.email).contains('@') {
-        return Err(AppError::BadRequest(
-            "email must look like an email address".to_owned(),
-        ));
-    }
-
-    if payload.display_name.trim().is_empty() {
-        return Err(AppError::BadRequest("display_name is required".to_owned()));
-    }
-
-    Ok(())
-}
-
-fn normalize_email(email: &str) -> String {
+pub(crate) fn normalize_email(email: &str) -> String {
     email.trim().to_ascii_lowercase()
 }
 

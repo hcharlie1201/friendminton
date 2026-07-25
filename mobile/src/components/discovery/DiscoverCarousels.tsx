@@ -96,7 +96,9 @@ function isCompetitiveGathering(gathering: Gathering) {
     && (gathering.play_format === 'singles'
       || gathering.play_format === 'doubles'
       || gathering.skill_level === 'a'
-      || gathering.skill_level === 'b');
+      || gathering.skill_level === 'b'
+      || gathering.skill_level_max === 'a'
+      || gathering.skill_level_max === 'b');
 }
 
 function compareGatheringStart(first: Gathering, second: Gathering) {

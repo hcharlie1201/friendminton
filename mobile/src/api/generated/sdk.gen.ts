@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiCourtsByCourtIdData, GetApiCourtsByCourtIdErrors, GetApiCourtsByCourtIdResponses, GetApiCourtsData, GetApiCourtsErrors, GetApiCourtsResponses, GetApiEngagementNotificationsData, GetApiEngagementNotificationsErrors, GetApiEngagementNotificationsResponses, GetApiEngagementNotificationsUnreadCountData, GetApiEngagementNotificationsUnreadCountErrors, GetApiEngagementNotificationsUnreadCountResponses, GetApiEngagementWeeklySnapshotData, GetApiEngagementWeeklySnapshotErrors, GetApiEngagementWeeklySnapshotResponses, GetApiGameInvitesData, GetApiGameInvitesErrors, GetApiGameInvitesResponses, GetApiGatheringsByGatheringIdData, GetApiGatheringsByGatheringIdErrors, GetApiGatheringsByGatheringIdMeData, GetApiGatheringsByGatheringIdMeErrors, GetApiGatheringsByGatheringIdMeResponses, GetApiGatheringsByGatheringIdResponses, GetApiGatheringsData, GetApiGatheringsErrors, GetApiGatheringsResponses, GetApiGroupsByGroupIdData, GetApiGroupsByGroupIdErrors, GetApiGroupsByGroupIdResponses, GetApiGroupsData, GetApiGroupsErrors, GetApiGroupsMineData, GetApiGroupsMineErrors, GetApiGroupsMineResponses, GetApiGroupsResponses, GetApiPlacesAutocompleteData, GetApiPlacesAutocompleteErrors, GetApiPlacesAutocompleteResponses, GetApiPlacesByPlaceIdData, GetApiPlacesByPlaceIdErrors, GetApiPlacesByPlaceIdResponses, GetApiPostsByPostIdData, GetApiPostsByPostIdErrors, GetApiPostsByPostIdResponses, GetApiPostsFeedData, GetApiPostsFeedErrors, GetApiPostsFeedResponses, GetApiUsersByIdData, GetApiUsersByIdErrors, GetApiUsersByIdResponses, GetApiUsersData, GetApiUsersErrors, GetApiUsersResponses, GetApiWorkoutsUsersByUserIdData, GetApiWorkoutsUsersByUserIdErrors, GetApiWorkoutsUsersByUserIdResponses, PostApiAuthSignUpEmailData, PostApiAuthSignUpEmailErrors, PostApiAuthSignUpEmailResponses, PostApiCourtsData, PostApiCourtsErrors, PostApiCourtsResponses, PostApiEngagementNotificationsReadData, PostApiEngagementNotificationsReadErrors, PostApiGameInvitesByGameInviteIdJoinData, PostApiGameInvitesByGameInviteIdJoinErrors, PostApiGameInvitesData, PostApiGameInvitesErrors, PostApiGameInvitesResponses, PostApiGatheringsByGatheringIdFinishData, PostApiGatheringsByGatheringIdFinishErrors, PostApiGatheringsByGatheringIdFinishResponses, PostApiGatheringsByGatheringIdJoinData, PostApiGatheringsByGatheringIdJoinErrors, PostApiGatheringsByGatheringIdJoinResponses, PostApiGatheringsData, PostApiGatheringsErrors, PostApiGatheringsResponses, PostApiGroupsByGroupIdJoinData, PostApiGroupsByGroupIdJoinErrors, PostApiGroupsByGroupIdJoinResponses, PostApiGroupsData, PostApiGroupsErrors, PostApiGroupsResponses, PostApiPostsData, PostApiPostsErrors, PostApiPostsResponses, PostApiUploadsPresignData, PostApiUploadsPresignErrors, PostApiUploadsPresignResponses, PostApiWorkoutsData, PostApiWorkoutsErrors, PostApiWorkoutsResponses, PutApiPostsData, PutApiPostsErrors, PutApiPostsResponses } from './types.gen';
+import type { GetApiAuthSessionData, GetApiAuthSessionErrors, GetApiAuthSessionResponses, GetApiCourtsByCourtIdData, GetApiCourtsByCourtIdErrors, GetApiCourtsByCourtIdResponses, GetApiCourtsData, GetApiCourtsErrors, GetApiCourtsResponses, GetApiEngagementNotificationsData, GetApiEngagementNotificationsErrors, GetApiEngagementNotificationsResponses, GetApiEngagementNotificationsUnreadCountData, GetApiEngagementNotificationsUnreadCountErrors, GetApiEngagementNotificationsUnreadCountResponses, GetApiEngagementWeeklySnapshotData, GetApiEngagementWeeklySnapshotErrors, GetApiEngagementWeeklySnapshotResponses, GetApiGameInvitesData, GetApiGameInvitesErrors, GetApiGameInvitesResponses, GetApiGatheringsByGatheringIdData, GetApiGatheringsByGatheringIdErrors, GetApiGatheringsByGatheringIdMeData, GetApiGatheringsByGatheringIdMeErrors, GetApiGatheringsByGatheringIdMeResponses, GetApiGatheringsByGatheringIdResponses, GetApiGatheringsData, GetApiGatheringsErrors, GetApiGatheringsResponses, GetApiGroupsByGroupIdData, GetApiGroupsByGroupIdErrors, GetApiGroupsByGroupIdResponses, GetApiGroupsData, GetApiGroupsErrors, GetApiGroupsMineData, GetApiGroupsMineErrors, GetApiGroupsMineResponses, GetApiGroupsResponses, GetApiPlacesAutocompleteData, GetApiPlacesAutocompleteErrors, GetApiPlacesAutocompleteResponses, GetApiPlacesByPlaceIdData, GetApiPlacesByPlaceIdErrors, GetApiPlacesByPlaceIdResponses, GetApiPostsByPostIdData, GetApiPostsByPostIdErrors, GetApiPostsByPostIdResponses, GetApiPostsFeedData, GetApiPostsFeedErrors, GetApiPostsFeedResponses, GetApiUsersByIdData, GetApiUsersByIdErrors, GetApiUsersByIdResponses, GetApiUsersData, GetApiUsersErrors, GetApiUsersResponses, GetApiWorkoutsUsersByUserIdData, GetApiWorkoutsUsersByUserIdErrors, GetApiWorkoutsUsersByUserIdResponses, PostApiAuthForgotPasswordData, PostApiAuthForgotPasswordErrors, PostApiAuthForgotPasswordResponses, PostApiAuthOauthExchangeData, PostApiAuthOauthExchangeErrors, PostApiAuthOauthExchangeResponses, PostApiAuthOauthGoogleStartData, PostApiAuthOauthGoogleStartErrors, PostApiAuthOauthGoogleStartResponses, PostApiAuthResetPasswordData, PostApiAuthResetPasswordErrors, PostApiAuthResetPasswordResponses, PostApiAuthSignInEmailData, PostApiAuthSignInEmailErrors, PostApiAuthSignInEmailResponses, PostApiAuthSignOutData, PostApiAuthSignOutErrors, PostApiAuthSignOutResponses, PostApiAuthSignUpEmailData, PostApiAuthSignUpEmailErrors, PostApiAuthSignUpEmailResponses, PostApiAuthVerificationResendData, PostApiAuthVerificationResendErrors, PostApiAuthVerificationResendResponses, PostApiCourtsData, PostApiCourtsErrors, PostApiCourtsResponses, PostApiEngagementNotificationsReadData, PostApiEngagementNotificationsReadErrors, PostApiGameInvitesByGameInviteIdJoinData, PostApiGameInvitesByGameInviteIdJoinErrors, PostApiGameInvitesData, PostApiGameInvitesErrors, PostApiGameInvitesResponses, PostApiGatheringsByGatheringIdFinishData, PostApiGatheringsByGatheringIdFinishErrors, PostApiGatheringsByGatheringIdFinishResponses, PostApiGatheringsByGatheringIdJoinData, PostApiGatheringsByGatheringIdJoinErrors, PostApiGatheringsByGatheringIdJoinResponses, PostApiGatheringsData, PostApiGatheringsErrors, PostApiGatheringsResponses, PostApiGroupsByGroupIdJoinData, PostApiGroupsByGroupIdJoinErrors, PostApiGroupsByGroupIdJoinResponses, PostApiGroupsData, PostApiGroupsErrors, PostApiGroupsResponses, PostApiPostsData, PostApiPostsErrors, PostApiPostsResponses, PostApiUploadsPresignData, PostApiUploadsPresignErrors, PostApiUploadsPresignResponses, PostApiWorkoutsData, PostApiWorkoutsErrors, PostApiWorkoutsResponses, PutApiPostsData, PutApiPostsErrors, PutApiPostsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -20,6 +20,64 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 
 export const postApiAuthSignUpEmail = <ThrowOnError extends boolean = false>(options: Options<PostApiAuthSignUpEmailData, ThrowOnError>): RequestResult<PostApiAuthSignUpEmailResponses, PostApiAuthSignUpEmailErrors, ThrowOnError> => (options.client ?? client).post<PostApiAuthSignUpEmailResponses, PostApiAuthSignUpEmailErrors, ThrowOnError>({
     url: '/api/auth/sign-up/email',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const postApiAuthSignInEmail = <ThrowOnError extends boolean = false>(options: Options<PostApiAuthSignInEmailData, ThrowOnError>): RequestResult<PostApiAuthSignInEmailResponses, PostApiAuthSignInEmailErrors, ThrowOnError> => (options.client ?? client).post<PostApiAuthSignInEmailResponses, PostApiAuthSignInEmailErrors, ThrowOnError>({
+    url: '/api/auth/sign-in/email',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const postApiAuthVerificationResend = <ThrowOnError extends boolean = false>(options: Options<PostApiAuthVerificationResendData, ThrowOnError>): RequestResult<PostApiAuthVerificationResendResponses, PostApiAuthVerificationResendErrors, ThrowOnError> => (options.client ?? client).post<PostApiAuthVerificationResendResponses, PostApiAuthVerificationResendErrors, ThrowOnError>({
+    url: '/api/auth/verification/resend',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const postApiAuthForgotPassword = <ThrowOnError extends boolean = false>(options: Options<PostApiAuthForgotPasswordData, ThrowOnError>): RequestResult<PostApiAuthForgotPasswordResponses, PostApiAuthForgotPasswordErrors, ThrowOnError> => (options.client ?? client).post<PostApiAuthForgotPasswordResponses, PostApiAuthForgotPasswordErrors, ThrowOnError>({
+    url: '/api/auth/forgot-password',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const postApiAuthResetPassword = <ThrowOnError extends boolean = false>(options: Options<PostApiAuthResetPasswordData, ThrowOnError>): RequestResult<PostApiAuthResetPasswordResponses, PostApiAuthResetPasswordErrors, ThrowOnError> => (options.client ?? client).post<PostApiAuthResetPasswordResponses, PostApiAuthResetPasswordErrors, ThrowOnError>({
+    url: '/api/auth/reset-password',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const getApiAuthSession = <ThrowOnError extends boolean = false>(options?: Options<GetApiAuthSessionData, ThrowOnError>): RequestResult<GetApiAuthSessionResponses, GetApiAuthSessionErrors, ThrowOnError> => (options?.client ?? client).get<GetApiAuthSessionResponses, GetApiAuthSessionErrors, ThrowOnError>({ url: '/api/auth/session', ...options });
+
+export const postApiAuthSignOut = <ThrowOnError extends boolean = false>(options?: Options<PostApiAuthSignOutData, ThrowOnError>): RequestResult<PostApiAuthSignOutResponses, PostApiAuthSignOutErrors, ThrowOnError> => (options?.client ?? client).post<PostApiAuthSignOutResponses, PostApiAuthSignOutErrors, ThrowOnError>({ url: '/api/auth/sign-out', ...options });
+
+export const postApiAuthOauthGoogleStart = <ThrowOnError extends boolean = false>(options: Options<PostApiAuthOauthGoogleStartData, ThrowOnError>): RequestResult<PostApiAuthOauthGoogleStartResponses, PostApiAuthOauthGoogleStartErrors, ThrowOnError> => (options.client ?? client).post<PostApiAuthOauthGoogleStartResponses, PostApiAuthOauthGoogleStartErrors, ThrowOnError>({
+    url: '/api/auth/oauth/google/start',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const postApiAuthOauthExchange = <ThrowOnError extends boolean = false>(options: Options<PostApiAuthOauthExchangeData, ThrowOnError>): RequestResult<PostApiAuthOauthExchangeResponses, PostApiAuthOauthExchangeErrors, ThrowOnError> => (options.client ?? client).post<PostApiAuthOauthExchangeResponses, PostApiAuthOauthExchangeErrors, ThrowOnError>({
+    url: '/api/auth/oauth/exchange',
     ...options,
     headers: {
         'Content-Type': 'application/json',

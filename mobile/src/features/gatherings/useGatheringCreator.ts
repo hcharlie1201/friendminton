@@ -120,6 +120,10 @@ export function validateGatheringDraft(draft: GatheringDraft, userId: string) {
   if (!draft.city.trim()) return 'Add a city.';
   if (draft.endsAt <= draft.startsAt) return 'The end time must be after the start time.';
   if (draft.startsAt <= new Date()) return 'Choose a start time in the future.';
+  if (
+    isPlayGathering(draft.kind)
+    && !validSkillRange(draft.skillLevelMin, draft.skillLevelMax)
+  ) return 'The highest badminton level must be at or above the lowest level.';
   if (draft.capacity.trim() && parseOptionalInteger(draft.capacity) === null) return 'Spots must be a whole number.';
   if (
     isPlayGathering(draft.kind)
@@ -151,7 +155,8 @@ async function createGathering(draft: GatheringDraft, userId: string, groupId: s
     latitude: draft.latitude,
     longitude: draft.longitude,
     play_format: isPlayGathering(draft.kind) ? draft.playFormat : null,
-    skill_level: isPlayGathering(draft.kind) && draft.skillLevel !== 'all_levels' ? draft.skillLevel : null,
+    skill_level: isPlayGathering(draft.kind) ? draft.skillLevelMin : null,
+    skill_level_max: isPlayGathering(draft.kind) ? draft.skillLevelMax : null,
     social_tags: isSocialGathering(draft.kind) ? draft.socialTags : [],
     starts_at: draft.startsAt.toISOString(),
     theme: draft.theme,
@@ -161,6 +166,17 @@ async function createGathering(draft: GatheringDraft, userId: string, groupId: s
   };
 
   return apiData<Gathering>(postApiGatherings({ body: payload, headers: authHeaders(userId) }));
+}
+
+const rankedLevels = ['e', 'e_plus', 'd', 'c', 'b', 'a'] as const;
+
+function validSkillRange(
+  minimum: GatheringDraft['skillLevelMin'],
+  maximum: GatheringDraft['skillLevelMax'],
+) {
+  if (minimum === null && maximum === null) return true;
+  if (minimum === null || maximum === null) return false;
+  return rankedLevels.indexOf(minimum) <= rankedLevels.indexOf(maximum);
 }
 
 function parseOptionalInteger(value: string) {

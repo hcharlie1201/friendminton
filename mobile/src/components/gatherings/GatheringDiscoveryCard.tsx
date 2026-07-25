@@ -41,6 +41,7 @@ export type DiscoverGathering = {
   kind: GatheringKind;
   play_format?: 'open_play' | 'round_robin' | 'doubles' | 'singles' | 'drills' | 'coaching' | null;
   skill_level?: string | null;
+  skill_level_max?: string | null;
   social_tags: Array<'drinks' | 'food' | 'board_games' | 'watch_party' | 'gear_swap'>;
   starts_at: string;
   theme?: string | null;
@@ -216,7 +217,9 @@ function gatheringMetadata(gathering: DiscoverGathering) {
   const items: string[] = [];
 
   if (gathering.play_format) items.push(playFormatLabel(gathering.play_format));
-  if (gathering.skill_level) items.push(skillLevelLabel(gathering.skill_level));
+  if (gathering.skill_level) {
+    items.push(skillRangeLabel(gathering.skill_level, gathering.skill_level_max));
+  }
   if (gathering.court_setup === 'drop_in') items.push('Drop-in courts');
   if (gathering.court_setup === 'reserved') {
     items.push(gathering.court_count
@@ -259,6 +262,11 @@ function skillLevelLabel(level: string) {
   if (level === 'e_plus') return 'E+';
   if (['e', 'd', 'c', 'b', 'a'].includes(level)) return level.toUpperCase();
   return `${level.charAt(0).toUpperCase()}${level.slice(1)}`;
+}
+
+function skillRangeLabel(minimum: string, maximum?: string | null) {
+  if (!maximum || maximum === minimum) return skillLevelLabel(minimum);
+  return `${skillLevelLabel(minimum)}–${skillLevelLabel(maximum)}`;
 }
 
 function visibilityLabel(visibility: DiscoverGathering['visibility']) {

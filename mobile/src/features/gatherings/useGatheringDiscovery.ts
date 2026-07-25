@@ -97,8 +97,22 @@ function filterGatheringsForLevel(gatherings: Gathering[], skillLevel: string | 
   if (!skillLevel) return gatherings;
   const compatibleLevels = gatheringLevelsForPlayer(skillLevel);
   return gatherings.filter(
-    (gathering) => !gathering.skill_level || compatibleLevels.includes(gathering.skill_level),
+    (gathering) => !gathering.skill_level
+      || compatibleLevels.some((level) => levelWithinRange(
+        level,
+        gathering.skill_level!,
+        gathering.skill_level_max ?? gathering.skill_level!,
+      )),
   );
+}
+
+const orderedLevels = ['beginner', 'e', 'e_plus', 'd', 'c', 'b', 'a'];
+
+function levelWithinRange(level: string, minimum: string, maximum: string) {
+  const levelPosition = orderedLevels.indexOf(level);
+  const minimumPosition = orderedLevels.indexOf(minimum);
+  const maximumPosition = orderedLevels.indexOf(maximum);
+  return levelPosition >= minimumPosition && levelPosition <= maximumPosition;
 }
 
 function gatheringLevelsForPlayer(skillLevel: string) {

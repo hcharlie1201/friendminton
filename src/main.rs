@@ -2,10 +2,12 @@ mod accounts;
 mod activities;
 mod app;
 mod auth;
+mod auth_service;
 mod config;
 mod controller;
 mod courts;
 mod db;
+mod email;
 mod engagement;
 mod error;
 mod gatherings;
@@ -34,8 +36,17 @@ async fn main() -> Result<(), error::AppError> {
     sqlx::migrate!("./migrations").run(&pool).await?;
     tokio::fs::create_dir_all(&config.upload_dir).await?;
     let media = media::MediaStorage::from_config(&config).await?;
+    let email = email::TransactionalEmail::from_config(&config.authentication.email).await;
     let places_configured = config.third_party.google_places_api_key.is_some();
     let places = places::GooglePlaces::new(config.third_party.google_places_api_key.clone());
+    let auth = auth_service::AuthService::new(
+        pool.clone(),
+        &config.public_base_url,
+        &config.authentication,
+    )
+    .await
+    .map_err(|error| error::AppError::Authentication(error.to_string()))?;
+    let google_auth_configured = auth.google_enabled();
 
     let app = app::router(
         app::AppState {
@@ -43,6 +54,8 @@ async fn main() -> Result<(), error::AppError> {
             upload_dir: config.upload_dir.clone().into(),
             media,
             places,
+            auth,
+            email,
         },
         &config,
     );
@@ -53,6 +66,7 @@ async fn main() -> Result<(), error::AppError> {
         %addr,
         environment = %config.environment,
         places_configured,
+        google_auth_configured,
         "friendminton api listening"
     );
     axum::serve(listener, app).await?;

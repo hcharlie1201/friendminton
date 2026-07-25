@@ -1,0 +1,3 @@
+# Optional. AWS sends a confirmation message after apply; the subscription is
+# inactive until the recipient confirms it.
+# alert_email = "ops@friendminton.com"

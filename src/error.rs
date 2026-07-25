@@ -21,6 +21,8 @@ pub enum AppError {
     Conflict(String),
     #[error("unauthorized")]
     Unauthorized,
+    #[error("email address is not verified")]
+    EmailNotVerified,
     #[error(transparent)]
     Sqlx(#[from] sqlx::Error),
     #[error(transparent)]
@@ -35,6 +37,8 @@ pub enum AppError {
     ServiceUnavailable(&'static str),
     #[error("external service error: {0}")]
     ExternalService(String),
+    #[error("authentication service error: {0}")]
+    Authentication(String),
 }
 
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
@@ -42,6 +46,7 @@ pub enum AppError {
 pub enum ErrorCode {
     BadRequest,
     Conflict,
+    EmailNotVerified,
     InternalServerError,
     NotFound,
     ServiceUnavailable,
@@ -71,6 +76,7 @@ impl OperationOutput for AppError {
                 vec![
                     (Some(400), response.clone()),
                     (Some(401), response.clone()),
+                    (Some(403), response.clone()),
                     (Some(404), response.clone()),
                     (Some(409), response.clone()),
                     (Some(500), response.clone()),
@@ -100,6 +106,11 @@ impl IntoResponse for AppError {
                 ErrorCode::Unauthorized,
                 "unauthorized".to_owned(),
             ),
+            AppError::EmailNotVerified => (
+                StatusCode::FORBIDDEN,
+                ErrorCode::EmailNotVerified,
+                "Verify your email address before signing in.".to_owned(),
+            ),
             AppError::ServiceUnavailable(message) => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 ErrorCode::ServiceUnavailable,
@@ -110,7 +121,7 @@ impl IntoResponse for AppError {
                 (
                     StatusCode::BAD_GATEWAY,
                     ErrorCode::UpstreamServiceError,
-                    "location service is temporarily unavailable".to_owned(),
+                    "an external service is temporarily unavailable".to_owned(),
                 )
             }
             AppError::Sqlx(sqlx::Error::RowNotFound) => (
@@ -123,7 +134,8 @@ impl IntoResponse for AppError {
             | AppError::Migration(_)
             | AppError::Io(_)
             | AppError::AddrParse(_)
-            | AppError::Media(_) => {
+            | AppError::Media(_)
+            | AppError::Authentication(_) => {
                 tracing::error!(error = ?self, "request failed with an internal error");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,

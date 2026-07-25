@@ -6,7 +6,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider, useSession } from '../src/auth/session';
-import { colors, fonts } from '../src/components/ui';
+import { Button, colors, fonts } from '../src/components/ui';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -51,10 +51,19 @@ export default function RootLayout() {
 }
 
 function ProtectedRoutes() {
-  const { isLoading, user } = useSession();
+  const {
+    isLoading,
+    needsOnboarding,
+    restoreError,
+    retryRestore,
+    user,
+  } = useSession();
 
   if (isLoading) {
     return <LoadingScreen />;
+  }
+  if (restoreError && user) {
+    return <UnavailableScreen message={restoreError} onRetry={retryRestore} />;
   }
 
   return (
@@ -62,7 +71,10 @@ function ProtectedRoutes() {
       <Stack.Protected guard={!user}>
         <Stack.Screen name="login" />
       </Stack.Protected>
-      <Stack.Protected guard={Boolean(user)}>
+      <Stack.Protected guard={Boolean(user) && needsOnboarding}>
+        <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={Boolean(user) && !needsOnboarding}>
         <Stack.Screen name="index" />
         <Stack.Screen name="gatherings/new" options={{ gestureEnabled: false, presentation: 'modal' }} />
         <Stack.Screen name="gatherings/[gatheringId]" />
@@ -71,7 +83,26 @@ function ProtectedRoutes() {
         <Stack.Screen name="players/[playerId]" />
         <Stack.Screen name="posts/[postId]" />
       </Stack.Protected>
+      <Stack.Screen name="auth/verify-email" />
+      <Stack.Screen name="auth/forgot-password" />
+      <Stack.Screen name="auth/reset-password" options={{ gestureEnabled: false }} />
     </Stack>
+  );
+}
+
+function UnavailableScreen({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <View style={styles.unavailable}>
+      <Text style={styles.unavailableTitle}>Friendminton is having trouble connecting.</Text>
+      <Text style={styles.unavailableMessage}>{message}</Text>
+      <Button onPress={onRetry}>Try again</Button>
+    </View>
   );
 }
 
@@ -100,5 +131,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flex: 1,
     justifyContent: 'center',
+  },
+  unavailable: {
+    backgroundColor: colors.background,
+    flex: 1,
+    gap: 16,
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  unavailableTitle: {
+    color: colors.text,
+    fontFamily: fonts.black,
+    fontSize: 24,
+    lineHeight: 31,
+  },
+  unavailableMessage: {
+    color: colors.textMuted,
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 22,
   },
 });

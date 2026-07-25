@@ -30,15 +30,6 @@ pub struct Player {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct CreateUser {
-    pub email: String,
-    pub display_name: String,
-    pub city: Option<String>,
-    pub skill_level: Option<String>,
-    pub bio: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
 pub struct PlayerSearch {
     pub city: Option<String>,
     pub skill_level: Option<String>,

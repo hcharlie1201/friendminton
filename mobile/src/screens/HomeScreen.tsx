@@ -37,7 +37,7 @@ import {
 } from '../api/generated';
 import { apiBaseUrl } from '../config';
 import { apiData, apiSuccess, authHeaders } from '../api/runtime';
-import { useSession } from '../auth/session';
+import { useSession, type SessionLocation } from '../auth/session';
 import { errorMessage } from '../common/errors';
 import {
   AppHeader,
@@ -71,12 +71,8 @@ type WriteMutation = {
 const feedPageSize = 20;
 const feedLoadAheadDistance = 320;
 
-function useDiscoveryPreferences() {
-  const [location, setLocation] = useState<DiscoveryLocation>({
-    city: 'Oakland',
-    latitude: 37.8044,
-    longitude: -122.2712,
-  });
+function useDiscoveryPreferences(initialLocation: DiscoveryLocation) {
+  const [location, setLocation] = useState<DiscoveryLocation>(initialLocation);
   const [skillLevel, setSkillLevel] = useState<SkillLevel | null>(null);
   const apply = useCallback((preferences: DiscoveryPreferences) => {
     setLocation({
@@ -141,10 +137,12 @@ function useFeedPagination({
 export function HomeScreen() {
   const queryClient = useQueryClient();
   const homeScrollRef = useRef<ScrollView>(null);
-  const { signOut, user } = useSession();
+  const { discoveryLocation, signOut, user } = useSession();
   const currentUser = requireSessionUser(user);
   const [activeTab, setActiveTab] = useState<Tab>('home');
-  const discoveryPreferences = useDiscoveryPreferences();
+  const discoveryPreferences = useDiscoveryPreferences(
+    initialDiscoveryLocation(discoveryLocation, currentUser.city),
+  );
   const { city, latitude, longitude, skillLevel } = discoveryPreferences;
   const [playerSearch, setPlayerSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -372,6 +370,16 @@ export function HomeScreen() {
       />
     </Screen>
   );
+}
+
+function initialDiscoveryLocation(location: SessionLocation | null, userCity?: string | null): DiscoveryLocation {
+  if (location) return location;
+  if (userCity) return { city: userCity, latitude: null, longitude: null };
+  return {
+    city: 'Oakland',
+    latitude: 37.8044,
+    longitude: -122.2712,
+  };
 }
 
 async function loadFeedPage({

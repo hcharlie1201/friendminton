@@ -12,6 +12,7 @@ Each stack has an independent state object in the encrypted, versioned, private
 | --- | --- |
 | `state-bootstrap` | Terraform state bucket and its safety settings |
 | `shared` | ECR, GitHub OIDC, IAM deployment roles, repository Actions variables |
+| `email` | SES identities, sending controls, event logs, alarms, and sender IAM users |
 | `staging` | Existing staging Lightsail instance, static IP, firewall, and media bucket |
 | `production` | Isolated production Lightsail instance, static IP, firewall, and media bucket |
 
@@ -35,6 +36,27 @@ terraform apply staging.tfplan
 
 Use the matching backend file for the other stacks. Do not use `-target` for routine changes, and
 never commit plan files, state files, `.terraform/`, or `terraform.tfvars`.
+
+## Transactional email
+
+The independent `email` stack owns regional, account-level SES resources shared by staging and
+production. It intentionally does not own DNS, request SES production access, create IAM access
+keys, or write server environment files. See [`email/README.md`](email/README.md) for the apply
+sequence, required external DNS records, sandbox exit, credential setup, and log commands.
+
+Initialize and review it separately:
+
+```sh
+cd infra/email
+terraform init -backend-config=../backend/email.hcl
+terraform validate
+terraform plan -out=email.tfplan
+terraform apply email.tfplan
+```
+
+Applying the stack creates no IAM access keys. Never add `aws_iam_access_key`: its secret would be
+stored in Terraform state. Create and rotate the two narrowly scoped sender keys out of band, then
+put them only in the corresponding deployment-user-owned server environment file with mode `0600`.
 
 ## Production provisioning
 

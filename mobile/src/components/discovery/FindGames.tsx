@@ -430,10 +430,19 @@ function formatMonth(date: Date) { return Number.isNaN(date.getTime()) ? '—' :
 function formatDay(date: Date) { return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat(undefined, { day: 'numeric' }).format(date); }
 function formatTime(date: Date) { return Number.isNaN(date.getTime()) ? 'Time TBD' : new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date); }
 function gameMetadata(game: Gathering) {
-  const level = game.skill_level === 'e_plus' ? 'E+' : game.skill_level?.toUpperCase() ?? 'All levels';
+  const level = game.skill_level
+    ? formatSkillRange(game.skill_level, game.skill_level_max)
+    : 'All levels';
   const setup = game.court_setup === 'reserved' ? 'Reserved courts' : 'Drop-in';
   const cost = game.cost_per_person_cents > 0 ? `$${(game.cost_per_person_cents / 100).toFixed(2)}` : 'Free';
   return `${level} · ${setup} · ${cost}`;
+}
+
+function formatSkillRange(minimum: string, maximum?: string | null) {
+  const minimumLabel = minimum === 'e_plus' ? 'E+' : minimum.toUpperCase();
+  if (!maximum || maximum === minimum) return minimumLabel;
+  const maximumLabel = maximum === 'e_plus' ? 'E+' : maximum.toUpperCase();
+  return `${minimumLabel}–${maximumLabel}`;
 }
 
 const styles = StyleSheet.create({

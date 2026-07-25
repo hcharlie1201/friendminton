@@ -36,10 +36,26 @@ export function filterGames(gatherings: readonly Gathering[], filters: GameDisco
     .filter((gathering) => matchesDate(gathering, filters.date, now))
     .filter((gathering) => !filters.playFormat || gathering.play_format === filters.playFormat)
     .filter((gathering) => !filters.visibility || gathering.visibility === filters.visibility)
-    .filter((gathering) => !filters.level || !gathering.skill_level || gathering.skill_level === filters.level)
+    .filter((gathering) => !filters.level || !gathering.skill_level || levelMatchesGathering(
+      filters.level,
+      gathering.skill_level,
+      gathering.skill_level_max ?? gathering.skill_level,
+    ))
     .filter((gathering) => !filters.courtSetup || gathering.court_setup === filters.courtSetup)
     .filter((gathering) => matchesCost(gathering.cost_per_person_cents, filters.cost))
     .sort(compareStartTime);
+}
+
+const orderedLevels: GatheringSkillLevel[] = ['beginner', 'e', 'e_plus', 'd', 'c', 'b', 'a'];
+
+function levelMatchesGathering(
+  level: GatheringSkillLevel,
+  minimum: GatheringSkillLevel,
+  maximum: GatheringSkillLevel,
+) {
+  const levelPosition = orderedLevels.indexOf(level);
+  return levelPosition >= orderedLevels.indexOf(minimum)
+    && levelPosition <= orderedLevels.indexOf(maximum);
 }
 
 export function activeGameFilterCount(filters: GameDiscoveryFilters) {

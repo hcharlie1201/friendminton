@@ -119,7 +119,7 @@ jobs:
       - name: Validate stacks
         run: |
           set -euo pipefail
-          for stack in state-bootstrap shared staging production; do
+          for stack in state-bootstrap shared email staging production; do
             terraform -chdir="infra/$stack" init -backend=false -input=false
             terraform -chdir="infra/$stack" validate
           done

@@ -54,7 +54,9 @@ pub enum PlayFormat {
     Coaching,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Type)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema, Type,
+)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "text", rename_all = "snake_case")]
 pub enum GatheringSkillLevel {
@@ -111,6 +113,7 @@ pub struct Gathering {
     pub cost_per_person_cents: i32,
     pub currency: String,
     pub skill_level: Option<GatheringSkillLevel>,
+    pub skill_level_max: Option<GatheringSkillLevel>,
     pub play_format: Option<PlayFormat>,
     pub court_setup: Option<CourtSetup>,
     pub court_count: Option<i32>,
@@ -153,6 +156,7 @@ pub struct CreateGathering {
     #[serde(default = "default_currency")]
     pub currency: String,
     pub skill_level: Option<GatheringSkillLevel>,
+    pub skill_level_max: Option<GatheringSkillLevel>,
     pub play_format: Option<PlayFormat>,
     pub court_setup: Option<CourtSetup>,
     pub court_count: Option<i32>,
@@ -217,6 +221,7 @@ pub(super) struct StoredGathering {
     pub cost_per_person_cents: i32,
     pub currency: String,
     pub skill_level: Option<GatheringSkillLevel>,
+    pub skill_level_max: Option<GatheringSkillLevel>,
     pub play_format: Option<PlayFormat>,
     pub court_setup: Option<CourtSetup>,
     pub court_count: Option<i32>,

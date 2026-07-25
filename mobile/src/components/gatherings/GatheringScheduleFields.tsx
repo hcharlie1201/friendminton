@@ -16,6 +16,7 @@ type Props = {
 
 export function GatheringScheduleFields({ endsAt, onEndsAtChange, onStartsAtChange, startsAt }: Props) {
   const picker = useSchedulePicker({ endsAt, onEndsAtChange, onStartsAtChange, startsAt });
+  const scheduleError = scheduleIssue(startsAt, endsAt);
   return (
     <View style={styles.wrapper}>
       <View accessible={false} style={styles.timeline}>
@@ -41,6 +42,12 @@ export function GatheringScheduleFields({ endsAt, onEndsAtChange, onStartsAtChan
           timeLabel={formatTime(endsAt)}
         />
       </View>
+      {scheduleError && (
+        <View accessibilityRole="alert" style={styles.error}>
+          <Ionicons color={colors.danger} name="alert-circle" size={17} />
+          <Text style={styles.errorText}>{scheduleError}</Text>
+        </View>
+      )}
       {picker.target && (
         <View style={styles.pickerPanel}>
           <View style={styles.pickerHeader}>
@@ -147,11 +154,22 @@ function mergeDateTime(current: Date, selected: Date, mode: 'date' | 'time') {
 }
 
 function formatDate(value: Date) {
-  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', weekday: 'short' }).format(value);
+  return new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'short',
+    weekday: 'short',
+    year: 'numeric',
+  }).format(value);
 }
 
 function formatTime(value: Date) {
   return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(value);
+}
+
+function scheduleIssue(startsAt: Date, endsAt: Date) {
+  if (startsAt <= new Date()) return 'Start must be in the future.';
+  if (endsAt <= startsAt) return 'End must be after the start date and time.';
+  return null;
 }
 
 const styles = StyleSheet.create({
@@ -172,4 +190,6 @@ const styles = StyleSheet.create({
   pickerHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 7 },
   pickerTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 14, fontWeight: '900', textTransform: 'capitalize' },
   done: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 14, fontWeight: '900', padding: 7 },
+  error: { alignItems: 'center', backgroundColor: colors.dangerSurface, borderColor: colors.dangerBorder, borderRadius: 10, borderWidth: 1, flexDirection: 'row', gap: 7, marginLeft: 22, padding: 10 },
+  errorText: { color: colors.danger, flex: 1, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
 });

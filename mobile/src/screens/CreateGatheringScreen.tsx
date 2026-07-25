@@ -74,14 +74,18 @@ export function CreateGatheringScreen() {
 
           <GatheringThemePicker onChange={draft.setTheme} value={draft.value.theme} />
 
-          <TextField
-            accessibilityLabel="Gathering title"
-            maxLength={120}
-            onChangeText={draft.setTitle}
-            placeholder="Friday night rallies"
-            style={styles.titleInput}
-            value={draft.value.title}
-          />
+          <View style={styles.titleField}>
+            <Text style={styles.titleLabel}>EVENT TITLE</Text>
+            <TextField
+              accessibilityLabel="Event title"
+              maxLength={120}
+              onChangeText={draft.setTitle}
+              placeholder="e.g. Friday night rallies"
+              style={styles.titleInput}
+              value={draft.value.title}
+            />
+            <Text style={styles.titleHelp}>Give players a clear name they’ll recognize in Discover.</Text>
+          </View>
 
           {groupId && (
             <View style={styles.groupAffiliation}>
@@ -112,9 +116,11 @@ export function CreateGatheringScreen() {
               onCourtCountChange={draft.setCourtCount}
               onCourtSetupChange={draft.setCourtSetup}
               onFormatChange={draft.setPlayFormat}
-              onSkillChange={draft.setSkillLevel}
+              onSkillMaxChange={draft.setSkillLevelMax}
+              onSkillMinChange={draft.setSkillLevelMin}
               playFormat={draft.value.playFormat}
-              skillLevel={draft.value.skillLevel}
+              skillLevelMax={draft.value.skillLevelMax}
+              skillLevelMin={draft.value.skillLevelMin}
             />
           )}
 
@@ -165,6 +171,7 @@ function formatCoverDate(value: Date) {
     hour: 'numeric',
     minute: '2-digit',
     month: 'short',
+    year: 'numeric',
   }).format(value);
 }
 
@@ -176,15 +183,42 @@ const styles = StyleSheet.create({
   screen: { backgroundColor: colors.background, flex: 1 },
   keyboardView: { flex: 1 },
   content: { gap: 18, padding: 18, paddingBottom: 36 },
+  titleField: {
+    backgroundColor: colors.surface,
+    borderColor: colors.borderStrong,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 7,
+    padding: 14,
+    shadowColor: colors.shadow,
+    shadowOffset: { height: 4, width: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 1,
+  },
+  titleLabel: {
+    color: colors.primaryStrong,
+    fontFamily: fonts.black,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.9,
+  },
   titleInput: {
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
+    backgroundColor: colors.primarySurface,
+    borderColor: colors.primary,
+    borderRadius: 12,
     color: colors.text,
     fontFamily: fonts.black,
-    fontSize: 27,
+    fontSize: 24,
     fontWeight: '900',
-    minHeight: 62,
-    paddingHorizontal: 2,
+    minHeight: 64,
+    paddingHorizontal: 13,
+  },
+  titleHelp: {
+    color: colors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 11,
+    lineHeight: 16,
   },
   groupAffiliation: {
     backgroundColor: colors.playAccentSurface,

@@ -14,11 +14,13 @@ export enum AppErrorKind {
 }
 
 type AppErrorOptions = {
+  code?: string;
   cause?: unknown;
   status?: number;
 };
 
 export class AppError extends Error {
+  readonly code?: string;
   readonly kind: AppErrorKind;
   readonly status?: number;
   readonly originalCause?: unknown;
@@ -26,6 +28,7 @@ export class AppError extends Error {
   constructor(kind: AppErrorKind, message: string, options: AppErrorOptions = {}) {
     super(message);
     this.name = 'AppError';
+    this.code = options.code;
     this.kind = kind;
     this.status = options.status;
     this.originalCause = options.cause;

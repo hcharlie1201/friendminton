@@ -11,7 +11,10 @@ use sqlx::{Pool, Postgres};
 use std::path::PathBuf;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
-use crate::{config::AppConfig, controller, media::MediaStorage, openapi, places::GooglePlaces};
+use crate::{
+    auth_service::AuthService, config::AppConfig, controller, email::TransactionalEmail,
+    media::MediaStorage, openapi, places::GooglePlaces,
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -19,6 +22,8 @@ pub struct AppState {
     pub upload_dir: PathBuf,
     pub media: MediaStorage,
     pub places: GooglePlaces,
+    pub auth: AuthService,
+    pub email: TransactionalEmail,
 }
 
 pub fn router(state: AppState, config: &AppConfig) -> Router {
@@ -35,7 +40,18 @@ pub fn router(state: AppState, config: &AppConfig) -> Router {
         .nest("/api", api_routes())
         .nest_service("/uploads", ServeDir::new(upload_dir))
         .finish_api(&mut api)
-        .layer(TraceLayer::new_for_http())
+        // Email verification and reset links carry one-use credentials in the
+        // query string. Record only the path so access logs can never retain
+        // those tokens.
+        .layer(
+            TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
+                tracing::info_span!(
+                    "http_request",
+                    method = %request.method(),
+                    path = request.uri().path()
+                )
+            }),
+        )
         .layer(Extension(api))
         .with_state(state)
 }

@@ -3,6 +3,7 @@ export type GatheringVisibility = 'public' | 'private';
 export type GatheringJoinPolicy = 'open' | 'approval_required' | 'invite_only';
 export type GatheringPlayFormat = 'open_play' | 'round_robin' | 'doubles' | 'singles' | 'drills' | 'coaching';
 export type GatheringSkillLevel = 'all_levels' | 'beginner' | 'e' | 'e_plus' | 'd' | 'c' | 'b' | 'a';
+export type GatheringRankedLevel = Exclude<GatheringSkillLevel, 'all_levels' | 'beginner'>;
 export type GatheringCourtSetup = 'drop_in' | 'reserved';
 export type GatheringSocialTag = 'drinks' | 'food' | 'board_games' | 'watch_party' | 'gear_swap';
 export type GatheringThemeId = 'court_lights' | 'birdie_burst' | 'net_night' | 'social_rally';
@@ -22,7 +23,8 @@ export type GatheringDraft = {
   location: GatheringLocation | null;
   longitude: number | null;
   playFormat: GatheringPlayFormat;
-  skillLevel: GatheringSkillLevel;
+  skillLevelMax: GatheringRankedLevel | null;
+  skillLevelMin: GatheringRankedLevel | null;
   socialTags: GatheringSocialTag[];
   startsAt: Date;
   theme: GatheringThemeId;
@@ -103,7 +105,8 @@ export function createInitialGatheringDraft(
     location: null,
     longitude: null,
     playFormat: 'open_play',
-    skillLevel: 'all_levels',
+    skillLevelMax: null,
+    skillLevelMin: null,
     socialTags: kind === 'play' ? [] : ['food'],
     startsAt,
     theme: themeForKind(kind),

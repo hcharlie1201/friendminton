@@ -132,6 +132,7 @@ mod tests {
         assert_eq!(created.body["title"], "Friday birdies & board games");
         assert_eq!(created.body["currency"], "USD");
         assert_eq!(created.body["skill_level"], "e_plus");
+        assert_eq!(created.body["skill_level_max"], "b");
         assert_eq!(created.body["court_setup"], "reserved");
         assert_eq!(created.body["host_id"], host_id.to_string());
 
@@ -620,6 +621,7 @@ mod tests {
             "cost_per_person_cents": 1500,
             "currency": " usd ",
             "skill_level": "e_plus",
+            "skill_level_max": "b",
             "play_format": "open_play",
             "court_setup": "reserved",
             "court_count": 4,

@@ -8,7 +8,7 @@ import {
   type GatheringKind,
   type GatheringLocation,
   type GatheringPlayFormat,
-  type GatheringSkillLevel,
+  type GatheringRankedLevel,
   type GatheringSocialTag,
   type GatheringThemeId,
   type GatheringVisibility,
@@ -71,8 +71,11 @@ export function useGatheringDraft(city: string, kind: GatheringKind) {
   const setCourtSetup = useCallback((courtSetup: GatheringCourtSetup) => {
     setValue((current) => ({ ...current, courtSetup }));
   }, []);
-  const setSkillLevel = useCallback((skillLevel: GatheringSkillLevel) => {
-    setValue((current) => ({ ...current, skillLevel }));
+  const setSkillLevelMax = useCallback((skillLevelMax: GatheringRankedLevel | null) => {
+    setValue((current) => ({ ...current, skillLevelMax }));
+  }, []);
+  const setSkillLevelMin = useCallback((skillLevelMin: GatheringRankedLevel | null) => {
+    setValue((current) => ({ ...current, skillLevelMin }));
   }, []);
   const toggleSocialTag = useCallback((tag: GatheringSocialTag) => {
     setValue((current) => ({
@@ -96,7 +99,8 @@ export function useGatheringDraft(city: string, kind: GatheringKind) {
     setKind,
     setLocation,
     setPlayFormat,
-    setSkillLevel,
+    setSkillLevelMax,
+    setSkillLevelMin,
     setStartsAt,
     setTheme,
     setTitle,

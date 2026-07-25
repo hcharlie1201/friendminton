@@ -14,11 +14,18 @@ export type ApiResult<T> = {
   response?: Response;
 };
 
+let sessionToken: string | null = null;
+
 generatedClient.setConfig({ baseUrl: apiBaseUrl });
+configureSessionAuthentication();
 configureDevelopmentLogging();
 
-export function authHeaders(userId: string) {
-  return { 'x-user-id': userId };
+export function setApiSessionToken(token: string | null) {
+  sessionToken = token;
+}
+
+export function authHeaders(_legacyUserId?: string): Record<string, string> {
+  return sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {};
 }
 
 export async function apiData<T>(request: PromiseLike<ApiResult<T>>) {
@@ -71,6 +78,15 @@ function isErrorBody(error: unknown): error is ErrorBody {
   return typeof candidate.code === 'string' && typeof candidate.error === 'string';
 }
 
+function configureSessionAuthentication() {
+  generatedClient.interceptors.request.use((request) => {
+    if (!sessionToken || request.headers.has('Authorization')) return request;
+    const headers = new Headers(request.headers);
+    headers.set('Authorization', `Bearer ${sessionToken}`);
+    return new Request(request, { headers });
+  });
+}
+
 function configureDevelopmentLogging() {
   if (!__DEV__) return;
 
@@ -107,22 +123,37 @@ function requestSummary(request: Request) {
 
 function appErrorFromResponse(error: ErrorBody, status?: number) {
   const message = error.error ?? `Request failed with status ${status ?? 'unknown'}`;
+  const options = { code: String(error.code), status };
   switch (error.code) {
     case 'bad_request':
-      return new AppError(AppErrorKind.Validation, message, { status });
+      return new AppError(AppErrorKind.Validation, message, options);
     case 'conflict':
-      return new AppError(AppErrorKind.Conflict, message, { status });
+      return new AppError(AppErrorKind.Conflict, message, options);
+    case 'email_not_verified':
+      return new AppError(AppErrorKind.Authorization, message, options);
     case 'unauthorized':
-      return new AppError(AppErrorKind.Authentication, message, { status });
+      return new AppError(AppErrorKind.Authentication, message, options);
     case 'not_found':
-      return new AppError(AppErrorKind.NotFound, message, { status });
+      return new AppError(AppErrorKind.NotFound, message, options);
     case 'internal_server_error':
-      return new AppError(AppErrorKind.Server, message, { status });
+      return new AppError(AppErrorKind.Server, message, options);
     case 'service_unavailable':
-      return new AppError(AppErrorKind.ServiceUnavailable, message, { status });
+      return new AppError(AppErrorKind.ServiceUnavailable, message, options);
     case 'upstream_service_error':
-      return new AppError(AppErrorKind.UpstreamService, message, { status });
+      return new AppError(AppErrorKind.UpstreamService, message, options);
     default:
-      return appErrorFromStatus(message, status);
+      return new AppError(errorKindForApiStatus(status), message, options);
   }
+}
+
+function errorKindForApiStatus(status?: number) {
+  if (status === 401) return AppErrorKind.Authentication;
+  if (status === 403) return AppErrorKind.Authorization;
+  if (status === 404) return AppErrorKind.NotFound;
+  if (status === 409) return AppErrorKind.Conflict;
+  if (status === 502) return AppErrorKind.UpstreamService;
+  if (status === 503) return AppErrorKind.ServiceUnavailable;
+  if (status !== undefined && status >= 400 && status < 500) return AppErrorKind.Validation;
+  if (status !== undefined && status >= 500) return AppErrorKind.Server;
+  return AppErrorKind.Unknown;
 }

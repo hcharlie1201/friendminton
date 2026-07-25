@@ -12,8 +12,10 @@ use uuid::Uuid;
 
 use crate::{
     app::{self, AppState},
+    auth_service::AuthService,
     config::{
-        AppConfig, Environment, ObjectStorageConfig, ObjectStorageProvider, ThirdPartyConfig,
+        AppConfig, AuthenticationConfig, Environment, ObjectStorageConfig, ObjectStorageProvider,
+        ThirdPartyConfig, TransactionalEmailConfig,
     },
     media::MediaStorage,
     places::GooglePlaces,
@@ -26,6 +28,7 @@ pub(crate) struct TestApi {
     router: Router,
     pub(crate) pool: PgPool,
     pub(crate) upload_dir: PathBuf,
+    auth: AuthService,
 }
 
 pub(crate) struct TestResponse {
@@ -39,6 +42,13 @@ impl TestApi {
         let upload_dir =
             std::env::temp_dir().join(format!("friendminton-api-test-{}", Uuid::new_v4()));
         let config = test_config(&upload_dir);
+        let auth = AuthService::new(
+            pool.clone(),
+            &config.public_base_url,
+            &config.authentication,
+        )
+        .await
+        .expect("build test authentication service");
         let router = app::router(
             AppState {
                 pool: pool.clone(),
@@ -47,6 +57,8 @@ impl TestApi {
                     upload_dir: upload_dir.clone(),
                 },
                 places: GooglePlaces::new(None),
+                auth: auth.clone(),
+                email: crate::email::TransactionalEmail::Log,
             },
             &config,
         );
@@ -55,6 +67,7 @@ impl TestApi {
             router,
             pool,
             upload_dir,
+            auth,
         }
     }
 
@@ -78,6 +91,28 @@ impl TestApi {
         .await
     }
 
+    pub(crate) async fn json_with_header(
+        &self,
+        method: Method,
+        uri: &str,
+        header_name: &str,
+        header_value: &str,
+        body: Option<Value>,
+    ) -> TestResponse {
+        let body = body
+            .map(|body| body.to_string().into_bytes())
+            .unwrap_or_default();
+        self.request_with_extra_header(
+            method,
+            uri,
+            None,
+            (!body.is_empty()).then_some("application/json"),
+            body,
+            Some((header_name, header_value)),
+        )
+        .await
+    }
+
     pub(crate) async fn request(
         &self,
         method: Method,
@@ -86,12 +121,39 @@ impl TestApi {
         content_type: Option<&str>,
         body: Vec<u8>,
     ) -> TestResponse {
+        self.request_with_extra_header(method, uri, user_id, content_type, body, None)
+            .await
+    }
+
+    async fn request_with_extra_header(
+        &self,
+        method: Method,
+        uri: &str,
+        user_id: Option<Uuid>,
+        content_type: Option<&str>,
+        body: Vec<u8>,
+        extra_header: Option<(&str, &str)>,
+    ) -> TestResponse {
         let mut request = Request::builder().method(method).uri(uri);
         if let Some(user_id) = user_id {
-            request = request.header("x-user-id", user_id.to_string());
+            let auth_user_id =
+                sqlx::query_scalar::<_, String>("SELECT auth_user_id FROM users WHERE id = $1")
+                    .bind(user_id)
+                    .fetch_one(&self.pool)
+                    .await
+                    .expect("load route-test auth user id");
+            let token = self
+                .auth
+                .issue_test_session(&auth_user_id)
+                .await
+                .expect("issue route-test session");
+            request = request.header("authorization", format!("Bearer {token}"));
         }
         if let Some(content_type) = content_type {
             request = request.header(CONTENT_TYPE, content_type);
+        }
+        if let Some((name, value)) = extra_header {
+            request = request.header(name, value);
         }
 
         let response = self
@@ -118,8 +180,10 @@ impl TestApi {
         let id = Uuid::new_v4();
         sqlx::query(
             r#"
-            INSERT INTO users (id, email, display_name, city, skill_level)
-            VALUES ($1, $2, $3, 'RouteTestOnly', 'intermediate')
+            INSERT INTO users (
+                id, email, display_name, city, skill_level, email_verified
+            )
+            VALUES ($1, $2, $3, 'RouteTestOnly', 'intermediate', TRUE)
             "#,
         )
         .bind(id)
@@ -129,6 +193,13 @@ impl TestApi {
         .await
         .expect("insert route test user");
         id
+    }
+
+    pub(crate) async fn issue_session_for_auth_user(&self, auth_user_id: &str) -> String {
+        self.auth
+            .issue_test_session(auth_user_id)
+            .await
+            .expect("issue test session")
     }
 
     pub(crate) async fn cleanup_users(&self, user_ids: &[Uuid]) {
@@ -179,6 +250,13 @@ fn test_config(upload_dir: &std::path::Path) -> AppConfig {
         public_base_url: "http://localhost:3000".to_owned(),
         server_addr: "127.0.0.1:0".to_owned(),
         upload_dir: upload_dir.to_string_lossy().into_owned(),
+        authentication: AuthenticationConfig {
+            secret: "friendminton-test-auth-secret-for-route-tests".to_owned(),
+            google_oauth_client_id: None,
+            google_oauth_client_secret: None,
+            mobile_callback_url: "friendminton://auth/callback".to_owned(),
+            email: TransactionalEmailConfig::Log,
+        },
         third_party: ThirdPartyConfig {
             google_places_api_key: None,
             object_storage: ObjectStorageConfig {

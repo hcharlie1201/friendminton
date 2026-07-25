@@ -53,6 +53,19 @@ DOMAIN=16.146.136.68.sslip.io
 AWS_REGION=us-west-2
 GOOGLE_PLACES_API_KEY=replace-with-a-staging-google-places-key
 S3_BUCKET=friendminton-media-us-west-2
+BETTER_AUTH_SECRET=replace-with-at-least-32-random-characters
+GOOGLE_OAUTH_CLIENT_ID=replace-with-the-google-web-client-id
+GOOGLE_OAUTH_CLIENT_SECRET=replace-with-the-google-web-client-secret
+MOBILE_AUTH_CALLBACK_URL=friendminton://auth/callback
+EMAIL_PROVIDER=ses
+SES_REGION=us-west-2
+SES_FROM_NAME=Friendminton
+SES_FROM_ADDRESS=no-reply@staging.friendminton.com
+SES_REPLY_TO_ADDRESS=
+SES_CONFIGURATION_SET=friendminton-staging-transactional
+SES_AWS_ACCESS_KEY_ID=replace-with-the-staging-ses-access-key-id
+SES_AWS_SECRET_ACCESS_KEY=replace-with-the-staging-ses-secret-access-key
+SES_AWS_SESSION_TOKEN=
 ```
 
 Keep the existing database password and matching `DATABASE_URL`. Renaming the env file does not
@@ -60,7 +73,51 @@ change or reset the Docker `postgres_data` volume.
 
 The deploy script does not upload a developer's local `.env`. It reads `.env.staging` or
 `.env.production` from the deployment directory on the server and validates the file before
-pulling an image. Keep `GOOGLE_PLACES_API_KEY` in that server-side file.
+pulling an image. Keep `GOOGLE_PLACES_API_KEY`, `BETTER_AUTH_SECRET`, the Google OAuth client
+secret, and the SES sender access key in that server-side file. GitHub Environment secrets are not
+automatically copied into Compose; adding these application secrets only in GitHub will not
+configure the running API.
+
+The SES access key must belong to the staging-only sender user created by `infra/email`, not an AWS
+administrator. Use the `SES_AWS_*` names shown above. Setting standard `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY` would override the Lightsail metadata credential chain used for the media
+bucket. Keep `.env.staging` readable only by its owner:
+
+```sh
+chmod 600 /home/ubuntu/friendminton/.env.staging
+```
+
+Generate a separate Better Auth secret for each environment:
+
+```sh
+openssl rand -base64 48
+```
+
+For Google login, create an OAuth 2.0 client with application type **Web application** and register
+this exact staging authorized redirect URI:
+
+```text
+https://16.146.136.68.sslip.io/api/auth/callback/google
+```
+
+The client ID and client secret go only in the server's `.env.staging`. They must never use an
+`EXPO_PUBLIC_*` variable or be committed to the mobile bundle. The API completes Google's HTTPS
+callback and redirects the phone to `friendminton://auth/callback` with a short-lived, single-use
+code instead of a session token.
+
+Authentication is a coordinated compatibility cutover. The legacy TestFlight client sends
+`x-user-id`, while the new API accepts only bearer sessions. Deploy the new API, build a new mobile
+binary with the staging API URL, and smoke-test the new TestFlight build in the same staging window.
+Existing staging users have no password credential after the migration. They must sign in through
+Google with the same normalized email, use the password-reset flow to establish a password, or
+staging data must be intentionally reset before the cutover. Do not add an unauthenticated “claim
+existing email” shortcut.
+
+New email/password users receive a one-use verification link and cannot obtain a usable session
+until they confirm it. A verified Google sign-in remains authoritative for an existing unverified
+password signup with the same email: the API removes that password credential and revokes its older
+sessions. This prevents somebody from pre-registering another person's Google email and retaining
+access after the real owner signs in.
 
 The workflow uploads `docker-compose.prod.yml` and `Caddyfile` into this directory. The server
 does not build Rust or need GitHub repository credentials. It receives a temporary ECR login,
@@ -68,10 +125,11 @@ pulls the immutable image, starts Compose, and then discards the registry login.
 
 ## Terraform Infrastructure
 
-Terraform owns the Lightsail, ECR, IAM/OIDC, and repository-level GitHub Actions variable
-configuration. The states are separated into `shared`, `staging`, and `production` so a production
-change cannot accidentally alter staging. See [`infra/README.md`](../infra/README.md) for state,
-planning, import, and production provisioning instructions.
+Terraform owns the Lightsail, ECR, IAM/OIDC, SES, monitoring, and repository-level GitHub Actions
+variable configuration. The states are separated into `shared`, `email`, `staging`, and
+`production` so a production compute change cannot accidentally alter staging. See
+[`infra/README.md`](../infra/README.md) for state, planning, import, email, and production
+provisioning instructions.
 
 Initialize the shared stack from AWS and GitHub CLI sessions authenticated for the Friendminton
 accounts:
@@ -94,8 +152,17 @@ The shared stack manages:
 - Repository variables `AWS_REGION`, `AWS_PUBLISH_ROLE_ARN`, `AWS_DEPLOY_ROLE_ARN`, `ECR_REGISTRY`,
   and `ECR_REPOSITORY`.
 
-The role can push and pull only this ECR repository. No permanent AWS access key is stored in
-GitHub or on Lightsail.
+The role can push and pull only this ECR repository. No permanent ECR or deployment AWS access key
+is stored in GitHub or on Lightsail; the separately scoped SES sender credential is the only
+long-lived AWS application credential on the host.
+
+The separate `infra/email` stack creates SES identities and observability shared at the AWS
+account/Region level, plus isolated staging and production sender users. It creates no access keys
+and manages no DNS. Apply it independently, publish the records returned by
+`terraform output -json required_dns_records` at the external DNS provider, confirm any optional
+SNS email subscription, and complete the `us-west-2` SES sandbox review before relying on email
+verification or password reset. The full runbook is in
+[`infra/email/README.md`](../infra/email/README.md).
 
 ## GitHub Environments
 

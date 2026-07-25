@@ -1,35 +1,41 @@
 use aide::{OperationInput, generate::GenContext, openapi::Operation};
 use axum::{
     extract::FromRequestParts,
-    http::{HeaderMap, request::Parts},
+    http::{header::AUTHORIZATION, request::Parts},
 };
 use uuid::Uuid;
 
-use crate::error::AppError;
+use crate::{app::AppState, error::AppError};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CurrentUser {
     pub id: Uuid,
 }
 
-impl<S> FromRequestParts<S> for CurrentUser
-where
-    S: Send + Sync,
-{
+impl FromRequestParts<AppState> for CurrentUser {
     type Rejection = AppError;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        let id = user_id_from_headers(&parts.headers)?;
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let authorization = parts
+            .headers
+            .get(AUTHORIZATION)
+            .and_then(|value| value.to_str().ok());
+        let id = state
+            .auth
+            .domain_user_id_for_bearer(authorization)
+            .await
+            .map_err(|error| {
+                if error.status_code() >= 500 {
+                    AppError::Authentication(error.to_string())
+                } else {
+                    AppError::Unauthorized
+                }
+            })?;
         Ok(Self { id })
     }
-}
-
-fn user_id_from_headers(headers: &HeaderMap) -> Result<Uuid, AppError> {
-    headers
-        .get("x-user-id")
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| Uuid::parse_str(value).ok())
-        .ok_or(AppError::Unauthorized)
 }
 
 impl OperationInput for CurrentUser {

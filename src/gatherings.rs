@@ -20,7 +20,7 @@ const GATHERING_COLUMNS: &str = r#"
     g.id, g.host_id, g.group_id, g.kind, g.visibility, g.join_policy, g.title,
     g.starts_at, g.ends_at, g.venue, g.city, g.court_id, g.latitude, g.longitude,
     g.description, g.capacity,
-    g.cost_per_person_cents, g.currency, g.skill_level, g.play_format,
+    g.cost_per_person_cents, g.currency, g.skill_level, g.skill_level_max, g.play_format,
     g.court_setup, g.court_count, g.social_tags, g.theme, g.cover_image_key, g.created_at,
     g.updated_at
 "#;
@@ -52,15 +52,15 @@ pub async fn create_gathering(
         INSERT INTO gatherings (
             host_id, group_id, kind, visibility, join_policy, title, starts_at, ends_at,
             venue, city, court_id, latitude, longitude, description, capacity, cost_per_person_cents, currency,
-            skill_level, play_format, court_setup, court_count, social_tags, theme, cover_image_key
+            skill_level, skill_level_max, play_format, court_setup, court_count, social_tags, theme, cover_image_key
         )
         VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-            $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+            $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25
         )
         RETURNING id, host_id, group_id, kind, visibility, join_policy, title, starts_at,
             ends_at, venue, city, court_id, latitude, longitude, description, capacity, cost_per_person_cents,
-            currency, skill_level, play_format, court_setup, court_count, social_tags, theme,
+            currency, skill_level, skill_level_max, play_format, court_setup, court_count, social_tags, theme,
             cover_image_key, created_at, updated_at
         "#,
     )
@@ -82,6 +82,7 @@ pub async fn create_gathering(
     .bind(payload.cost_per_person_cents)
     .bind(payload.currency)
     .bind(payload.skill_level)
+    .bind(payload.skill_level_max)
     .bind(payload.play_format)
     .bind(payload.court_setup)
     .bind(payload.court_count)
@@ -593,6 +594,7 @@ async fn hydrate_gathering(
         cost_per_person_cents: stored.cost_per_person_cents,
         currency: stored.currency,
         skill_level: stored.skill_level,
+        skill_level_max: stored.skill_level_max,
         play_format: stored.play_format,
         court_setup: stored.court_setup,
         court_count: stored.court_count,
@@ -612,6 +614,9 @@ fn normalize_gathering(payload: &mut CreateGathering) {
     payload.currency = payload.currency.trim().to_ascii_uppercase();
     payload.description = normalized_optional_text(payload.description.take());
     payload.theme = normalized_optional_text(payload.theme.take());
+    if payload.skill_level_max.is_none() {
+        payload.skill_level_max = payload.skill_level;
+    }
 }
 
 async fn resolve_gathering_court(
@@ -679,11 +684,28 @@ fn validate_gathering(host_id: Uuid, payload: &CreateGathering) -> Result<(), Ap
     validate_required_text("city", &payload.city, MAX_CITY_CHARS)?;
     validate_coordinate_pair(payload.latitude, payload.longitude)?;
 
+    if payload.starts_at <= OffsetDateTime::now_utc() {
+        return Err(AppError::BadRequest(
+            "starts_at must be in the future".to_owned(),
+        ));
+    }
     if let Some(ends_at) = payload.ends_at
         && ends_at <= payload.starts_at
     {
         return Err(AppError::BadRequest(
             "ends_at must be after starts_at".to_owned(),
+        ));
+    }
+    if payload.skill_level.is_some() != payload.skill_level_max.is_some() {
+        return Err(AppError::BadRequest(
+            "skill_level and skill_level_max must both be set for a level range".to_owned(),
+        ));
+    }
+    if let (Some(minimum), Some(maximum)) = (payload.skill_level, payload.skill_level_max)
+        && minimum > maximum
+    {
+        return Err(AppError::BadRequest(
+            "skill_level_max must be at or above skill_level".to_owned(),
         ));
     }
     if payload
@@ -911,6 +933,7 @@ mod tests {
             cost_per_person_cents: 1_500,
             currency: " usd ".to_owned(),
             skill_level: Some(GatheringSkillLevel::EPlus),
+            skill_level_max: Some(GatheringSkillLevel::B),
             play_format: Some(PlayFormat::OpenPlay),
             court_setup: Some(CourtSetup::Reserved),
             court_count: Some(4),
@@ -928,7 +951,19 @@ mod tests {
         assert_eq!(payload.title, "Friday birdies & board games");
         assert_eq!(payload.currency, "USD");
         assert_eq!(payload.skill_level, Some(GatheringSkillLevel::EPlus));
+        assert_eq!(payload.skill_level_max, Some(GatheringSkillLevel::B));
         assert_eq!(payload.theme.as_deref(), Some("court-glow"));
+        assert!(validate_gathering(Uuid::new_v4(), &payload).is_ok());
+    }
+
+    #[test]
+    fn gathering_normalizes_a_legacy_single_level_to_a_range() {
+        let mut payload = valid_payload();
+        payload.skill_level_max = None;
+
+        normalize_gathering(&mut payload);
+
+        assert_eq!(payload.skill_level_max, payload.skill_level);
         assert!(validate_gathering(Uuid::new_v4(), &payload).is_ok());
     }
 
@@ -955,6 +990,15 @@ mod tests {
         normalize_gathering(&mut payload);
         payload.description = Some("x".repeat(MAX_DESCRIPTION_CHARS + 1));
         assert!(validate_gathering(host_id, &payload).is_err());
+    }
+
+    #[test]
+    fn gathering_rejects_an_inverted_skill_range() {
+        let mut payload = valid_payload();
+        payload.skill_level = Some(GatheringSkillLevel::B);
+        payload.skill_level_max = Some(GatheringSkillLevel::E);
+
+        assert!(validate_gathering(Uuid::new_v4(), &payload).is_err());
     }
 
     #[test]

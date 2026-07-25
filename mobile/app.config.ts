@@ -5,7 +5,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const androidGoogleMapsApiKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY;
   const plugins = (config.plugins ?? []).filter((plugin) => {
     const name = Array.isArray(plugin) ? plugin[0] : plugin;
-    return name !== 'react-native-maps';
+    return name !== 'react-native-maps' && name !== 'expo-web-browser';
   });
   const mapOptions = {
     ...(iosGoogleMapsApiKey ? { iosGoogleMapsApiKey } : {}),
@@ -21,6 +21,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name: config.name ?? 'Friendminton',
     plugins: [
       ...plugins,
+      'expo-web-browser',
       Object.keys(mapOptions).length > 0
         ? ['react-native-maps', mapOptions]
         : 'react-native-maps',

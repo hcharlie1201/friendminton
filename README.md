@@ -36,9 +36,12 @@ Set `APP_ENV` to `development`, `staging`, or `production`. Non-secret defaults 
 provider choices live in `config/<environment>.toml`; deploy-specific values and secrets stay in
 the matching uncommitted `.env` file. Environment variables take precedence over the profile.
 
-Staging and production fail at startup unless `DATABASE_URL`, an HTTPS `PUBLIC_BASE_URL`, and S3
-object storage are configured. The OpenAPI document uses `PUBLIC_BASE_URL`, so generated clients
-point at the correct environment instead of always advertising localhost.
+Staging and production fail at startup unless `DATABASE_URL`, an HTTPS `PUBLIC_BASE_URL`,
+`BETTER_AUTH_SECRET`, SES sender credentials/configuration, and S3 object storage are configured.
+Google login additionally requires `GOOGLE_OAUTH_CLIENT_ID` and
+`GOOGLE_OAUTH_CLIENT_SECRET`. Local development defaults to `EMAIL_PROVIDER=log`, which prints
+verification and reset messages to the API terminal. The OpenAPI document uses `PUBLIC_BASE_URL`,
+so generated clients point at the correct environment instead of always advertising localhost.
 
 See [docs/deployment.md](docs/deployment.md) for the staging/production model, GitHub Environment
 setup, CI/CD behavior, and the steps to designate the existing Lightsail instance as staging.
@@ -78,8 +81,9 @@ EXPO_PUBLIC_API_BASE_URL=http://localhost:3000
 
 For iOS Simulator, `localhost` can reach your Mac. For a physical phone, use your
 computer's LAN IP or the deployed HTTPS URL instead. The app uses Expo Router
-protected routes: signed-out users see the login screen, and signed-in users are
-stored locally with `expo-secure-store` and routed into the main app.
+protected routes: signed-out users see the login screen, while signed-in users
+store a revocable server session in `expo-secure-store`. The app validates that
+session at startup and sends it as an `Authorization: Bearer` credential.
 
 Photo uploads use the same typed flow in both environments. Local development stores
 files under `uploads/`; production asks the Rust API for a five-minute presigned S3
@@ -99,18 +103,35 @@ functions and types, and the app calls those generated SDK functions directly.
 
 ## MVP API
 
-Create a user:
+Create a user and request email verification:
 
 ```sh
 curl -X POST http://localhost:3000/api/auth/sign-up/email \
   -H 'content-type: application/json' \
-  -d '{"email":"lee@example.com","display_name":"Lee","city":"Oakland","skill_level":"intermediate"}'
+  -d '{
+    "email":"lee@example.com",
+    "password":"replace-with-a-test-password",
+    "display_name":"Lee",
+    "city":"Oakland",
+    "skill_level":"intermediate"
+  }'
 ```
 
-Find players:
+In local development, open the verification URL printed by the API and confirm
+the address. The signup response deliberately contains no session token.
+Verified and returning users sign in with:
 
 ```sh
-curl 'http://localhost:3000/api/users?city=Oakland&skill_level=intermediate'
+curl -X POST http://localhost:3000/api/auth/sign-in/email \
+  -H 'content-type: application/json' \
+  -d '{"email":"lee@example.com","password":"replace-with-a-test-password"}'
+```
+
+Use the `token` returned by sign-in for protected requests:
+
+```sh
+curl http://localhost:3000/api/auth/session \
+  -H 'Authorization: Bearer SESSION_TOKEN'
 ```
 
 Create a workout:
@@ -118,7 +139,7 @@ Create a workout:
 ```sh
 curl -X POST http://localhost:3000/api/workouts \
   -H 'content-type: application/json' \
-  -H 'x-user-id: USER_UUID' \
+  -H 'Authorization: Bearer SESSION_TOKEN' \
   -d '{
     "title":"Doubles ladder night",
     "workout_type":"match",
@@ -133,7 +154,7 @@ Post to the feed:
 ```sh
 curl -X POST http://localhost:3000/api/posts \
   -H 'content-type: application/json' \
-  -H 'x-user-id: USER_UUID' \
+  -H 'Authorization: Bearer SESSION_TOKEN' \
   -d '{"workout_id":"WORKOUT_UUID","body":"Footwork finally clicked tonight."}'
 ```
 
@@ -142,7 +163,7 @@ Create and join a game invite:
 ```sh
 curl -X POST http://localhost:3000/api/game-invites \
   -H 'content-type: application/json' \
-  -H 'x-user-id: USER_UUID' \
+  -H 'Authorization: Bearer SESSION_TOKEN' \
   -d '{
     "title":"Saturday doubles",
     "venue":"Downtown Rec Center",
@@ -153,12 +174,10 @@ curl -X POST http://localhost:3000/api/game-invites \
   }'
 
 curl -X POST http://localhost:3000/api/game-invites/GAME_INVITE_UUID/join \
-  -H 'x-user-id: USER_UUID'
+  -H 'Authorization: Bearer SESSION_TOKEN'
 ```
 
-## Next Engineering Steps
+## MVP Roadmap
 
-1. Replace `x-user-id` with signed session authentication.
-2. Add friendship/follow edges so the feed can move from global to social.
-3. Add tests using SQLx against an ephemeral Postgres database.
-4. Add richer workout stats for rallies, games, win/loss, partners, and opponents.
+The ordered public-MVP plan and current implementation status live in
+[`docs/mvp-roadmap.md`](docs/mvp-roadmap.md).
