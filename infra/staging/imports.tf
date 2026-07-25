@@ -1,6 +1,6 @@
 import {
   to = module.environment.aws_lightsail_instance.this
-  id = "friendminton"
+  id = "friendminton-staging"
 }
 
 import {
@@ -20,5 +20,5 @@ import {
 
 import {
   to = module.environment.aws_lightsail_bucket_resource_access.this
-  id = "friendminton-media-us-west-2,friendminton"
+  id = "friendminton-media-us-west-2,friendminton-staging"
 }
