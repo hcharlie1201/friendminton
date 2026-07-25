@@ -333,7 +333,7 @@ export type ErrorBody = {
     error: string;
 };
 
-export type ErrorCode = 'bad_request' | 'internal_server_error' | 'not_found' | 'service_unavailable' | 'upstream_service_error' | 'unauthorized';
+export type ErrorCode = 'bad_request' | 'conflict' | 'internal_server_error' | 'not_found' | 'service_unavailable' | 'upstream_service_error' | 'unauthorized';
 
 export type Example = {
     /**
@@ -1787,6 +1787,7 @@ export type PostApiAuthSignUpEmailErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1816,6 +1817,7 @@ export type GetApiUsersErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1842,6 +1844,7 @@ export type GetApiUsersByIdErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1866,6 +1869,7 @@ export type PostApiWorkoutsErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1890,6 +1894,7 @@ export type GetApiWorkoutsUsersByUserIdErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1914,6 +1919,7 @@ export type PostApiPostsErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1938,6 +1944,7 @@ export type PutApiPostsErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1965,6 +1972,7 @@ export type GetApiPostsFeedErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1991,6 +1999,7 @@ export type GetApiPostsByPostIdErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2022,6 +2031,7 @@ export type GetApiCourtsErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2046,6 +2056,7 @@ export type PostApiCourtsErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2072,6 +2083,7 @@ export type GetApiCourtsByCourtIdErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2105,6 +2117,7 @@ export type GetApiGatheringsErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2129,6 +2142,7 @@ export type PostApiGatheringsErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2155,6 +2169,7 @@ export type GetApiGatheringsByGatheringIdErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2181,6 +2196,7 @@ export type GetApiGatheringsByGatheringIdMeErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2207,6 +2223,7 @@ export type PostApiGatheringsByGatheringIdJoinErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2233,6 +2250,7 @@ export type PostApiGatheringsByGatheringIdFinishErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2264,6 +2282,7 @@ export type GetApiGroupsErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2288,6 +2307,7 @@ export type PostApiGroupsErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2312,6 +2332,7 @@ export type GetApiGroupsMineErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2338,6 +2359,7 @@ export type GetApiGroupsByGroupIdErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2364,6 +2386,7 @@ export type PostApiGroupsByGroupIdJoinErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2393,6 +2416,7 @@ export type GetApiPlacesAutocompleteErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2421,6 +2445,7 @@ export type GetApiPlacesByPlaceIdErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2449,6 +2474,7 @@ export type GetApiGameInvitesErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2473,6 +2499,7 @@ export type PostApiGameInvitesErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2497,6 +2524,7 @@ export type PostApiGameInvitesByGameInviteIdJoinErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2515,6 +2543,7 @@ export type GetApiEngagementWeeklySnapshotErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2539,6 +2568,7 @@ export type GetApiEngagementNotificationsErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2563,6 +2593,7 @@ export type GetApiEngagementNotificationsUnreadCountErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2587,6 +2618,7 @@ export type PostApiEngagementNotificationsReadErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2605,6 +2637,7 @@ export type PostApiUploadsPresignErrors = {
     400: ErrorBody;
     401: ErrorBody;
     404: ErrorBody;
+    409: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;

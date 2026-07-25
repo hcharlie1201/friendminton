@@ -11,29 +11,25 @@ const MAX_PLAYER_SEARCH_CHARS: usize = 80;
 
 pub async fn create_user(pool: &Pool<Postgres>, payload: CreateUser) -> Result<User, AppError> {
     validate_user(&payload)?;
+    let email = normalize_email(&payload.email);
 
     let user = sqlx::query_as::<_, User>(
         r#"
         INSERT INTO users (email, display_name, city, skill_level, bio)
         VALUES ($1, $2, $3, COALESCE($4, 'beginner'), $5)
-        ON CONFLICT (email) DO UPDATE SET
-            display_name = EXCLUDED.display_name,
-            city = EXCLUDED.city,
-            skill_level = EXCLUDED.skill_level,
-            bio = EXCLUDED.bio,
-            updated_at = now()
+        ON CONFLICT (email) DO NOTHING
         RETURNING id, email, display_name, city, skill_level, bio, created_at, updated_at
         "#,
     )
-    .bind(payload.email.to_ascii_lowercase())
+    .bind(email)
     .bind(payload.display_name)
     .bind(payload.city)
     .bind(payload.skill_level)
     .bind(payload.bio)
-    .fetch_one(pool)
+    .fetch_optional(pool)
     .await?;
 
-    Ok(user)
+    user.ok_or_else(|| AppError::Conflict("email is already registered".to_owned()))
 }
 
 pub async fn get_player(pool: &Pool<Postgres>, id: Uuid) -> Result<Player, AppError> {
@@ -128,7 +124,7 @@ fn player_search_pattern(query: &str) -> String {
 }
 
 fn validate_user(payload: &CreateUser) -> Result<(), AppError> {
-    if !payload.email.contains('@') {
+    if !normalize_email(&payload.email).contains('@') {
         return Err(AppError::BadRequest(
             "email must look like an email address".to_owned(),
         ));
@@ -141,9 +137,23 @@ fn validate_user(payload: &CreateUser) -> Result<(), AppError> {
     Ok(())
 }
 
+fn normalize_email(email: &str) -> String {
+    email.trim().to_ascii_lowercase()
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{MAX_PLAYER_SEARCH_CHARS, player_search_pattern, player_search_term};
+    use super::{
+        MAX_PLAYER_SEARCH_CHARS, normalize_email, player_search_pattern, player_search_term,
+    };
+
+    #[test]
+    fn email_is_trimmed_and_lowercased() {
+        assert_eq!(
+            normalize_email("  Player@Example.COM \n"),
+            "player@example.com"
+        );
+    }
 
     #[test]
     fn player_search_ignores_blank_input() {

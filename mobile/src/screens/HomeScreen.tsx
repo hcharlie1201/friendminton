@@ -263,18 +263,16 @@ export function HomeScreen() {
   const feed = feedQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const notifications = notificationsQuery.data ?? [];
   const unreadNotificationCount = unreadNotificationsQuery.data?.count ?? 0;
-  const isLoading =
+  const isInitialLoading =
     healthQuery.isLoading ||
-    playersQuery.isFetching ||
-    gatheringsQuery.isFetching ||
-    hostedGatheringsQuery.isFetching ||
-    profileQuery.isFetching ||
-    joinedGroupsQuery.isFetching ||
-    groupsQuery.isFetching ||
-    (feedQuery.isFetching && !feedQuery.isFetchingNextPage) ||
-    snapshotQuery.isFetching ||
-    createPostMutation.isPending ||
-    markNotificationsReadMutation.isPending;
+    playersQuery.isLoading ||
+    gatheringsQuery.isLoading ||
+    hostedGatheringsQuery.isLoading ||
+    profileQuery.isLoading ||
+    joinedGroupsQuery.isLoading ||
+    groupsQuery.isLoading ||
+    feedQuery.isLoading ||
+    snapshotQuery.isLoading;
   const actions = useHomeActions({
     createPostMutation,
     openGathering,
@@ -335,7 +333,7 @@ export function HomeScreen() {
         scrollEventThrottle={100}
         showsVerticalScrollIndicator={false}
       >
-        {isLoading && !homeRefresh.isRefreshing && <InlineLoading label="Refreshing court intel..." />}
+        {isInitialLoading && !homeRefresh.isRefreshing && <InlineLoading label="Loading court intel..." />}
         <HomeContent
           actions={actions}
           activeTab={activeTab}

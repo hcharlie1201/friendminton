@@ -110,6 +110,8 @@ function appErrorFromResponse(error: ErrorBody, status?: number) {
   switch (error.code) {
     case 'bad_request':
       return new AppError(AppErrorKind.Validation, message, { status });
+    case 'conflict':
+      return new AppError(AppErrorKind.Conflict, message, { status });
     case 'unauthorized':
       return new AppError(AppErrorKind.Authentication, message, { status });
     case 'not_found':

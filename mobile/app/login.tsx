@@ -10,9 +10,9 @@ import { Button, PageHeader, Screen, TextField } from '../src/components/ui';
 
 export default function LoginScreen() {
   const { signIn } = useSession();
-  const [email, setEmail] = useState('player@friendminton.local');
-  const [displayName, setDisplayName] = useState('Oakland Rally Partner');
-  const [city, setCity] = useState('Oakland');
+  const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [city, setCity] = useState('');
 
   const signUpMutation = useMutation({
     mutationFn: () =>
@@ -29,12 +29,12 @@ export default function LoginScreen() {
       await signIn(user);
     },
   });
-  const submit = useSubmitLogin(signUpMutation.mutate);
+  const submit = useSubmitSignUp(signUpMutation.mutate, email, displayName);
 
   return (
     <Screen centered>
       <View style={styles.header}>
-        <PageHeader eyebrow="Friendminton" title="Sign in to find your next rally." />
+        <PageHeader eyebrow="Friendminton" title="Create your account to find your next rally." />
       </View>
 
       <View style={styles.form}>
@@ -53,7 +53,7 @@ export default function LoginScreen() {
         />
         <TextField autoCapitalize="words" onChangeText={setCity} placeholder="City" value={city} />
         <Button loading={signUpMutation.isPending} onPress={submit}>
-          Continue
+          Sign up
         </Button>
       </View>
     </Screen>
@@ -61,13 +61,26 @@ export default function LoginScreen() {
 }
 
 function showError(error: unknown) {
-  Alert.alert('Friendminton', errorMessage(error));
+  Alert.alert('Unable to sign up', errorMessage(error));
 }
 
-function useSubmitLogin(submit: () => void) {
+function useSubmitSignUp(submit: () => void, email: string, displayName: string) {
   return useCallback(() => {
+    const validationError = signUpValidationError(email, displayName);
+    if (validationError) {
+      Alert.alert('Unable to sign up', validationError);
+      return;
+    }
     submit();
-  }, [submit]);
+  }, [displayName, email, submit]);
+}
+
+function signUpValidationError(email: string, displayName: string) {
+  const normalizedEmail = email.trim();
+  if (!normalizedEmail) return 'Enter your email address.';
+  if (!normalizedEmail.includes('@')) return 'Enter a valid email address.';
+  if (!displayName.trim()) return 'Enter your display name.';
+  return null;
 }
 
 const styles = StyleSheet.create({

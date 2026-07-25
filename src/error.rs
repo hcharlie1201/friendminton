@@ -17,6 +17,8 @@ pub enum AppError {
     Config(#[from] crate::config::ConfigError),
     #[error("bad request: {0}")]
     BadRequest(String),
+    #[error("conflict: {0}")]
+    Conflict(String),
     #[error("unauthorized")]
     Unauthorized,
     #[error(transparent)]
@@ -39,6 +41,7 @@ pub enum AppError {
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
     BadRequest,
+    Conflict,
     InternalServerError,
     NotFound,
     ServiceUnavailable,
@@ -69,6 +72,7 @@ impl OperationOutput for AppError {
                     (Some(400), response.clone()),
                     (Some(401), response.clone()),
                     (Some(404), response.clone()),
+                    (Some(409), response.clone()),
                     (Some(500), response.clone()),
                     (Some(502), response.clone()),
                     (Some(503), response),
@@ -85,6 +89,11 @@ impl IntoResponse for AppError {
                 StatusCode::BAD_REQUEST,
                 ErrorCode::BadRequest,
                 format!("bad request: {message}"),
+            ),
+            AppError::Conflict(message) => (
+                StatusCode::CONFLICT,
+                ErrorCode::Conflict,
+                message.to_owned(),
             ),
             AppError::Unauthorized => (
                 StatusCode::UNAUTHORIZED,
