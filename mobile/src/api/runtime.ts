@@ -14,9 +14,48 @@ export type ApiResult<T> = {
   response?: Response;
 };
 
+const API_REQUEST_TIMEOUT_MS = 15_000;
 let sessionToken: string | null = null;
 
-generatedClient.setConfig({ baseUrl: apiBaseUrl });
+const fetchWithTimeout: typeof fetch = async (input, init) => {
+  const controller = new AbortController();
+  const sourceSignal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
+  let didTimeout = false;
+  const abortFromSource = () => controller.abort();
+  if (sourceSignal?.aborted) {
+    abortFromSource();
+  } else {
+    sourceSignal?.addEventListener('abort', abortFromSource, { once: true });
+  }
+  const timeout = setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, API_REQUEST_TIMEOUT_MS);
+
+  try {
+    return await globalThis.fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (didTimeout) {
+      throw new AppError(
+        AppErrorKind.Network,
+        'Friendminton took too long to respond. Please try again.',
+        { cause: error },
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    sourceSignal?.removeEventListener('abort', abortFromSource);
+  }
+};
+
+generatedClient.setConfig({
+  baseUrl: apiBaseUrl,
+  fetch: fetchWithTimeout,
+});
 configureSessionAuthentication();
 configureDevelopmentLogging();
 

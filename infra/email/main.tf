@@ -42,6 +42,20 @@ locals {
     "Email Delivery Delayed",
   ]
 
+  # SNS topic resource policies reject the service wildcard even though
+  # identity-based IAM policies accept it. Keep this list to the explicit
+  # topic-scoped actions supported by SNS.
+  sns_topic_policy_actions = [
+    "sns:AddPermission",
+    "sns:DeleteTopic",
+    "sns:GetTopicAttributes",
+    "sns:ListSubscriptionsByTopic",
+    "sns:Publish",
+    "sns:RemovePermission",
+    "sns:SetTopicAttributes",
+    "sns:Subscribe",
+  ]
+
   default_event_bus_arn = "arn:aws:events:${var.aws_region}:${var.aws_account_id}:event-bus/default"
 }
 
@@ -299,16 +313,7 @@ resource "aws_sns_topic_policy" "ses_alerts" {
         Principal = {
           AWS = "arn:aws:iam::${var.aws_account_id}:root"
         }
-        Action = [
-          "sns:AddPermission",
-          "sns:DeleteTopic",
-          "sns:GetTopicAttributes",
-          "sns:ListSubscriptionsByTopic",
-          "sns:Publish",
-          "sns:RemovePermission",
-          "sns:SetTopicAttributes",
-          "sns:Subscribe",
-        ]
+        Action   = local.sns_topic_policy_actions
         Resource = aws_sns_topic.ses_alerts.arn
       },
       {
@@ -332,7 +337,7 @@ resource "aws_sns_topic_policy" "ses_alerts" {
         Sid       = "DenyInsecureTransport"
         Effect    = "Deny"
         Principal = "*"
-        Action    = "sns:*"
+        Action    = local.sns_topic_policy_actions
         Resource  = aws_sns_topic.ses_alerts.arn
         Condition = {
           Bool = {
