@@ -35,7 +35,6 @@ import {
   type User,
   type WeeklySnapshot,
 } from '../api/generated';
-import { apiBaseUrl } from '../config';
 import { apiData, apiSuccess, authHeaders } from '../api/runtime';
 import { useSession, type SessionLocation } from '../auth/session';
 import { errorMessage } from '../common/errors';
@@ -70,6 +69,7 @@ type WriteMutation = {
 
 const feedPageSize = 20;
 const feedLoadAheadDistance = 320;
+const HOME_REFRESH_DEADLINE_MS = 12_000;
 
 function useDiscoveryPreferences(initialLocation: DiscoveryLocation) {
   const [location, setLocation] = useState<DiscoveryLocation>(initialLocation);
@@ -86,18 +86,22 @@ function useDiscoveryPreferences(initialLocation: DiscoveryLocation) {
   return { apply, ...location, setLocation, skillLevel };
 }
 
-function useHomeRefresh(queryClient: ReturnType<typeof useQueryClient>, userId: string) {
+function useHomeRefresh(
+  queryClient: ReturnType<typeof useQueryClient>,
+  userId: string,
+  activeTab: Tab,
+) {
   const [imageRefreshToken, setImageRefreshToken] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await refreshHomeData(queryClient, userId);
+      await withRefreshDeadline(refreshHomeData(queryClient, userId, activeTab));
       setImageRefreshToken((token) => token + 1);
     } finally {
       setIsRefreshing(false);
     }
-  }, [queryClient, userId]);
+  }, [activeTab, queryClient, userId]);
 
   return { imageRefreshToken, isRefreshing, refresh };
 }
@@ -148,7 +152,7 @@ export function HomeScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [postDraft, setPostDraft] = useState<PostDraft>(emptyPostDraft);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
-  const homeRefresh = useHomeRefresh(queryClient, currentUser.id);
+  const homeRefresh = useHomeRefresh(queryClient, currentUser.id, activeTab);
   const openPost = usePostNavigation();
   const openGathering = useGatheringDetailNavigation();
   const openGroup = useGroupDetailNavigation();
@@ -156,11 +160,6 @@ export function HomeScreen() {
   const openGatheringCreator = useGatheringCreatorNavigation(city);
   const openGroupCreator = useGroupCreatorNavigation(city);
 
-  const healthQuery = useQuery({
-    queryKey: ['health'],
-    queryFn: () => fetch(`${apiBaseUrl}/healthz`).then((response) => response.ok),
-    retry: false,
-  });
   const playersQuery = usePlayerSearch({
     city,
     enabled: activeTab === 'discover',
@@ -262,7 +261,6 @@ export function HomeScreen() {
   const notifications = notificationsQuery.data ?? [];
   const unreadNotificationCount = unreadNotificationsQuery.data?.count ?? 0;
   const isInitialLoading =
-    healthQuery.isLoading ||
     playersQuery.isLoading ||
     gatheringsQuery.isLoading ||
     hostedGatheringsQuery.isLoading ||
@@ -630,19 +628,38 @@ function openNotifications({
 
 async function invalidateHomeData(queryClient: ReturnType<typeof useQueryClient>, userId: string) {
   await Promise.all([
-    queryClient.resetQueries({ exact: true, queryKey: feedQueryKey }),
+    queryClient.invalidateQueries({ exact: true, queryKey: feedQueryKey }),
     queryClient.invalidateQueries({ queryKey: ['weeklySnapshot', userId] }),
   ]);
 }
 
-async function refreshHomeData(queryClient: ReturnType<typeof useQueryClient>, userId: string) {
-  await Promise.all([
-    invalidateHomeData(queryClient, userId),
-    queryClient.invalidateQueries({ queryKey: ['players'] }),
-    queryClient.invalidateQueries({ queryKey: ['gatherings'] }),
-    queryClient.invalidateQueries({ queryKey: ['groups', 'mine', userId] }),
-    queryClient.invalidateQueries({ queryKey: ['players', 'profile', userId] }),
-    queryClient.invalidateQueries({ queryKey: ['gameInvites'] }),
+async function refreshHomeData(
+  queryClient: ReturnType<typeof useQueryClient>,
+  userId: string,
+  activeTab: Tab,
+) {
+  const tasks: Array<Promise<unknown>> = [];
+  if (activeTab === 'home') {
+    tasks.push(queryClient.invalidateQueries({ exact: true, queryKey: feedQueryKey }));
+    tasks.push(queryClient.invalidateQueries({ queryKey: ['weeklySnapshot', userId] }));
+  } else if (activeTab === 'discover') {
+    tasks.push(queryClient.invalidateQueries({ queryKey: ['players'] }));
+    tasks.push(queryClient.invalidateQueries({ queryKey: ['gatherings'] }));
+  } else if (activeTab === 'you') {
+    tasks.push(queryClient.invalidateQueries({ queryKey: ['players', 'profile', userId] }));
+    tasks.push(queryClient.invalidateQueries({ queryKey: ['groups', 'mine', userId] }));
+    tasks.push(queryClient.invalidateQueries({ queryKey: ['gatherings', 'hosted', userId] }));
+    tasks.push(queryClient.invalidateQueries({ queryKey: ['notifications', userId] }));
+  }
+  await Promise.all(tasks);
+}
+
+async function withRefreshDeadline(work: Promise<unknown>) {
+  await Promise.race([
+    work,
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, HOME_REFRESH_DEADLINE_MS);
+    }),
   ]);
 }
 

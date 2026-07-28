@@ -8,8 +8,8 @@ use aide::{
 };
 use axum::{Extension, Json, Router};
 use sqlx::{Pool, Postgres};
-use std::path::PathBuf;
-use tower_http::{services::ServeDir, trace::TraceLayer};
+use std::{path::PathBuf, time::Duration};
+use tower_http::{services::ServeDir, timeout::TimeoutLayer, trace::TraceLayer};
 
 use crate::{
     apple_auth::AppleAuthClient, auth_service::AuthService, config::AppConfig, controller,
@@ -41,6 +41,10 @@ pub fn router(state: AppState, config: &AppConfig) -> Router {
         .nest("/api", api_routes())
         .nest_service("/uploads", ServeDir::new(upload_dir))
         .finish_api(&mut api)
+        .layer(TimeoutLayer::with_status_code(
+            axum::http::StatusCode::REQUEST_TIMEOUT,
+            Duration::from_secs(20),
+        ))
         // Email verification and reset links carry one-use credentials in the
         // query string. Record only the path so access logs can never retain
         // those tokens.

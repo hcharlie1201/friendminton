@@ -14,10 +14,10 @@ export type ApiResult<T> = {
   response?: Response;
 };
 
-const API_REQUEST_TIMEOUT_MS = 15_000;
+export const API_REQUEST_TIMEOUT_MS = 15_000;
 let sessionToken: string | null = null;
 
-const fetchWithTimeout: typeof fetch = async (input, init) => {
+export const fetchWithTimeout: typeof fetch = async (input, init) => {
   const controller = new AbortController();
   const sourceSignal = init?.signal ?? (input instanceof Request ? input.signal : undefined);
   let didTimeout = false;
