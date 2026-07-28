@@ -17,6 +17,7 @@ better-auth-core = { version = "=0.10.0", features = ["derive", "sqlx-postgres"]
 chrono = { version = "0.4", features = ["serde"] }
 config = { version = "0.15", default-features = false, features = ["toml"] }
 dotenvy = "0.15"
+jsonwebtoken = "9.3.1"
 rand = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 schemars = { version = "0.9.0", features = ["uuid1"] }

@@ -35,6 +35,8 @@ pub enum AppError {
     Media(String),
     #[error("service unavailable: {0}")]
     ServiceUnavailable(&'static str),
+    #[error("too many requests")]
+    TooManyRequests,
     #[error("external service error: {0}")]
     ExternalService(String),
     #[error("authentication service error: {0}")]
@@ -50,6 +52,7 @@ pub enum ErrorCode {
     InternalServerError,
     NotFound,
     ServiceUnavailable,
+    TooManyRequests,
     UpstreamServiceError,
     Unauthorized,
 }
@@ -79,6 +82,7 @@ impl OperationOutput for AppError {
                     (Some(403), response.clone()),
                     (Some(404), response.clone()),
                     (Some(409), response.clone()),
+                    (Some(429), response.clone()),
                     (Some(500), response.clone()),
                     (Some(502), response.clone()),
                     (Some(503), response),
@@ -115,6 +119,11 @@ impl IntoResponse for AppError {
                 StatusCode::SERVICE_UNAVAILABLE,
                 ErrorCode::ServiceUnavailable,
                 (*message).to_owned(),
+            ),
+            AppError::TooManyRequests => (
+                StatusCode::TOO_MANY_REQUESTS,
+                ErrorCode::TooManyRequests,
+                "please wait before trying again".to_owned(),
             ),
             AppError::ExternalService(message) => {
                 tracing::error!(error = %message, "external service request failed");

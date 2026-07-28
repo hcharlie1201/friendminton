@@ -6,6 +6,27 @@ export type ClientOptions = {
 
 export type ApiKeyLocation = 'query' | 'header' | 'cookie';
 
+export type AppleSignIn = {
+    authorization_code: string;
+    display_name?: string | null;
+    identity_token: string;
+    nonce: string;
+};
+
+export type AppleSignInChallenge = {
+    nonce: string;
+};
+
+export type AppleSignInOutcome = {
+    session: AuthenticatedSession;
+    status: 'authenticated';
+} | {
+    apple_email: string;
+    pending_token: string;
+    status: 'registration_required';
+    suggested_display_name?: string | null;
+};
+
 export type AuthenticatedSession = {
     token: string;
     user: User;
@@ -341,7 +362,7 @@ export type ErrorBody = {
     error: string;
 };
 
-export type ErrorCode = 'bad_request' | 'conflict' | 'email_not_verified' | 'internal_server_error' | 'not_found' | 'service_unavailable' | 'upstream_service_error' | 'unauthorized';
+export type ErrorCode = 'bad_request' | 'conflict' | 'email_not_verified' | 'internal_server_error' | 'not_found' | 'service_unavailable' | 'too_many_requests' | 'upstream_service_error' | 'unauthorized';
 
 export type Example = {
     /**
@@ -1280,6 +1301,10 @@ export type Paths = {
     [key: string]: ReferenceOrForPathItem;
 };
 
+export type PendingAppleSignInRequest = {
+    pending_token: string;
+};
+
 export type PlaceAutocompleteQuery = {
     input: string;
     latitude?: number | null;
@@ -1834,6 +1859,7 @@ export type PostApiAuthSignUpEmailErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1860,6 +1886,7 @@ export type PostApiAuthSignInEmailErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1886,6 +1913,7 @@ export type PostApiAuthVerificationResendErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1912,6 +1940,7 @@ export type PostApiAuthForgotPasswordErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1938,6 +1967,7 @@ export type PostApiAuthResetPasswordErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1964,6 +1994,7 @@ export type GetApiAuthSessionErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -1990,6 +2021,7 @@ export type PostApiAuthSignOutErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2016,6 +2048,7 @@ export type PostApiAuthOauthGoogleStartErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2028,6 +2061,114 @@ export type PostApiAuthOauthGoogleStartResponses = {
 };
 
 export type PostApiAuthOauthGoogleStartResponse = PostApiAuthOauthGoogleStartResponses[keyof PostApiAuthOauthGoogleStartResponses];
+
+export type PostApiAuthOauthAppleChallengeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/auth/oauth/apple/challenge';
+};
+
+export type PostApiAuthOauthAppleChallengeErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiAuthOauthAppleChallengeError = PostApiAuthOauthAppleChallengeErrors[keyof PostApiAuthOauthAppleChallengeErrors];
+
+export type PostApiAuthOauthAppleChallengeResponses = {
+    200: AppleSignInChallenge;
+};
+
+export type PostApiAuthOauthAppleChallengeResponse = PostApiAuthOauthAppleChallengeResponses[keyof PostApiAuthOauthAppleChallengeResponses];
+
+export type PostApiAuthOauthAppleData = {
+    body: AppleSignIn;
+    path?: never;
+    query?: never;
+    url: '/api/auth/oauth/apple';
+};
+
+export type PostApiAuthOauthAppleErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiAuthOauthAppleError = PostApiAuthOauthAppleErrors[keyof PostApiAuthOauthAppleErrors];
+
+export type PostApiAuthOauthAppleResponses = {
+    200: AppleSignInOutcome;
+};
+
+export type PostApiAuthOauthAppleResponse = PostApiAuthOauthAppleResponses[keyof PostApiAuthOauthAppleResponses];
+
+export type PostApiAuthOauthAppleCreateData = {
+    body: PendingAppleSignInRequest;
+    path?: never;
+    query?: never;
+    url: '/api/auth/oauth/apple/create';
+};
+
+export type PostApiAuthOauthAppleCreateErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiAuthOauthAppleCreateError = PostApiAuthOauthAppleCreateErrors[keyof PostApiAuthOauthAppleCreateErrors];
+
+export type PostApiAuthOauthAppleCreateResponses = {
+    200: AuthenticatedSession;
+};
+
+export type PostApiAuthOauthAppleCreateResponse = PostApiAuthOauthAppleCreateResponses[keyof PostApiAuthOauthAppleCreateResponses];
+
+export type PostApiAuthOauthAppleLinkData = {
+    body: PendingAppleSignInRequest;
+    path?: never;
+    query?: never;
+    url: '/api/auth/oauth/apple/link';
+};
+
+export type PostApiAuthOauthAppleLinkErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiAuthOauthAppleLinkError = PostApiAuthOauthAppleLinkErrors[keyof PostApiAuthOauthAppleLinkErrors];
+
+export type PostApiAuthOauthAppleLinkResponses = {
+    200: StatusResponse;
+};
+
+export type PostApiAuthOauthAppleLinkResponse = PostApiAuthOauthAppleLinkResponses[keyof PostApiAuthOauthAppleLinkResponses];
 
 export type PostApiAuthOauthExchangeData = {
     body: MobileOAuthExchange;
@@ -2042,6 +2183,7 @@ export type PostApiAuthOauthExchangeErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2073,6 +2215,7 @@ export type GetApiUsersErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2101,6 +2244,7 @@ export type GetApiUsersByIdErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2127,6 +2271,7 @@ export type PostApiWorkoutsErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2153,6 +2298,7 @@ export type GetApiWorkoutsUsersByUserIdErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2179,6 +2325,7 @@ export type PostApiPostsErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2205,6 +2352,7 @@ export type PutApiPostsErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2234,6 +2382,7 @@ export type GetApiPostsFeedErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2262,6 +2411,7 @@ export type GetApiPostsByPostIdErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2295,6 +2445,7 @@ export type GetApiCourtsErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2321,6 +2472,7 @@ export type PostApiCourtsErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2349,6 +2501,7 @@ export type GetApiCourtsByCourtIdErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2384,6 +2537,7 @@ export type GetApiGatheringsErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2410,6 +2564,7 @@ export type PostApiGatheringsErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2438,6 +2593,7 @@ export type GetApiGatheringsByGatheringIdErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2466,6 +2622,7 @@ export type GetApiGatheringsByGatheringIdMeErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2494,6 +2651,7 @@ export type PostApiGatheringsByGatheringIdJoinErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2522,6 +2680,7 @@ export type PostApiGatheringsByGatheringIdFinishErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2555,6 +2714,7 @@ export type GetApiGroupsErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2581,6 +2741,7 @@ export type PostApiGroupsErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2607,6 +2768,7 @@ export type GetApiGroupsMineErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2635,6 +2797,7 @@ export type GetApiGroupsByGroupIdErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2663,6 +2826,7 @@ export type PostApiGroupsByGroupIdJoinErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2694,6 +2858,7 @@ export type GetApiPlacesAutocompleteErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2724,6 +2889,7 @@ export type GetApiPlacesByPlaceIdErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2754,6 +2920,7 @@ export type GetApiGameInvitesErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2780,6 +2947,7 @@ export type PostApiGameInvitesErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2806,6 +2974,7 @@ export type PostApiGameInvitesByGameInviteIdJoinErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2826,6 +2995,7 @@ export type GetApiEngagementWeeklySnapshotErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2852,6 +3022,7 @@ export type GetApiEngagementNotificationsErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2878,6 +3049,7 @@ export type GetApiEngagementNotificationsUnreadCountErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2904,6 +3076,7 @@ export type PostApiEngagementNotificationsReadErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;
@@ -2924,6 +3097,7 @@ export type PostApiUploadsPresignErrors = {
     403: ErrorBody;
     404: ErrorBody;
     409: ErrorBody;
+    429: ErrorBody;
     500: ErrorBody;
     502: ErrorBody;
     503: ErrorBody;

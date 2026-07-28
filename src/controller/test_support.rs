@@ -12,7 +12,8 @@ use uuid::Uuid;
 
 use crate::{
     app::{self, AppState},
-    auth_service::AuthService,
+    apple_auth::{AppleTokenSet, VerifiedAppleIdentity},
+    auth_service::{AppleSignInDecision, AppleSignInResult, AuthService},
     config::{
         AppConfig, AuthenticationConfig, Environment, ObjectStorageConfig, ObjectStorageProvider,
         ThirdPartyConfig, TransactionalEmailConfig,
@@ -58,6 +59,7 @@ impl TestApi {
                 },
                 places: GooglePlaces::new(None),
                 auth: auth.clone(),
+                apple_auth: None,
                 email: crate::email::TransactionalEmail::Log,
             },
             &config,
@@ -178,6 +180,12 @@ impl TestApi {
 
     pub(crate) async fn insert_user(&self, label: &str) -> Uuid {
         let id = Uuid::new_v4();
+        self.insert_user_with_email(label, &format!("{label}-{id}@example.test"))
+            .await
+    }
+
+    pub(crate) async fn insert_user_with_email(&self, label: &str, email: &str) -> Uuid {
+        let id = Uuid::new_v4();
         sqlx::query(
             r#"
             INSERT INTO users (
@@ -187,7 +195,7 @@ impl TestApi {
             "#,
         )
         .bind(id)
-        .bind(format!("{label}-{id}@example.test"))
+        .bind(email)
         .bind(format!("Test {label}"))
         .execute(&self.pool)
         .await
@@ -200,6 +208,44 @@ impl TestApi {
             .issue_test_session(auth_user_id)
             .await
             .expect("issue test session")
+    }
+
+    pub(crate) async fn sign_in_with_apple(
+        &self,
+        identity: VerifiedAppleIdentity,
+        tokens: AppleTokenSet,
+        display_name: Option<&str>,
+    ) -> AppleSignInResult {
+        match self
+            .begin_apple_sign_in(identity, tokens, display_name)
+            .await
+        {
+            AppleSignInDecision::Authenticated(result) => result,
+            AppleSignInDecision::RegistrationRequired(pending) => self
+                .auth
+                .complete_apple_registration(pending, Some("203.0.113.7"))
+                .await
+                .expect("complete test Apple registration"),
+        }
+    }
+
+    pub(crate) async fn begin_apple_sign_in(
+        &self,
+        identity: VerifiedAppleIdentity,
+        tokens: AppleTokenSet,
+        display_name: Option<&str>,
+    ) -> AppleSignInDecision {
+        self.auth
+            .begin_apple_sign_in(identity, tokens, display_name, Some("203.0.113.7"))
+            .await
+            .expect("begin test Apple sign in")
+    }
+
+    pub(crate) async fn domain_user_id_for_token(&self, token: &str) -> Uuid {
+        self.auth
+            .domain_user_id_for_token(token)
+            .await
+            .expect("resolve test session token")
     }
 
     pub(crate) async fn cleanup_users(&self, user_ids: &[Uuid]) {
@@ -254,6 +300,7 @@ fn test_config(upload_dir: &std::path::Path) -> AppConfig {
             secret: "friendminton-test-auth-secret-for-route-tests".to_owned(),
             google_oauth_client_id: None,
             google_oauth_client_secret: None,
+            apple: None,
             mobile_callback_url: "friendminton://auth/callback".to_owned(),
             email: TransactionalEmailConfig::Log,
         },

@@ -1,19 +1,26 @@
 import { useMutation } from '@tanstack/react-query';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import { type Href, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
 import {
+  postApiAuthOauthApple,
+  postApiAuthOauthAppleChallenge,
+  postApiAuthOauthAppleCreate,
+  postApiAuthOauthAppleLink,
   postApiAuthOauthExchange,
   postApiAuthOauthGoogleStart,
   postApiAuthSignInEmail,
+  postApiAuthSignOut,
   postApiAuthSignUpEmail,
+  type AppleSignInOutcome,
   type AuthenticatedSession,
   type EmailSignUpPending,
 } from '../src/api/generated';
-import { apiData } from '../src/api/runtime';
+import { apiData, apiSuccess } from '../src/api/runtime';
 import { useSession } from '../src/auth/session';
 import {
   AppError,
@@ -31,6 +38,10 @@ type VerificationRouteDetails = {
 type EmailAuthenticationResult =
   | { mode: 'signIn'; session: AuthenticatedSession }
   | { mode: 'signUp'; pending: EmailSignUpPending };
+type PendingAppleRegistration = Extract<
+  AppleSignInOutcome,
+  { status: 'registration_required' }
+>;
 
 const mobileAuthRedirectUrl = 'friendminton://auth/callback';
 
@@ -39,21 +50,65 @@ WebBrowser.maybeCompleteAuthSession();
 export default function LoginScreen() {
   const { signIn } = useSession();
   const { verified } = useLocalSearchParams<{ verified?: string | string[] }>();
-  const { mode, toggleMode } = useAuthenticationMode();
+  const { mode, selectMode, toggleMode } = useAuthenticationMode();
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
+  const [pendingAppleRegistration, setPendingAppleRegistration] =
+    useState<PendingAppleRegistration | null>(null);
+  const [pendingAppleLinkToken, setPendingAppleLinkToken] = useState<string | null>(null);
   const emailAuthentication = useEmailAuthentication(
     mode,
     email,
     password,
     displayName,
+    pendingAppleLinkToken,
     signIn,
   );
-  const googleAuthentication = useGoogleAuthentication(signIn);
+  const appleAuthentication = useAppleAuthentication(signIn, setPendingAppleRegistration);
+  const appleRegistration = useCompleteAppleRegistration(signIn);
+  const googleAuthentication = useGoogleAuthentication(signIn, pendingAppleLinkToken);
   const openForgotPassword = useForgotPasswordNavigation(email);
   const isSignUp = mode === 'signUp';
   const wasJustVerified = firstParameter(verified) === 'true';
+  const chooseExistingAccount = useCallback(() => {
+    if (!pendingAppleRegistration) return;
+    setPendingAppleLinkToken(pendingAppleRegistration.pending_token);
+    setPendingAppleRegistration(null);
+    selectMode('signIn');
+  }, [pendingAppleRegistration, selectMode]);
+
+  if (pendingAppleRegistration) {
+    return (
+      <Screen centered>
+        <View style={styles.header}>
+          <PageHeader eyebrow="Sign in with Apple" title="Is this a new Friendminton account?" />
+        </View>
+        <View style={styles.form}>
+          <View style={styles.appleChoiceNotice}>
+            <Text style={styles.appleChoiceTitle}>Apple shared this email</Text>
+            <Text style={styles.appleChoiceEmail}>{pendingAppleRegistration.apple_email}</Text>
+            <Text style={styles.appleChoiceBody}>
+              Apple’s email may be different from the one you already use for Friendminton.
+              Choose carefully so your games and groups stay in one account.
+            </Text>
+          </View>
+          <Button
+            loading={appleRegistration.isPending}
+            onPress={() => appleRegistration.submit(pendingAppleRegistration.pending_token)}
+          >
+            Create a new account
+          </Button>
+          <Button onPress={chooseExistingAccount} variant="secondary">
+            I already have an account
+          </Button>
+          <Button onPress={() => setPendingAppleRegistration(null)} variant="quiet">
+            Cancel
+          </Button>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen centered>
@@ -65,11 +120,32 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.form}>
+        {pendingAppleLinkToken && (
+          <View style={styles.appleLinkNotice}>
+            <Text style={styles.appleLinkNoticeTitle}>Link Apple to your existing account</Text>
+            <Text style={styles.appleLinkNoticeBody}>
+              Sign in with email or Google. We’ll attach Apple only after your existing account is
+              authenticated.
+            </Text>
+            <Button onPress={() => setPendingAppleLinkToken(null)} variant="quiet">
+              Cancel linking
+            </Button>
+          </View>
+        )}
         {wasJustVerified && (
           <View style={styles.successNotice}>
             <Text style={styles.successNoticeTitle}>Email verified</Text>
             <Text style={styles.successNoticeBody}>You can sign in to your account now.</Text>
           </View>
+        )}
+        {appleAuthentication.isAvailable && !pendingAppleLinkToken && (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+            cornerRadius={12}
+            onPress={appleAuthentication.submit}
+            style={styles.appleButton}
+          />
         )}
         <Button
           icon="logo-google"
@@ -119,9 +195,11 @@ export default function LoginScreen() {
             Forgot password?
           </Button>
         )}
-        <Button onPress={toggleMode} variant="quiet">
-          {isSignUp ? 'Already have an account? Sign in' : 'New here? Create an account'}
-        </Button>
+        {!pendingAppleLinkToken && (
+          <Button onPress={toggleMode} variant="quiet">
+            {isSignUp ? 'Already have an account? Sign in' : 'New here? Create an account'}
+          </Button>
+        )}
         <Text style={styles.nextStep}>
           {isSignUp
             ? 'We’ll email you a link to verify your account before you sign in.'
@@ -137,7 +215,8 @@ function useAuthenticationMode() {
   const toggleMode = useCallback(() => {
     setMode((currentMode) => currentMode === 'signIn' ? 'signUp' : 'signIn');
   }, []);
-  return { mode, toggleMode };
+  const selectMode = useCallback((nextMode: AuthenticationMode) => setMode(nextMode), []);
+  return { mode, selectMode, toggleMode };
 }
 
 function useEmailAuthentication(
@@ -145,12 +224,20 @@ function useEmailAuthentication(
   email: string,
   password: string,
   displayName: string,
+  pendingAppleLinkToken: string | null,
   signIn: ReturnType<typeof useSession>['signIn'],
 ) {
   const router = useRouter();
   const mutationFn = useCallback(
-    () => authenticateWithEmail(mode, email, password, displayName),
-    [displayName, email, mode, password],
+    async () => {
+      const result = await authenticateWithEmail(mode, email, password, displayName);
+      if (result.mode === 'signIn' && pendingAppleLinkToken) {
+        const session = await linkAppleAfterSignIn(result.session, pendingAppleLinkToken);
+        return { mode: 'signIn' as const, session };
+      }
+      return result;
+    },
+    [displayName, email, mode, password, pendingAppleLinkToken],
   );
   const handleSuccess = useCallback(async (result: EmailAuthenticationResult) => {
     if (result.mode === 'signIn') {
@@ -211,9 +298,72 @@ function useSubmitEmailAuthentication(
   }, [displayName, email, mode, password, submit]);
 }
 
-function useGoogleAuthentication(signIn: ReturnType<typeof useSession>['signIn']) {
+function useGoogleAuthentication(
+  signIn: ReturnType<typeof useSession>['signIn'],
+  pendingAppleLinkToken: string | null,
+) {
   const mutation = useMutation({
-    mutationFn: authenticateWithGoogle,
+    mutationFn: async () => {
+      const session = await authenticateWithGoogle();
+      if (pendingAppleLinkToken) {
+        return linkAppleAfterSignIn(session, pendingAppleLinkToken);
+      }
+      return session;
+    },
+    onError: showAuthenticationError,
+    onSuccess: signIn,
+  });
+  return {
+    isPending: mutation.isPending,
+    submit: mutation.mutate,
+  };
+}
+
+function useAppleAuthentication(
+  signIn: ReturnType<typeof useSession>['signIn'],
+  requireRegistration: (pending: PendingAppleRegistration) => void,
+) {
+  const [isAvailable, setIsAvailable] = useState(false);
+  useEffect(() => {
+    let active = true;
+    AppleAuthentication.isAvailableAsync()
+      .then((available) => {
+        if (active) setIsAvailable(available);
+      })
+      .catch(() => {
+        if (active) setIsAvailable(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const mutation = useMutation({
+    mutationFn: authenticateWithApple,
+    onError: showAuthenticationError,
+    onSuccess: async (outcome) => {
+      if (outcome.status === 'authenticated') {
+        await signIn(outcome.session);
+        return;
+      }
+      requireRegistration(outcome);
+    },
+  });
+  const { isPending, mutate } = mutation;
+  const submit = useCallback(() => {
+    if (!isPending) mutate();
+  }, [isPending, mutate]);
+  return {
+    isAvailable,
+    isPending,
+    submit,
+  };
+}
+
+function useCompleteAppleRegistration(signIn: ReturnType<typeof useSession>['signIn']) {
+  const mutation = useMutation({
+    mutationFn: (pendingToken: string) => apiData(postApiAuthOauthAppleCreate({
+      body: { pending_token: pendingToken },
+    })),
     onError: showAuthenticationError,
     onSuccess: signIn,
   });
@@ -292,6 +442,72 @@ async function authenticateWithGoogle(): Promise<AuthenticatedSession> {
   }));
 }
 
+async function authenticateWithApple(): Promise<AppleSignInOutcome> {
+  const challenge = await apiData(postApiAuthOauthAppleChallenge());
+  let credential: AppleAuthentication.AppleAuthenticationCredential;
+  try {
+    credential = await AppleAuthentication.signInAsync({
+      nonce: challenge.nonce,
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+  } catch (error) {
+    if (isAppleCancellation(error)) throw new AuthenticationCancelledError();
+    throw error;
+  }
+  if (!credential.identityToken || !credential.authorizationCode) {
+    throw new AppError(
+      AppErrorKind.Authentication,
+      'Apple sign-in did not return the credentials required to continue.',
+    );
+  }
+
+  return apiData(postApiAuthOauthApple({
+    body: {
+      authorization_code: credential.authorizationCode,
+      display_name: appleDisplayName(credential.fullName),
+      identity_token: credential.identityToken,
+      nonce: challenge.nonce,
+    },
+  }));
+}
+
+async function linkAppleToSession(session: AuthenticatedSession, pendingToken: string) {
+  await apiData(postApiAuthOauthAppleLink({
+    body: { pending_token: pendingToken },
+    headers: {
+      Authorization: `Bearer ${session.token}`,
+    },
+  }));
+}
+
+async function linkAppleAfterSignIn(
+  session: AuthenticatedSession,
+  pendingToken: string,
+): Promise<AuthenticatedSession> {
+  try {
+    await linkAppleToSession(session, pendingToken);
+    return session;
+  } catch (error) {
+    await revokeSessionToken(session.token);
+    throw error;
+  }
+}
+
+async function revokeSessionToken(token: string) {
+  try {
+    await apiSuccess(postApiAuthSignOut({
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }));
+  } catch {
+    // Best effort: the client must not keep a session when Apple linking fails.
+  }
+}
+
 async function createMobilePkce() {
   const bytes = await Crypto.getRandomBytesAsync(32);
   const verifier = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
@@ -313,6 +529,24 @@ function base64Url(value: string) {
 function showAuthenticationError(error: unknown) {
   if (error instanceof AuthenticationCancelledError) return;
   Alert.alert('Unable to sign in', errorMessage(error));
+}
+
+function isAppleCancellation(error: unknown) {
+  return (
+    typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && error.code === 'ERR_REQUEST_CANCELED'
+  );
+}
+
+function appleDisplayName(fullName: AppleAuthentication.AppleAuthenticationFullName | null) {
+  if (!fullName) return null;
+  const name = [fullName.givenName, fullName.middleName, fullName.familyName]
+    .filter((part): part is string => Boolean(part?.trim()))
+    .join(' ')
+    .trim();
+  return name || null;
 }
 
 function showEmailAuthenticationError(error: unknown, mode: AuthenticationMode) {
@@ -361,6 +595,53 @@ function firstParameter(value: string | string[] | undefined) {
 class AuthenticationCancelledError extends Error {}
 
 const styles = StyleSheet.create({
+  appleButton: {
+    height: 50,
+    width: '100%',
+  },
+  appleChoiceNotice: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 6,
+    padding: 16,
+  },
+  appleChoiceTitle: {
+    color: colors.text,
+    fontFamily: fonts.black,
+    fontSize: 16,
+  },
+  appleChoiceEmail: {
+    color: colors.primary,
+    fontFamily: fonts.bold,
+    fontSize: 14,
+  },
+  appleChoiceBody: {
+    color: colors.textMuted,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  appleLinkNotice: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.primary,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 6,
+    padding: 12,
+  },
+  appleLinkNoticeTitle: {
+    color: colors.text,
+    fontFamily: fonts.black,
+    fontSize: 14,
+  },
+  appleLinkNoticeBody: {
+    color: colors.textMuted,
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   header: {
     marginBottom: 28,
   },

@@ -56,6 +56,10 @@ S3_BUCKET=friendminton-media-us-west-2
 BETTER_AUTH_SECRET=replace-with-at-least-32-random-characters
 GOOGLE_OAUTH_CLIENT_ID=replace-with-the-google-web-client-id
 GOOGLE_OAUTH_CLIENT_SECRET=replace-with-the-google-web-client-secret
+APPLE_CLIENT_ID=com.hcharlie1201.friendminton
+APPLE_TEAM_ID=replace-with-the-apple-team-id
+APPLE_KEY_ID=replace-with-the-sign-in-with-apple-key-id
+APPLE_PRIVATE_KEY_BASE64=replace-with-base64-encoded-p8-key
 MOBILE_AUTH_CALLBACK_URL=friendminton://auth/callback
 EMAIL_PROVIDER=ses
 SES_REGION=us-west-2
@@ -104,6 +108,44 @@ The client ID and client secret go only in the server's `.env.staging`. They mus
 `EXPO_PUBLIC_*` variable or be committed to the mobile bundle. The API completes Google's HTTPS
 callback and redirects the phone to `friendminton://auth/callback` with a short-lived, single-use
 code instead of a session token.
+
+### Configure Sign in with Apple
+
+In Apple Developer **Certificates, Identifiers & Profiles**:
+
+1. Open the App ID for `com.hcharlie1201.friendminton` and enable **Sign in with Apple**.
+2. Create a Sign in with Apple key associated with that primary App ID. Record the Team ID and
+   Key ID and download the `.p8` key; Apple permits downloading it only once.
+3. Encode the key without line breaks:
+
+   ```sh
+   base64 < AuthKey_KEY_ID.p8 | tr -d '\n'
+   ```
+
+4. Put the resulting value in the server-only `APPLE_PRIVATE_KEY_BASE64`. Set
+   `APPLE_CLIENT_ID=com.hcharlie1201.friendminton`, plus the Team ID and Key ID. Never put the
+   `.p8` key or its encoded value in an `EXPO_PUBLIC_*` variable, EAS app config, Git, or the
+   mobile bundle.
+5. Keep `ios.usesAppleSignIn` and the `expo-apple-authentication` config plugin enabled in
+   `mobile/app.json`, then build a new development client or TestFlight binary. This entitlement
+   cannot be delivered as a JavaScript-only update.
+
+The native app gets a server nonce, asks iOS for an Apple credential, and sends the identity token
+and one-use authorization code directly to the API. The API validates Apple JWKS claims, exchanges
+the code, and stores provider tokens encrypted. A known Apple subject or exact verified-email match
+returns the same revocable Friendminton session used by email and Google login. An unknown Apple
+identity remains pending for ten minutes and does not create a user until the person explicitly
+chooses **Create a new account** or authenticates an existing email/Google account to link Apple.
+Apple may return the user's name and email only on the first authorization, so test first login
+after revoking Friendminton under Apple ID sign-in settings.
+
+Official references:
+
+- [Expo SDK 57 AppleAuthentication](https://docs.expo.dev/versions/v57.0.0/sdk/apple-authentication/)
+- [Authenticating users with Sign in with Apple](https://developer.apple.com/documentation/sign_in_with_apple/authenticating-users-with-sign-in-with-apple)
+- [Sign in with Apple REST API](https://developer.apple.com/documentation/signinwithapplerestapi)
+- [Generate and validate tokens](https://developer.apple.com/documentation/signinwithapplerestapi/generate-and-validate-tokens)
+- [Account deletion and Apple token revocation](https://developer.apple.com/support/offering-account-deletion-in-your-app)
 
 Authentication is a coordinated compatibility cutover. The legacy TestFlight client sends
 `x-user-id`, while the new API accepts only bearer sessions. Deploy the new API, build a new mobile

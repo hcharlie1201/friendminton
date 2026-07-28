@@ -14,6 +14,7 @@ use axum::{
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use better_auth::{AuthResponse, HttpMethod};
 use better_auth_core::{PASSWORD_HASH_KEY, hash_password};
+use chrono::{DateTime, Utc};
 use rand::{RngCore, rngs::OsRng};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -24,8 +25,9 @@ use url::Url;
 use crate::{
     accounts::{self, User},
     app::AppState,
+    apple_auth::{AppleAuthError, VerifiedAppleIdentity},
     auth::CurrentUser,
-    auth_service::AuthService,
+    auth_service::{AppleSignInDecision, AuthService, PendingAppleSignIn, StoredAppleTokens},
     email::EmailKind,
     error::AppError,
 };
@@ -37,6 +39,12 @@ const EMAIL_VERIFICATION_TTL_MINUTES: i32 = 24 * 60;
 const PASSWORD_RESET_TTL_MINUTES: i32 = 60;
 const EMAIL_REQUEST_COOLDOWN_MINUTES: i32 = 2;
 const EMAIL_TOKEN_BYTES: usize = 32;
+const APPLE_CHALLENGE_TTL_MINUTES: i32 = 5;
+const APPLE_PENDING_TTL_MINUTES: i32 = 10;
+const APPLE_CHALLENGE_BYTES: usize = 32;
+const APPLE_PENDING_TOKEN_BYTES: usize = 32;
+const APPLE_CHALLENGE_PATH: &str = "/api/auth/oauth/apple/challenge";
+const APPLE_SIGN_IN_PATH: &str = "/api/auth/oauth/apple";
 
 pub fn routes() -> ApiRouter<AppState> {
     ApiRouter::new()
@@ -54,6 +62,10 @@ pub fn routes() -> ApiRouter<AppState> {
         .api_route("/session", get(get_session))
         .api_route("/sign-out", post(sign_out))
         .api_route("/oauth/google/start", post(start_google_oauth))
+        .api_route("/oauth/apple/challenge", post(start_apple_sign_in))
+        .api_route("/oauth/apple", post(sign_in_with_apple))
+        .api_route("/oauth/apple/create", post(create_apple_account))
+        .api_route("/oauth/apple/link", post(link_apple_account))
         .route("/callback/google", axum_get(google_oauth_callback))
         .api_route("/oauth/exchange", post(exchange_mobile_oauth_code))
 }
@@ -136,8 +148,51 @@ pub(crate) struct MobileOAuthExchange {
     code_verifier: String,
 }
 
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct AppleSignInChallenge {
+    nonce: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub(crate) struct AppleSignIn {
+    identity_token: String,
+    authorization_code: String,
+    nonce: String,
+    display_name: Option<String>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub(crate) enum AppleSignInOutcome {
+    Authenticated {
+        session: AuthenticatedSession,
+    },
+    RegistrationRequired {
+        pending_token: String,
+        apple_email: String,
+        suggested_display_name: Option<String>,
+    },
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub(crate) struct PendingAppleSignInRequest {
+    pending_token: String,
+}
+
+#[derive(sqlx::FromRow)]
+struct PendingAppleSignInRow {
+    apple_subject: String,
+    email: String,
+    display_name: Option<String>,
+    access_token: String,
+    refresh_token: Option<String>,
+    id_token: String,
+    access_token_expires_at: Option<DateTime<Utc>>,
+}
+
 pub(crate) async fn sign_up_email(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<SignUpEmail>,
 ) -> Result<Json<EmailSignUpPending>, AppError> {
     let email = accounts::normalize_email(&payload.email);
@@ -155,6 +210,7 @@ pub(crate) async fn sign_up_email(
             "name": display_name,
         }),
         None,
+        forwarded_client_ip(&headers).as_deref(),
     )
     .await?;
     let auth_user_id = response_user_id(&response)?;
@@ -183,6 +239,7 @@ pub(crate) async fn sign_up_email(
 
 pub(crate) async fn sign_in_email(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<SignInEmail>,
 ) -> Result<Json<AuthenticatedSession>, AppError> {
     let response = auth_json(
@@ -194,6 +251,7 @@ pub(crate) async fn sign_in_email(
             "password": payload.password,
         }),
         None,
+        forwarded_client_ip(&headers).as_deref(),
     )
     .await?;
     let token = response_string(&response, "token")?;
@@ -749,8 +807,168 @@ pub(crate) async fn sign_out(
     Ok(Json(StatusResponse { success: true }))
 }
 
+pub(crate) async fn start_apple_sign_in(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<AppleSignInChallenge>, AppError> {
+    if state.apple_auth.is_none() {
+        return Err(AppError::ServiceUnavailable(
+            "Apple sign-in is not configured",
+        ));
+    }
+    let client_ip = forwarded_client_ip(&headers);
+    enforce_apple_rate_limit(&state.auth, APPLE_CHALLENGE_PATH, client_ip.as_deref()).await?;
+    cleanup_expired_apple_challenges(&state.pool).await?;
+
+    let mut nonce_bytes = [0_u8; APPLE_CHALLENGE_BYTES];
+    OsRng.fill_bytes(&mut nonce_bytes);
+    let nonce = URL_SAFE_NO_PAD.encode(nonce_bytes);
+    sqlx::query(
+        r#"
+        INSERT INTO auth_apple_challenges (nonce_hash, expires_at)
+        VALUES ($1, now() + make_interval(mins => $2))
+        "#,
+    )
+    .bind(sha256_bytes(&nonce))
+    .bind(APPLE_CHALLENGE_TTL_MINUTES)
+    .execute(&state.pool)
+    .await?;
+
+    Ok(Json(AppleSignInChallenge { nonce }))
+}
+
+pub(crate) async fn sign_in_with_apple(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<AppleSignIn>,
+) -> Result<Json<AppleSignInOutcome>, AppError> {
+    let apple = state
+        .apple_auth
+        .as_ref()
+        .ok_or(AppError::ServiceUnavailable(
+            "Apple sign-in is not configured",
+        ))?;
+    validate_apple_sign_in(&payload)?;
+    let client_ip = forwarded_client_ip(&headers);
+    enforce_apple_rate_limit(&state.auth, APPLE_SIGN_IN_PATH, client_ip.as_deref()).await?;
+    let nonce_hash = sha256_bytes(&payload.nonce);
+    let challenge_is_active = sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM auth_apple_challenges
+            WHERE nonce_hash = $1 AND expires_at > now()
+        )
+        "#,
+    )
+    .bind(&nonce_hash)
+    .fetch_one(&state.pool)
+    .await?;
+    if !challenge_is_active {
+        return Err(AppError::Unauthorized);
+    }
+
+    let presented_identity = apple
+        .verify_identity_token(&payload.identity_token, Some(&payload.nonce))
+        .await
+        .map_err(map_apple_auth_error)?;
+    let tokens = apple
+        .exchange_authorization_code(&payload.authorization_code)
+        .await
+        .map_err(map_apple_auth_error)?;
+    let exchanged_identity = apple
+        .verify_identity_token(&tokens.id_token, None)
+        .await
+        .map_err(map_apple_auth_error)?;
+    let identity = reconcile_apple_identities(presented_identity, exchanged_identity)?;
+
+    if !consume_apple_challenge(&state.pool, &nonce_hash).await? {
+        return Err(AppError::Unauthorized);
+    }
+
+    let decision = state
+        .auth
+        .begin_apple_sign_in(
+            identity,
+            tokens,
+            payload.display_name.as_deref(),
+            client_ip.as_deref(),
+        )
+        .await
+        .map_err(map_auth_service_error)?;
+    match decision {
+        AppleSignInDecision::Authenticated(result) => {
+            let user = accounts::get_user_by_auth_id(&state.pool, &result.auth_user_id).await?;
+            Ok(Json(AppleSignInOutcome::Authenticated {
+                session: AuthenticatedSession {
+                    token: result.token,
+                    user,
+                },
+            }))
+        }
+        AppleSignInDecision::RegistrationRequired(pending) => {
+            let apple_email = pending
+                .identity
+                .email
+                .clone()
+                .ok_or_else(|| AppError::Authentication("Apple email is missing".to_owned()))?;
+            let suggested_display_name = pending.display_name.clone();
+            let pending_token = store_pending_apple_sign_in(&state.pool, pending).await?;
+            Ok(Json(AppleSignInOutcome::RegistrationRequired {
+                pending_token,
+                apple_email,
+                suggested_display_name,
+            }))
+        }
+    }
+}
+
+pub(crate) async fn create_apple_account(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<PendingAppleSignInRequest>,
+) -> Result<Json<AuthenticatedSession>, AppError> {
+    let client_ip = forwarded_client_ip(&headers);
+    enforce_apple_rate_limit(&state.auth, APPLE_SIGN_IN_PATH, client_ip.as_deref()).await?;
+    let pending = load_pending_apple_sign_in(&state.pool, &payload.pending_token).await?;
+    let result = state
+        .auth
+        .complete_apple_registration(pending, client_ip.as_deref())
+        .await
+        .map_err(map_auth_service_error)?;
+    consume_pending_apple_sign_in(&state.pool, &payload.pending_token).await?;
+    let user = accounts::get_user_by_auth_id(&state.pool, &result.auth_user_id).await?;
+    Ok(Json(AuthenticatedSession {
+        token: result.token,
+        user,
+    }))
+}
+
+pub(crate) async fn link_apple_account(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<PendingAppleSignInRequest>,
+) -> Result<Json<StatusResponse>, AppError> {
+    let client_ip = forwarded_client_ip(&headers);
+    enforce_apple_rate_limit(&state.auth, APPLE_SIGN_IN_PATH, client_ip.as_deref()).await?;
+    state
+        .auth
+        .domain_user_id_for_bearer(authorization_header(&headers))
+        .await
+        .map_err(map_auth_service_error)?;
+    let pending = load_pending_apple_sign_in(&state.pool, &payload.pending_token).await?;
+    state
+        .auth
+        .link_apple_account(authorization_header(&headers), pending)
+        .await
+        .map_err(map_auth_service_error)?;
+    consume_pending_apple_sign_in(&state.pool, &payload.pending_token).await?;
+    Ok(Json(StatusResponse { success: true }))
+}
+
 pub(crate) async fn start_google_oauth(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<GoogleOAuthStart>,
 ) -> Result<Json<GoogleOAuthStartResponse>, AppError> {
     if !state.auth.google_enabled() {
@@ -766,6 +984,7 @@ pub(crate) async fn start_google_oauth(
         format!("{AUTH_PATH}/sign-in/social"),
         json!({ "provider": "google" }),
         None,
+        forwarded_client_ip(&headers).as_deref(),
     )
     .await?;
     let authorization_url = response_string(&response, "url")?;
@@ -795,9 +1014,10 @@ pub(crate) async fn start_google_oauth(
 
 async fn google_oauth_callback(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(query): Query<GoogleOAuthCallback>,
 ) -> Response {
-    match complete_google_oauth_callback(&state, query).await {
+    match complete_google_oauth_callback(&state, query, forwarded_client_ip(&headers)).await {
         Ok(code) => mobile_redirect(&state.auth, "code", &code),
         Err(error) => {
             tracing::warn!(error = %error, "Google OAuth callback failed");
@@ -809,6 +1029,7 @@ async fn google_oauth_callback(
 async fn complete_google_oauth_callback(
     state: &AppState,
     query: GoogleOAuthCallback,
+    client_ip: Option<String>,
 ) -> Result<String, AppError> {
     if let Some(provider_error) = query.error {
         if let Some(state_value) = query.state {
@@ -848,6 +1069,7 @@ async fn complete_google_oauth_callback(
         format!("{AUTH_PATH}/callback/google"),
         None,
         None,
+        client_ip.as_deref(),
     );
     auth_request.query =
         HashMap::from([("code".to_owned(), code), ("state".to_owned(), state_value)]);
@@ -1004,6 +1226,7 @@ async fn auth_json(
     path: String,
     body: Value,
     authorization: Option<&str>,
+    client_ip: Option<&str>,
 ) -> Result<Value, AppError> {
     let request = AuthService::request(
         method,
@@ -1013,6 +1236,7 @@ async fn auth_json(
                 .map_err(|error| AppError::Authentication(error.to_string()))?,
         ),
         authorization,
+        client_ip,
     );
     let response = auth
         .handle_request(request)
@@ -1092,6 +1316,59 @@ fn validate_signup(
     Ok(())
 }
 
+fn validate_apple_sign_in(payload: &AppleSignIn) -> Result<(), AppError> {
+    if payload.identity_token.is_empty() || payload.identity_token.len() > 16_384 {
+        return Err(AppError::BadRequest(
+            "Apple identity token is invalid".to_owned(),
+        ));
+    }
+    if payload.authorization_code.is_empty() || payload.authorization_code.len() > 4096 {
+        return Err(AppError::BadRequest(
+            "Apple authorization code is invalid".to_owned(),
+        ));
+    }
+    if payload.nonce.len() != 43
+        || !payload
+            .nonce
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return Err(AppError::BadRequest(
+            "Apple sign-in nonce is invalid".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn reconcile_apple_identities(
+    presented: VerifiedAppleIdentity,
+    exchanged: VerifiedAppleIdentity,
+) -> Result<VerifiedAppleIdentity, AppError> {
+    if presented.subject != exchanged.subject {
+        return Err(AppError::Unauthorized);
+    }
+    let (email, email_verified) = match (presented.email, exchanged.email) {
+        (Some(presented_email), Some(exchanged_email)) => {
+            if presented_email != exchanged_email {
+                return Err(AppError::Unauthorized);
+            }
+            (
+                Some(presented_email),
+                presented.email_verified && exchanged.email_verified,
+            )
+        }
+        (Some(email), None) => (Some(email), presented.email_verified),
+        (None, Some(email)) => (Some(email), exchanged.email_verified),
+        (None, None) => (None, false),
+    };
+
+    Ok(VerifiedAppleIdentity {
+        subject: presented.subject,
+        email,
+        email_verified,
+    })
+}
+
 fn validate_pkce_challenge(challenge: &str) -> Result<(), AppError> {
     if !(43..=128).contains(&challenge.len())
         || !challenge
@@ -1128,6 +1405,15 @@ fn authorization_header(headers: &HeaderMap) -> Option<&str> {
         .and_then(|value| value.to_str().ok())
 }
 
+/// The Caddy-appended client address, used to key Better Auth rate limiting.
+fn forwarded_client_ip(headers: &HeaderMap) -> Option<String> {
+    AuthService::trusted_client_ip(
+        headers
+            .get("x-forwarded-for")
+            .and_then(|value| value.to_str().ok()),
+    )
+}
+
 fn sha256_bytes(value: &str) -> Vec<u8> {
     Sha256::digest(value.as_bytes()).to_vec()
 }
@@ -1148,6 +1434,39 @@ fn auth_internal_error(error: better_auth::AuthError) -> AppError {
     AppError::Authentication(error.to_string())
 }
 
+fn map_auth_service_error(error: better_auth::AuthError) -> AppError {
+    match error.status_code() {
+        400 => AppError::BadRequest(error.to_string()),
+        401 | 403 | 404 => AppError::Unauthorized,
+        409 => AppError::Conflict("Apple account is already linked".to_owned()),
+        429 => AppError::TooManyRequests,
+        _ => AppError::Authentication(error.to_string()),
+    }
+}
+
+fn map_apple_auth_error(error: AppleAuthError) -> AppError {
+    match error {
+        AppleAuthError::InvalidCredential(_) => AppError::Unauthorized,
+        AppleAuthError::Configuration(message) => AppError::Authentication(message),
+        AppleAuthError::Upstream(message) => AppError::ExternalService(message),
+    }
+}
+
+async fn enforce_apple_rate_limit(
+    auth: &AuthService,
+    path: &str,
+    client_ip: Option<&str>,
+) -> Result<(), AppError> {
+    if auth
+        .apple_rate_limited(path, client_ip)
+        .await
+        .map_err(auth_internal_error)?
+    {
+        return Err(AppError::TooManyRequests);
+    }
+    Ok(())
+}
+
 async fn cleanup_expired_mobile_auth(state: &AppState) -> Result<(), AppError> {
     sqlx::query("DELETE FROM auth_mobile_oauth_attempts WHERE expires_at <= now()")
         .execute(&state.pool)
@@ -1158,6 +1477,152 @@ async fn cleanup_expired_mobile_auth(state: &AppState) -> Result<(), AppError> {
     Ok(())
 }
 
+async fn cleanup_expired_apple_challenges(pool: &sqlx::PgPool) -> Result<(), AppError> {
+    sqlx::query("DELETE FROM auth_apple_challenges WHERE expires_at <= now()")
+        .execute(pool)
+        .await?;
+    sqlx::query("DELETE FROM auth_apple_pending_sign_ins WHERE expires_at <= now()")
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+async fn store_pending_apple_sign_in(
+    pool: &sqlx::PgPool,
+    pending: PendingAppleSignIn,
+) -> Result<String, AppError> {
+    let email = pending
+        .identity
+        .email
+        .ok_or_else(|| AppError::Authentication("Apple email is missing".to_owned()))?;
+    let access_token = pending.tokens.access_token.ok_or_else(|| {
+        AppError::Authentication("Encrypted Apple access token is missing".to_owned())
+    })?;
+    let id_token = pending.tokens.id_token.ok_or_else(|| {
+        AppError::Authentication("Encrypted Apple identity token is missing".to_owned())
+    })?;
+    let mut token_bytes = [0_u8; APPLE_PENDING_TOKEN_BYTES];
+    OsRng.fill_bytes(&mut token_bytes);
+    let token = URL_SAFE_NO_PAD.encode(token_bytes);
+    sqlx::query(
+        r#"
+        INSERT INTO auth_apple_pending_sign_ins (
+            token_hash,
+            apple_subject,
+            email,
+            display_name,
+            access_token,
+            refresh_token,
+            id_token,
+            access_token_expires_at,
+            expires_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now() + make_interval(mins => $9))
+        ON CONFLICT (apple_subject) DO UPDATE SET
+            token_hash = EXCLUDED.token_hash,
+            email = EXCLUDED.email,
+            display_name = EXCLUDED.display_name,
+            access_token = EXCLUDED.access_token,
+            refresh_token = EXCLUDED.refresh_token,
+            id_token = EXCLUDED.id_token,
+            access_token_expires_at = EXCLUDED.access_token_expires_at,
+            expires_at = EXCLUDED.expires_at,
+            created_at = now()
+        "#,
+    )
+    .bind(sha256_bytes(&token))
+    .bind(pending.identity.subject)
+    .bind(email)
+    .bind(pending.display_name)
+    .bind(access_token)
+    .bind(pending.tokens.refresh_token)
+    .bind(id_token)
+    .bind(pending.tokens.access_token_expires_at)
+    .bind(APPLE_PENDING_TTL_MINUTES)
+    .execute(pool)
+    .await?;
+    Ok(token)
+}
+
+async fn load_pending_apple_sign_in(
+    pool: &sqlx::PgPool,
+    token: &str,
+) -> Result<PendingAppleSignIn, AppError> {
+    if token.is_empty() || token.len() > 512 {
+        return Err(AppError::Unauthorized);
+    }
+    let row = sqlx::query_as::<_, PendingAppleSignInRow>(
+        r#"
+        SELECT
+            apple_subject,
+            email,
+            display_name,
+            access_token,
+            refresh_token,
+            id_token,
+            access_token_expires_at
+        FROM auth_apple_pending_sign_ins
+        WHERE token_hash = $1 AND expires_at > now()
+        "#,
+    )
+    .bind(sha256_bytes(token))
+    .fetch_optional(pool)
+    .await?
+    .ok_or(AppError::Unauthorized)?;
+    Ok(pending_apple_sign_in_from_row(row))
+}
+
+async fn consume_pending_apple_sign_in(pool: &sqlx::PgPool, token: &str) -> Result<(), AppError> {
+    if token.is_empty() || token.len() > 512 {
+        return Err(AppError::Unauthorized);
+    }
+    let consumed = sqlx::query_scalar::<_, Vec<u8>>(
+        r#"
+        DELETE FROM auth_apple_pending_sign_ins
+        WHERE token_hash = $1 AND expires_at > now()
+        RETURNING token_hash
+        "#,
+    )
+    .bind(sha256_bytes(token))
+    .fetch_optional(pool)
+    .await?;
+    if consumed.is_none() {
+        return Err(AppError::Unauthorized);
+    }
+    Ok(())
+}
+
+fn pending_apple_sign_in_from_row(row: PendingAppleSignInRow) -> PendingAppleSignIn {
+    PendingAppleSignIn {
+        identity: VerifiedAppleIdentity {
+            subject: row.apple_subject,
+            email: Some(row.email),
+            email_verified: true,
+        },
+        display_name: row.display_name,
+        tokens: StoredAppleTokens {
+            access_token: Some(row.access_token),
+            refresh_token: row.refresh_token,
+            id_token: Some(row.id_token),
+            access_token_expires_at: row.access_token_expires_at,
+        },
+    }
+}
+
+async fn consume_apple_challenge(pool: &sqlx::PgPool, nonce_hash: &[u8]) -> Result<bool, AppError> {
+    Ok(sqlx::query_scalar::<_, Vec<u8>>(
+        r#"
+        DELETE FROM auth_apple_challenges
+        WHERE nonce_hash = $1 AND expires_at > now()
+        RETURNING nonce_hash
+        "#,
+    )
+    .bind(nonce_hash)
+    .fetch_optional(pool)
+    .await?
+    .is_some())
+}
+
 #[cfg(test)]
 mod tests {
     use axum::http::{Method, StatusCode};
@@ -1166,11 +1631,16 @@ mod tests {
     use sha2::{Digest, Sha256};
     use uuid::Uuid;
 
-    use crate::controller::test_support::{TestApi, response_uuid};
+    use crate::{
+        apple_auth::{AppleTokenSet, VerifiedAppleIdentity},
+        auth_service::AppleSignInDecision,
+        controller::test_support::{TestApi, response_uuid},
+    };
 
     use super::{
-        EMAIL_VERIFICATION_TTL_MINUTES, EmailTokenPurpose, issue_email_token,
-        secure_verified_google_identity, sha256_bytes, verify_email_token,
+        EMAIL_VERIFICATION_TTL_MINUTES, EmailTokenPurpose, consume_apple_challenge,
+        issue_email_token, secure_verified_google_identity, sha256_bytes,
+        store_pending_apple_sign_in, verify_email_token,
     };
 
     async fn user_ids_for_email(api: &TestApi, email: &str) -> (Uuid, String) {
@@ -1197,6 +1667,505 @@ mod tests {
                 .await
                 .expect("verify email token")
         );
+    }
+
+    #[tokio::test]
+    async fn apple_sign_in_creates_and_restores_a_revocable_session() {
+        let api = TestApi::new().await;
+        let subject = format!("apple-{}", Uuid::new_v4());
+        let email = format!("relay-{}@privaterelay.appleid.com", Uuid::new_v4());
+        let first = api
+            .sign_in_with_apple(
+                apple_identity(&subject, Some(&email)),
+                apple_tokens(Some("apple-refresh-token")),
+                Some("Apple Player"),
+            )
+            .await;
+        let user_id = api.domain_user_id_for_token(&first.token).await;
+        let stored_refresh = sqlx::query_scalar::<_, String>(
+            "SELECT refresh_token FROM accounts WHERE provider_id = 'apple' AND account_id = $1",
+        )
+        .bind(&subject)
+        .fetch_one(&api.pool)
+        .await
+        .expect("load encrypted Apple refresh token");
+        assert_ne!(stored_refresh, "apple-refresh-token");
+
+        let returning = api
+            .sign_in_with_apple(apple_identity(&subject, None), apple_tokens(None), None)
+            .await;
+        assert_eq!(
+            api.domain_user_id_for_token(&returning.token).await,
+            user_id
+        );
+        let retained_refresh = sqlx::query_scalar::<_, String>(
+            "SELECT refresh_token FROM accounts WHERE provider_id = 'apple' AND account_id = $1",
+        )
+        .bind(&subject)
+        .fetch_one(&api.pool)
+        .await
+        .expect("reload encrypted Apple refresh token");
+        assert_eq!(retained_refresh, stored_refresh);
+
+        api.cleanup_users(&[user_id]).await;
+    }
+
+    #[tokio::test]
+    async fn unknown_apple_identity_requires_explicit_account_creation() {
+        let api = TestApi::new().await;
+        let subject = format!("apple-pending-{}", Uuid::new_v4());
+        let email = format!("apple-pending-{}@example.test", Uuid::new_v4());
+        let pending = match api
+            .begin_apple_sign_in(
+                apple_identity(&subject, Some(&email)),
+                apple_tokens(Some("pending-refresh-token")),
+                Some("Pending Player"),
+            )
+            .await
+        {
+            AppleSignInDecision::RegistrationRequired(pending) => pending,
+            AppleSignInDecision::Authenticated(_) => {
+                panic!("unknown Apple identity must not create an account")
+            }
+        };
+        let user_count =
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users WHERE email = $1")
+                .bind(&email)
+                .fetch_one(&api.pool)
+                .await
+                .expect("count users before explicit Apple registration");
+        assert_eq!(user_count, 0);
+        let pending_token = store_pending_apple_sign_in(&api.pool, pending)
+            .await
+            .expect("store pending Apple registration");
+
+        let created = api
+            .json(
+                Method::POST,
+                "/api/auth/oauth/apple/create",
+                None,
+                Some(json!({ "pending_token": pending_token })),
+            )
+            .await;
+        assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+        let user_id = response_uuid(&created.body["user"], "id");
+
+        api.cleanup_users(&[user_id]).await;
+    }
+
+    #[tokio::test]
+    async fn authenticated_user_can_link_pending_apple_identity_once() {
+        let api = TestApi::new().await;
+        let user_id = api.insert_user("apple-link-existing").await;
+        let (auth_user_id, email) = sqlx::query_as::<_, (String, String)>(
+            "SELECT auth_user_id, email FROM users WHERE id = $1",
+        )
+        .bind(user_id)
+        .fetch_one(&api.pool)
+        .await
+        .expect("load existing user");
+        let subject = format!("apple-explicit-link-{}", Uuid::new_v4());
+        let pending = match api
+            .begin_apple_sign_in(
+                apple_identity(&subject, Some(&format!("different-{email}"))),
+                apple_tokens(Some("explicit-link-refresh")),
+                Some("Different Apple Email"),
+            )
+            .await
+        {
+            AppleSignInDecision::RegistrationRequired(pending) => pending,
+            AppleSignInDecision::Authenticated(_) => {
+                panic!("different email must require a choice")
+            }
+        };
+        let pending_token = store_pending_apple_sign_in(&api.pool, pending)
+            .await
+            .expect("store pending Apple link");
+
+        let unauthenticated = api
+            .json(
+                Method::POST,
+                "/api/auth/oauth/apple/link",
+                None,
+                Some(json!({ "pending_token": pending_token })),
+            )
+            .await;
+        assert_eq!(
+            unauthenticated.status,
+            StatusCode::UNAUTHORIZED,
+            "{}",
+            unauthenticated.body
+        );
+
+        let linked = api
+            .json(
+                Method::POST,
+                "/api/auth/oauth/apple/link",
+                Some(user_id),
+                Some(json!({ "pending_token": pending_token })),
+            )
+            .await;
+        assert_eq!(linked.status, StatusCode::OK, "{}", linked.body);
+        let linked_user = sqlx::query_scalar::<_, String>(
+            "SELECT user_id FROM accounts WHERE provider_id = 'apple' AND account_id = $1",
+        )
+        .bind(&subject)
+        .fetch_one(&api.pool)
+        .await
+        .expect("load explicitly linked Apple account");
+        assert_eq!(linked_user, auth_user_id);
+
+        let replay = api
+            .json(
+                Method::POST,
+                "/api/auth/oauth/apple/link",
+                Some(user_id),
+                Some(json!({ "pending_token": pending_token })),
+            )
+            .await;
+        assert_eq!(replay.status, StatusCode::UNAUTHORIZED, "{}", replay.body);
+
+        api.cleanup_users(&[user_id]).await;
+    }
+
+    #[tokio::test]
+    async fn failed_apple_create_preserves_pending_token_for_retry() {
+        let api = TestApi::new().await;
+        let subject = format!("apple-retry-create-{}", Uuid::new_v4());
+        let email = format!("apple-retry-create-{}@example.test", Uuid::new_v4());
+        let pending = match api
+            .begin_apple_sign_in(
+                apple_identity(&subject, Some(&email)),
+                apple_tokens(Some("retry-create-refresh")),
+                Some("Retry Create Player"),
+            )
+            .await
+        {
+            AppleSignInDecision::RegistrationRequired(pending) => pending,
+            AppleSignInDecision::Authenticated(_) => panic!("expected pending registration"),
+        };
+        let pending_token = store_pending_apple_sign_in(&api.pool, pending)
+            .await
+            .expect("store pending Apple registration");
+        api.insert_user_with_email("conflict", &email).await;
+
+        let failed = api
+            .json(
+                Method::POST,
+                "/api/auth/oauth/apple/create",
+                None,
+                Some(json!({ "pending_token": pending_token })),
+            )
+            .await;
+        assert_eq!(failed.status, StatusCode::BAD_REQUEST, "{}", failed.body);
+        let pending_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM auth_apple_pending_sign_ins WHERE apple_subject = $1",
+        )
+        .bind(&subject)
+        .fetch_one(&api.pool)
+        .await
+        .expect("count pending Apple registration");
+        assert_eq!(pending_count, 1);
+
+        sqlx::query("DELETE FROM users WHERE email = $1")
+            .bind(&email)
+            .execute(&api.pool)
+            .await
+            .expect("remove conflicting user");
+
+        let created = api
+            .json(
+                Method::POST,
+                "/api/auth/oauth/apple/create",
+                None,
+                Some(json!({ "pending_token": pending_token })),
+            )
+            .await;
+        assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+        let user_id = response_uuid(&created.body["user"], "id");
+        let pending_after_success = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM auth_apple_pending_sign_ins WHERE apple_subject = $1",
+        )
+        .bind(&subject)
+        .fetch_one(&api.pool)
+        .await
+        .expect("count pending after successful create");
+        assert_eq!(pending_after_success, 0);
+
+        api.cleanup_users(&[user_id]).await;
+    }
+
+    #[tokio::test]
+    async fn failed_apple_link_without_auth_preserves_pending_token() {
+        let api = TestApi::new().await;
+        let subject = format!("apple-retry-link-{}", Uuid::new_v4());
+        let email = format!("apple-retry-link-{}@example.test", Uuid::new_v4());
+        let pending = match api
+            .begin_apple_sign_in(
+                apple_identity(&subject, Some(&email)),
+                apple_tokens(Some("retry-link-refresh")),
+                Some("Retry Link Player"),
+            )
+            .await
+        {
+            AppleSignInDecision::RegistrationRequired(pending) => pending,
+            AppleSignInDecision::Authenticated(_) => panic!("expected pending registration"),
+        };
+        let pending_token = store_pending_apple_sign_in(&api.pool, pending)
+            .await
+            .expect("store pending Apple link");
+
+        let failed = api
+            .json(
+                Method::POST,
+                "/api/auth/oauth/apple/link",
+                None,
+                Some(json!({ "pending_token": pending_token })),
+            )
+            .await;
+        assert_eq!(failed.status, StatusCode::UNAUTHORIZED, "{}", failed.body);
+        let pending_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM auth_apple_pending_sign_ins WHERE apple_subject = $1",
+        )
+        .bind(&subject)
+        .fetch_one(&api.pool)
+        .await
+        .expect("count pending Apple link after failed auth");
+        assert_eq!(pending_count, 1);
+
+        sqlx::query("DELETE FROM auth_apple_pending_sign_ins WHERE apple_subject = $1")
+            .bind(&subject)
+            .execute(&api.pool)
+            .await
+            .expect("clean up pending Apple link");
+    }
+
+    #[tokio::test]
+    async fn apple_create_truncates_oversized_display_name() {
+        let api = TestApi::new().await;
+        let subject = format!("apple-long-name-{}", Uuid::new_v4());
+        let email = format!("apple-long-name-{}@example.test", Uuid::new_v4());
+        let long_name = "N".repeat(150);
+        let pending = match api
+            .begin_apple_sign_in(
+                apple_identity(&subject, Some(&email)),
+                apple_tokens(Some("long-name-refresh")),
+                Some(&long_name),
+            )
+            .await
+        {
+            AppleSignInDecision::RegistrationRequired(pending) => pending,
+            AppleSignInDecision::Authenticated(_) => panic!("expected pending registration"),
+        };
+        assert_eq!(
+            pending
+                .display_name
+                .as_ref()
+                .map(|name| name.chars().count()),
+            Some(100)
+        );
+        let pending_token = store_pending_apple_sign_in(&api.pool, pending)
+            .await
+            .expect("store pending Apple registration");
+
+        let created = api
+            .json(
+                Method::POST,
+                "/api/auth/oauth/apple/create",
+                None,
+                Some(json!({ "pending_token": pending_token })),
+            )
+            .await;
+        assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+        let user_id = response_uuid(&created.body["user"], "id");
+        let display_name =
+            sqlx::query_scalar::<_, String>("SELECT display_name FROM users WHERE id = $1")
+                .bind(user_id)
+                .fetch_one(&api.pool)
+                .await
+                .expect("load created Apple display name");
+        assert_eq!(display_name.chars().count(), 100);
+        assert_eq!(display_name, "N".repeat(100));
+
+        api.cleanup_users(&[user_id]).await;
+    }
+
+    #[tokio::test]
+    async fn failed_apple_link_when_account_already_has_apple_preserves_pending_token() {
+        let api = TestApi::new().await;
+        let user_id = api.insert_user("apple-already-linked").await;
+        let existing_subject = format!("apple-existing-{}", Uuid::new_v4());
+        let email = sqlx::query_scalar::<_, String>("SELECT email FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(&api.pool)
+            .await
+            .expect("existing user email");
+        api.sign_in_with_apple(
+            apple_identity(&existing_subject, Some(&email)),
+            apple_tokens(Some("existing-apple-refresh")),
+            Some("Existing Apple"),
+        )
+        .await;
+
+        let new_subject = format!("apple-new-{}", Uuid::new_v4());
+        let new_email = format!("apple-new-{}@example.test", Uuid::new_v4());
+        let pending = match api
+            .begin_apple_sign_in(
+                apple_identity(&new_subject, Some(&new_email)),
+                apple_tokens(Some("new-apple-refresh")),
+                Some("New Apple"),
+            )
+            .await
+        {
+            AppleSignInDecision::RegistrationRequired(pending) => pending,
+            AppleSignInDecision::Authenticated(_) => panic!("expected pending registration"),
+        };
+        let pending_token = store_pending_apple_sign_in(&api.pool, pending)
+            .await
+            .expect("store pending Apple link attempt");
+
+        let failed = api
+            .json(
+                Method::POST,
+                "/api/auth/oauth/apple/link",
+                Some(user_id),
+                Some(json!({ "pending_token": pending_token })),
+            )
+            .await;
+        assert_eq!(failed.status, StatusCode::BAD_REQUEST, "{}", failed.body);
+        let pending_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM auth_apple_pending_sign_ins WHERE apple_subject = $1",
+        )
+        .bind(&new_subject)
+        .fetch_one(&api.pool)
+        .await
+        .expect("count pending after failed link");
+        assert_eq!(pending_count, 1);
+
+        sqlx::query("DELETE FROM auth_apple_pending_sign_ins WHERE apple_subject = $1")
+            .bind(&new_subject)
+            .execute(&api.pool)
+            .await
+            .expect("clean up pending Apple link");
+        api.cleanup_users(&[user_id]).await;
+    }
+
+    #[tokio::test]
+    async fn verified_apple_email_links_existing_user_and_removes_unverified_password_claim() {
+        let api = TestApi::new().await;
+        let email = format!("apple-link-{}@example.test", Uuid::new_v4());
+        let signup = api
+            .json(
+                Method::POST,
+                "/api/auth/sign-up/email",
+                None,
+                Some(json!({
+                    "email": email,
+                    "password": "a-good-test-password",
+                    "display_name": "Original Player",
+                    "city": "Oakland",
+                    "skill_level": "intermediate",
+                    "bio": null
+                })),
+            )
+            .await;
+        assert_eq!(signup.status, StatusCode::OK, "{}", signup.body);
+        let (user_id, auth_user_id) = user_ids_for_email(&api, &email).await;
+        let old_session = api.issue_session_for_auth_user(&auth_user_id).await;
+        let subject = format!("apple-{}", Uuid::new_v4());
+
+        let apple = api
+            .sign_in_with_apple(
+                apple_identity(&subject, Some(&email.to_ascii_uppercase())),
+                apple_tokens(Some("linked-refresh-token")),
+                Some("Should Not Overwrite"),
+            )
+            .await;
+        assert_eq!(api.domain_user_id_for_token(&apple.token).await, user_id);
+        let credential_count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM accounts WHERE user_id = $1 AND provider_id = 'credential'",
+        )
+        .bind(&auth_user_id)
+        .fetch_one(&api.pool)
+        .await
+        .expect("count credential accounts");
+        assert_eq!(credential_count, 0);
+        let old_session_count =
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM sessions WHERE token = $1")
+                .bind(old_session)
+                .fetch_one(&api.pool)
+                .await
+                .expect("count revoked sessions");
+        assert_eq!(old_session_count, 0);
+        let profile = sqlx::query_as::<_, (String, bool)>(
+            "SELECT display_name, email_verified FROM users WHERE id = $1",
+        )
+        .bind(user_id)
+        .fetch_one(&api.pool)
+        .await
+        .expect("load linked Apple profile");
+        assert_eq!(profile, ("Original Player".to_owned(), true));
+
+        api.cleanup_users(&[user_id]).await;
+    }
+
+    #[tokio::test]
+    async fn apple_private_relay_does_not_guess_link_a_different_email() {
+        let api = TestApi::new().await;
+        let existing_user_id = api.insert_user("apple-real-email").await;
+        let relay_email = format!("relay-{}@privaterelay.appleid.com", Uuid::new_v4());
+        let apple = api
+            .sign_in_with_apple(
+                apple_identity(&format!("apple-{}", Uuid::new_v4()), Some(&relay_email)),
+                apple_tokens(Some("relay-refresh-token")),
+                Some("Relay Player"),
+            )
+            .await;
+        let apple_user_id = api.domain_user_id_for_token(&apple.token).await;
+
+        assert_ne!(apple_user_id, existing_user_id);
+        api.cleanup_users(&[existing_user_id, apple_user_id]).await;
+    }
+
+    #[tokio::test]
+    async fn apple_challenge_can_only_be_consumed_once() {
+        let api = TestApi::new().await;
+        let nonce_hash = sha256_bytes("one-use-apple-nonce");
+        sqlx::query(
+            "INSERT INTO auth_apple_challenges (nonce_hash, expires_at) VALUES ($1, now() + interval '5 minutes')",
+        )
+        .bind(&nonce_hash)
+        .execute(&api.pool)
+        .await
+        .expect("insert Apple challenge");
+
+        assert!(
+            consume_apple_challenge(&api.pool, &nonce_hash)
+                .await
+                .unwrap()
+        );
+        assert!(
+            !consume_apple_challenge(&api.pool, &nonce_hash)
+                .await
+                .unwrap()
+        );
+    }
+
+    fn apple_identity(subject: &str, email: Option<&str>) -> VerifiedAppleIdentity {
+        VerifiedAppleIdentity {
+            subject: subject.to_owned(),
+            email: email.map(|value| value.trim().to_ascii_lowercase()),
+            email_verified: email.is_some(),
+        }
+    }
+
+    fn apple_tokens(refresh_token: Option<&str>) -> AppleTokenSet {
+        AppleTokenSet {
+            access_token: format!("apple-access-{}", Uuid::new_v4()),
+            refresh_token: refresh_token.map(str::to_owned),
+            id_token: format!("apple-id-{}", Uuid::new_v4()),
+            expires_in_seconds: 3600,
+        }
     }
 
     #[tokio::test]

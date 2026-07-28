@@ -39,8 +39,17 @@ pub struct AuthenticationConfig {
     pub secret: String,
     pub google_oauth_client_id: Option<String>,
     pub google_oauth_client_secret: Option<String>,
+    pub apple: Option<AppleAuthenticationConfig>,
     pub mobile_callback_url: String,
     pub email: TransactionalEmailConfig,
+}
+
+#[derive(Debug, Clone)]
+pub struct AppleAuthenticationConfig {
+    pub client_id: String,
+    pub team_id: String,
+    pub key_id: String,
+    pub private_key_base64: String,
 }
 
 #[derive(Debug, Clone)]
@@ -189,6 +198,10 @@ pub enum ConfigError {
         "GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET must either both be set or both be unset"
     )]
     IncompleteGoogleOauth,
+    #[error(
+        "APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, and APPLE_PRIVATE_KEY_BASE64 must either all be set or all be unset"
+    )]
+    IncompleteAppleSignIn,
     #[error("BETTER_AUTH_SECRET must contain at least 32 characters")]
     AuthSecretTooShort,
     #[error("MOBILE_AUTH_CALLBACK_URL must use the friendminton:// scheme")]
@@ -245,6 +258,12 @@ impl AppConfig {
             })?;
         let google_oauth_client_id = non_empty(get_env("GOOGLE_OAUTH_CLIENT_ID"));
         let google_oauth_client_secret = non_empty(get_env("GOOGLE_OAUTH_CLIENT_SECRET"));
+        let apple_values = [
+            non_empty(get_env("APPLE_CLIENT_ID")),
+            non_empty(get_env("APPLE_TEAM_ID")),
+            non_empty(get_env("APPLE_KEY_ID")),
+            non_empty(get_env("APPLE_PRIVATE_KEY_BASE64")),
+        ];
         let mobile_callback_url = non_empty(get_env("MOBILE_AUTH_CALLBACK_URL"))
             .unwrap_or_else(|| DEFAULT_MOBILE_AUTH_CALLBACK_URL.to_owned());
 
@@ -269,6 +288,21 @@ impl AppConfig {
         if google_oauth_client_id.is_some() != google_oauth_client_secret.is_some() {
             return Err(ConfigError::IncompleteGoogleOauth);
         }
+        let apple = match apple_values {
+            [
+                Some(client_id),
+                Some(team_id),
+                Some(key_id),
+                Some(private_key_base64),
+            ] => Some(AppleAuthenticationConfig {
+                client_id,
+                team_id,
+                key_id,
+                private_key_base64,
+            }),
+            [None, None, None, None] => None,
+            _ => return Err(ConfigError::IncompleteAppleSignIn),
+        };
         if auth_secret.chars().count() < 32 {
             return Err(ConfigError::AuthSecretTooShort);
         }
@@ -342,6 +376,7 @@ impl AppConfig {
                 secret: auth_secret,
                 google_oauth_client_id,
                 google_oauth_client_secret,
+                apple,
                 mobile_callback_url,
                 email,
             },
@@ -566,6 +601,17 @@ mod tests {
         .unwrap_err();
 
         assert!(matches!(error, ConfigError::IncompleteGoogleOauth));
+    }
+
+    #[test]
+    fn apple_sign_in_credentials_must_be_configured_together() {
+        let error = load(HashMap::from([
+            ("APPLE_CLIENT_ID", "com.hcharlie1201.friendminton"),
+            ("APPLE_TEAM_ID", "TEAM123"),
+        ]))
+        .unwrap_err();
+
+        assert!(matches!(error, ConfigError::IncompleteAppleSignIn));
     }
 
     #[test]

@@ -1,30 +1,78 @@
 # Friendminton MVP roadmap
 
-Last updated: 2026-07-25
+Last updated: 2026-07-27
 
 This document is the persistent source of truth for the public-MVP sequence. It
 should be loaded before MVP work and updated as implementation lands.
 
 ## Current focus
 
-**Step 1 — real authentication and sessions is in progress.**
+**Step 2 — validate Sign in with Apple, then implement account deletion.** Native
+Apple credential exchange, server-side token validation, safe account linking,
+encrypted refresh-token storage, and the iOS login surface are implemented locally.
+Apple Developer credentials, a new native build, and a TestFlight smoke test remain
+before Apple login ships. Account deletion has not started.
 
-The local implementation is complete enough for integration testing: product
-UUIDs are preserved, the API validates revocable bearer sessions, the mobile app
-restores those sessions from SecureStore, Google OAuth is wired, and
-email/password signup now requires one-use email verification with a complete
-password-reset flow. SES delivery and deliverability infrastructure are
-implemented locally but have not been applied or DNS-verified. Staging
-configuration, deployment, and a new TestFlight smoke test remain before Step 1
-can be marked complete. The currently deployed legacy build and API must be
-replaced together because they still use `x-user-id`.
+### Finish Step 1 runbook
+
+Staging sections B–E are complete. Section A remains the public-launch email gate.
+
+**A. SES infrastructure** (see [`infra/email/README.md`](../infra/email/README.md))
+
+1. `cd infra/email && terraform init -backend-config=../backend/email.hcl && terraform plan -out=email.tfplan && terraform apply email.tfplan`
+2. `terraform output -json required_dns_records` → publish every DKIM, MAIL FROM, SPF, and
+   DMARC record at the DNS provider for `friendminton.com`.
+3. Confirm both identities: `aws sesv2 get-email-identity --region us-west-2 --email-identity staging.friendminton.com` (and production) until `VerificationStatus` is `SUCCESS`.
+4. Optional: set `alert_email` in `terraform.tfvars`, apply, confirm the SNS subscription.
+5. Before public signup, request SES production access in `us-west-2`
+   (`put-account-details`) and wait for approval. A Google Workspace account is not
+   required; AWS accepts a monitored contact address such as Gmail.
+6. Create staging sender credentials: `aws iam create-access-key --user-name friendminton-staging-ses-sender` (secret shown once).
+
+**B. Staging server secrets** (see [`docs/deployment.md`](deployment.md))
+
+1. SSH to the staging Lightsail host and edit `/home/ubuntu/friendminton/.env.staging`.
+2. Set `BETTER_AUTH_SECRET` (`openssl rand -base64 48`), Google OAuth client ID/secret, and
+   all `SES_*` values from the Terraform outputs. Keep `EMAIL_PROVIDER=ses`.
+3. Register the exact Google redirect URI:
+   `https://16.146.136.68.sslip.io/api/auth/callback/google`
+4. `chmod 600 .env.staging`
+
+**C. API deploy**
+
+1. Ensure CI is green on `main`.
+2. Dispatch **Deploy Staging** with a new tag (e.g. `v0.2.0`). The workflow builds the
+   image, pushes to ECR, deploys via SSH, and checks `/healthz`.
+3. Verify auth endpoints respond on staging (signup should return `verification_required: true`).
+
+**D. Mobile TestFlight build**
+
+1. Create `mobile/.env.staging.local` from `mobile/.env.staging.example` with the staging API URL.
+2. Rebuild the **development client** if native modules changed since the last build:
+   `cd mobile && pnpm ios`
+3. Build for TestFlight: `cd mobile && pnpm testflight:build`
+4. Submit: `pnpm testflight:submit`
+
+**E. Smoke test on TestFlight** (all must pass)
+
+- [x] New email/password signup → verification email received → confirm → sign in
+- [x] Duplicate signup on same email → conflict, profile unchanged
+- [x] Returning sign-in after app restart → session restored
+- [x] Forgot password → reset email → set new password → sign in
+- [x] Google sign-in → lands back in app without token in URL
+- [x] Protected API call works with bearer token; `x-user-id` alone returns 401
+- [x] Sign out → protected routes redirect to login
+
+**F. Mark Step 1 complete**
+
+Update the status table below and move current focus to Step 2.
 
 ## Status
 
 | Step | Deliverable | Status |
 | --- | --- | --- |
-| 1 | Real authentication, sessions, Google login, and returning-user login | In progress |
-| 2 | Sign in with Apple and in-app account deletion | Not started |
+| 1 | Real authentication, sessions, Google login, and returning-user login | Staging complete; SES public-send access deferred |
+| 2 | Sign in with Apple and in-app account deletion | In progress; Apple login implemented locally |
 | 3 | Unified discovery and search | Not started |
 | 4 | Complete group and gathering membership flows | Not started |
 | 5 | Minimal gathering and group chat | Not started |
@@ -83,15 +131,18 @@ replaced together because they still use `x-user-id`.
   screens with cold custom-scheme link handling.
 - [x] Add SES sending code plus Terraform for DKIM identities, custom MAIL FROM,
   bounce/complaint suppression, delivery event logs, and reputation alarms.
-- [ ] Apply the SES stack, publish its DNS records, verify both identities,
+- [ ] Before public signup, apply/verify the remaining SES infrastructure,
   confirm alarm delivery, and obtain SES production access in `us-west-2`.
-- [ ] Configure staging auth/SES secrets and the exact Google redirect URI.
-- [ ] Deploy the API and a newly built mobile binary as one staging cutover.
-- [ ] Smoke-test new signup, verification, duplicate signup, returning login,
+  This is deferred while production rollout is out of scope.
+- [x] Configure staging auth/SES secrets and the exact Google redirect URI.
+- [x] Deploy the API and a newly built mobile binary as one staging cutover.
+- [x] Smoke-test new signup, verification, duplicate signup, returning login,
   forgot/reset password, Google login, app restart, protected API access, and
   sign-out on TestFlight.
-- [ ] Forward a trusted client address into auth throttling before the public
+- [x] Forward a trusted client address into auth throttling before the public
   production rollout so one client cannot consume a shared rate-limit bucket.
+  Caddy's `X-Forwarded-For` (rightmost entry) is forwarded into Better Auth
+  rate-limit keys on signup, signin, and Google OAuth paths.
 
 ### Deferred from Step 1
 
@@ -114,6 +165,23 @@ replaced together because they still use `x-user-id`.
 - Apple review requirements for third-party login and account deletion are met.
 - Deletion is discoverable in settings, requires confirmation, and is covered by
   integration tests.
+
+### Implementation progress
+
+- [x] Add server-issued, expiring, one-use Apple nonce challenges.
+- [x] Validate Apple identity-token signatures, issuer, audience, expiry, nonce,
+  subject, and verified email using cached Apple JWKS.
+- [x] Exchange the native authorization code, encrypt provider tokens, safely
+  link matching verified emails, preserve product UUIDs, and issue revocable sessions.
+- [x] Hold unknown Apple identities as short-lived pending sign-ins and require an
+  explicit choice to create a new account or reauthenticate an existing email/Google
+  account before linking, preventing silent private-relay duplicates.
+- [x] Add the native iOS Apple button and capability with generated API bindings.
+- [x] Cover invalid claims, key rotation, one-use challenges, returning login,
+  private relay separation, credential cleanup, and session restoration in tests.
+- [ ] Configure the Apple Developer key and staging environment variables.
+- [ ] Build and smoke-test Apple login on a real-device development build and TestFlight.
+- [ ] Design and implement reauthenticated account deletion and provider revocation.
 
 ## Step 3 — unified discovery and search
 

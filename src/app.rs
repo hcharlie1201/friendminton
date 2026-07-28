@@ -12,8 +12,8 @@ use std::path::PathBuf;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 
 use crate::{
-    auth_service::AuthService, config::AppConfig, controller, email::TransactionalEmail,
-    media::MediaStorage, openapi, places::GooglePlaces,
+    apple_auth::AppleAuthClient, auth_service::AuthService, config::AppConfig, controller,
+    email::TransactionalEmail, media::MediaStorage, openapi, places::GooglePlaces,
 };
 
 #[derive(Clone)]
@@ -23,6 +23,7 @@ pub struct AppState {
     pub media: MediaStorage,
     pub places: GooglePlaces,
     pub auth: AuthService,
+    pub apple_auth: Option<AppleAuthClient>,
     pub email: TransactionalEmail,
 }
 
