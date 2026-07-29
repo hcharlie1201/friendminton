@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getApiGroupsByGroupId, type BadmintonGroup, type GroupGoal } from '../api/generated';
 import { apiData, authHeaders } from '../api/runtime';
 import { useSession } from '../auth/session';
+import { GroupMembershipPanel } from '../components/membership';
 import { Button, colors, fonts } from '../components/ui';
 import { resolveGroupCoverUrl } from '../features/groups/groupPresentation';
 
@@ -31,6 +32,7 @@ export function GroupDetailScreen() {
           canHostEvents={query.data.owner_id === user?.id}
           group={query.data}
           onHostEvent={hostEvent}
+          userId={user?.id ?? ''}
         />
       ) : query.isPending ? (
         <GroupDetailLoading />
@@ -45,10 +47,12 @@ function GroupDetailContent({
   canHostEvents,
   group,
   onHostEvent,
+  userId,
 }: {
   canHostEvents: boolean;
   group: BadmintonGroup;
   onHostEvent: () => void;
+  userId: string;
 }) {
   const tone = groupDetailTone(group.goal_tags[0]);
   const imageUrls = (group.image_urls ?? [])
@@ -106,6 +110,8 @@ function GroupDetailContent({
         <GroupStat label="Access" value={joinPolicyLabel(group.join_policy)} />
         <GroupStat label="Goals" value={`${group.goal_tags.length}`} />
       </View>
+
+      <GroupMembershipPanel groupId={group.id} joinPolicy={group.join_policy} userId={userId} />
 
       {canHostEvents && (
         <Button icon="calendar-outline" onPress={onHostEvent}>Host a group event</Button>

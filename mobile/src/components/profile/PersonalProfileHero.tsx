@@ -47,7 +47,7 @@ export function PersonalProfileHero({ displayName, groupCount, player, snapshot 
       <View style={styles.stats}>
         <ProfileStat label="Activities" value={`${snapshot?.activities ?? 0}`} />
         <ProfileStat label="Play time" value={formatMinutes(snapshot?.duration_minutes ?? 0)} />
-        <ProfileStat label="Games" value={`${snapshot?.games ?? 0}`} />
+        <ProfileStat label="Streak" value={`${snapshot?.current_streak_weeks ?? 0}w`} />
         <ProfileStat label="Groups" value={`${groupCount}`} />
       </View>
 
@@ -106,9 +106,11 @@ function formatMinutes(minutes: number) {
 
 function weeklySummary(snapshot?: WeeklySnapshot) {
   const activities = snapshot?.activities ?? 0;
-  if (activities === 0) return 'Join a play session to start building your week.';
-  const games = snapshot?.games ?? 0;
-  return `${activities} ${activities === 1 ? 'activity' : 'activities'} and ${games} ${games === 1 ? 'game' : 'games'} completed.`;
+  const streak = snapshot?.current_streak_weeks ?? 0;
+  if (activities === 0 && streak > 0) return `Log an activity to protect your ${streak}-week streak.`;
+  if (activities === 0) return 'Join a play session to start your first streak.';
+  const consistency = snapshot?.consistency_percent ?? 0;
+  return `${activities} ${activities === 1 ? 'activity' : 'activities'} completed · ${consistency}% consistent over eight weeks.`;
 }
 
 const styles = StyleSheet.create({

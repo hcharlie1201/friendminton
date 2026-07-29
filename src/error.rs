@@ -19,6 +19,8 @@ pub enum AppError {
     BadRequest(String),
     #[error("conflict: {0}")]
     Conflict(String),
+    #[error("forbidden: {0}")]
+    Forbidden(String),
     #[error("unauthorized")]
     Unauthorized,
     #[error("email address is not verified")]
@@ -48,6 +50,7 @@ pub enum AppError {
 pub enum ErrorCode {
     BadRequest,
     Conflict,
+    Forbidden,
     EmailNotVerified,
     InternalServerError,
     NotFound,
@@ -103,6 +106,11 @@ impl IntoResponse for AppError {
             AppError::Conflict(message) => (
                 StatusCode::CONFLICT,
                 ErrorCode::Conflict,
+                message.to_owned(),
+            ),
+            AppError::Forbidden(message) => (
+                StatusCode::FORBIDDEN,
+                ErrorCode::Forbidden,
                 message.to_owned(),
             ),
             AppError::Unauthorized => (

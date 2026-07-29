@@ -411,7 +411,7 @@ export type ErrorBody = {
     error: string;
 };
 
-export type ErrorCode = 'bad_request' | 'conflict' | 'email_not_verified' | 'internal_server_error' | 'not_found' | 'service_unavailable' | 'too_many_requests' | 'upstream_service_error' | 'unauthorized';
+export type ErrorCode = 'bad_request' | 'conflict' | 'forbidden' | 'email_not_verified' | 'internal_server_error' | 'not_found' | 'service_unavailable' | 'too_many_requests' | 'upstream_service_error' | 'unauthorized';
 
 export type Example = {
     /**
@@ -509,6 +509,7 @@ export type GameInviteSearch = {
 export type Gathering = {
     title: string;
     description?: string | null;
+    cancelled_at?: string | null;
     capacity?: number | null;
     city: string;
     cost_per_person_cents: number;
@@ -549,7 +550,21 @@ export type GatheringParticipant = {
     user_id: string;
 };
 
+export type GatheringParticipantPath = {
+    gathering_id: string;
+    user_id: string;
+};
+
 export type GatheringParticipantStatus = 'going' | 'pending' | 'invited';
+
+export type GatheringParticipantView = {
+    city?: string | null;
+    display_name: string;
+    joined_at: string;
+    skill_level: string;
+    status: GatheringParticipantStatus;
+    user_id: string;
+};
 
 export type GatheringPath = {
     gathering_id: string;
@@ -570,6 +585,7 @@ export type GatheringSkillLevel = 'beginner' | 'e' | 'e_plus' | 'd' | 'c' | 'b' 
 
 export type GatheringViewerState = {
     can_finish: boolean;
+    can_manage: boolean;
     participant_status?: GatheringParticipantStatus | null;
     post_id?: string | null;
     workout_id?: string | null;
@@ -588,6 +604,21 @@ export type GoogleOAuthStartResponse = {
 export type GroupGoal = 'fitness' | 'social' | 'improvement' | 'competitive' | 'consistent_play';
 
 export type GroupJoinPolicy = 'open' | 'approval_required' | 'invite_only';
+
+export type GroupMember = {
+    city?: string | null;
+    display_name: string;
+    joined_at: string;
+    role: GroupRole;
+    skill_level: string;
+    status: GroupMemberStatus;
+    user_id: string;
+};
+
+export type GroupMemberPath = {
+    group_id: string;
+    user_id: string;
+};
 
 export type GroupMemberStatus = 'member' | 'pending' | 'invited';
 
@@ -612,6 +643,12 @@ export type GroupSearch = {
     longitude?: number | null;
     query?: string | null;
     radius_km?: number | null;
+};
+
+export type GroupViewerState = {
+    can_manage: boolean;
+    membership_status?: GroupMemberStatus | null;
+    role?: GroupRole | null;
 };
 
 export type GroupVisibility = 'public' | 'private';
@@ -690,6 +727,14 @@ export type Info = {
      */
     version: string;
     [key: string]: unknown;
+};
+
+export type InviteGatheringParticipant = {
+    user_id: string;
+};
+
+export type InviteGroupMember = {
+    user_id: string;
 };
 
 /**
@@ -1874,10 +1919,17 @@ export type UserPath = {
 };
 
 export type WeeklySnapshot = {
+    active_days_last_28: number;
+    active_weeks_last_8: number;
     activities: number;
+    consistency_percent: number;
+    current_streak_weeks: number;
     duration_minutes: number;
     games: number;
+    longest_streak_weeks: number;
     posts: number;
+    weekly_goal: number;
+    weekly_goal_progress: number;
 };
 
 export type Workout = {
@@ -2776,6 +2828,35 @@ export type GetApiGatheringsByGatheringIdMeResponses = {
 
 export type GetApiGatheringsByGatheringIdMeResponse = GetApiGatheringsByGatheringIdMeResponses[keyof GetApiGatheringsByGatheringIdMeResponses];
 
+export type GetApiGatheringsByGatheringIdParticipantsData = {
+    body?: never;
+    path: {
+        gathering_id: string;
+    };
+    query?: never;
+    url: '/api/gatherings/{gathering_id}/participants';
+};
+
+export type GetApiGatheringsByGatheringIdParticipantsErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiGatheringsByGatheringIdParticipantsError = GetApiGatheringsByGatheringIdParticipantsErrors[keyof GetApiGatheringsByGatheringIdParticipantsErrors];
+
+export type GetApiGatheringsByGatheringIdParticipantsResponses = {
+    200: Array<GatheringParticipantView>;
+};
+
+export type GetApiGatheringsByGatheringIdParticipantsResponse = GetApiGatheringsByGatheringIdParticipantsResponses[keyof GetApiGatheringsByGatheringIdParticipantsResponses];
+
 export type PostApiGatheringsByGatheringIdJoinData = {
     body?: never;
     path: {
@@ -2804,6 +2885,165 @@ export type PostApiGatheringsByGatheringIdJoinResponses = {
 };
 
 export type PostApiGatheringsByGatheringIdJoinResponse = PostApiGatheringsByGatheringIdJoinResponses[keyof PostApiGatheringsByGatheringIdJoinResponses];
+
+export type PostApiGatheringsByGatheringIdLeaveData = {
+    body?: never;
+    path: {
+        gathering_id: string;
+    };
+    query?: never;
+    url: '/api/gatherings/{gathering_id}/leave';
+};
+
+export type PostApiGatheringsByGatheringIdLeaveErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGatheringsByGatheringIdLeaveError = PostApiGatheringsByGatheringIdLeaveErrors[keyof PostApiGatheringsByGatheringIdLeaveErrors];
+
+export type PostApiGatheringsByGatheringIdInviteData = {
+    body: InviteGatheringParticipant;
+    path: {
+        gathering_id: string;
+    };
+    query?: never;
+    url: '/api/gatherings/{gathering_id}/invite';
+};
+
+export type PostApiGatheringsByGatheringIdInviteErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGatheringsByGatheringIdInviteError = PostApiGatheringsByGatheringIdInviteErrors[keyof PostApiGatheringsByGatheringIdInviteErrors];
+
+export type PostApiGatheringsByGatheringIdInviteResponses = {
+    200: GatheringParticipant;
+};
+
+export type PostApiGatheringsByGatheringIdInviteResponse = PostApiGatheringsByGatheringIdInviteResponses[keyof PostApiGatheringsByGatheringIdInviteResponses];
+
+export type PostApiGatheringsByGatheringIdParticipantsByUserIdApproveData = {
+    body?: never;
+    path: {
+        gathering_id: string;
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/gatherings/{gathering_id}/participants/{user_id}/approve';
+};
+
+export type PostApiGatheringsByGatheringIdParticipantsByUserIdApproveErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGatheringsByGatheringIdParticipantsByUserIdApproveError = PostApiGatheringsByGatheringIdParticipantsByUserIdApproveErrors[keyof PostApiGatheringsByGatheringIdParticipantsByUserIdApproveErrors];
+
+export type PostApiGatheringsByGatheringIdParticipantsByUserIdApproveResponses = {
+    200: GatheringParticipant;
+};
+
+export type PostApiGatheringsByGatheringIdParticipantsByUserIdApproveResponse = PostApiGatheringsByGatheringIdParticipantsByUserIdApproveResponses[keyof PostApiGatheringsByGatheringIdParticipantsByUserIdApproveResponses];
+
+export type PostApiGatheringsByGatheringIdParticipantsByUserIdRejectData = {
+    body?: never;
+    path: {
+        gathering_id: string;
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/gatherings/{gathering_id}/participants/{user_id}/reject';
+};
+
+export type PostApiGatheringsByGatheringIdParticipantsByUserIdRejectErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGatheringsByGatheringIdParticipantsByUserIdRejectError = PostApiGatheringsByGatheringIdParticipantsByUserIdRejectErrors[keyof PostApiGatheringsByGatheringIdParticipantsByUserIdRejectErrors];
+
+export type PostApiGatheringsByGatheringIdParticipantsByUserIdRemoveData = {
+    body?: never;
+    path: {
+        gathering_id: string;
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/gatherings/{gathering_id}/participants/{user_id}/remove';
+};
+
+export type PostApiGatheringsByGatheringIdParticipantsByUserIdRemoveErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGatheringsByGatheringIdParticipantsByUserIdRemoveError = PostApiGatheringsByGatheringIdParticipantsByUserIdRemoveErrors[keyof PostApiGatheringsByGatheringIdParticipantsByUserIdRemoveErrors];
+
+export type PostApiGatheringsByGatheringIdCancelData = {
+    body?: never;
+    path: {
+        gathering_id: string;
+    };
+    query?: never;
+    url: '/api/gatherings/{gathering_id}/cancel';
+};
+
+export type PostApiGatheringsByGatheringIdCancelErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGatheringsByGatheringIdCancelError = PostApiGatheringsByGatheringIdCancelErrors[keyof PostApiGatheringsByGatheringIdCancelErrors];
+
+export type PostApiGatheringsByGatheringIdCancelResponses = {
+    200: Gathering;
+};
+
+export type PostApiGatheringsByGatheringIdCancelResponse = PostApiGatheringsByGatheringIdCancelResponses[keyof PostApiGatheringsByGatheringIdCancelResponses];
 
 export type PostApiGatheringsByGatheringIdFinishData = {
     body?: never;
@@ -2951,6 +3191,64 @@ export type GetApiGroupsByGroupIdResponses = {
 
 export type GetApiGroupsByGroupIdResponse = GetApiGroupsByGroupIdResponses[keyof GetApiGroupsByGroupIdResponses];
 
+export type GetApiGroupsByGroupIdMeData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/api/groups/{group_id}/me';
+};
+
+export type GetApiGroupsByGroupIdMeErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiGroupsByGroupIdMeError = GetApiGroupsByGroupIdMeErrors[keyof GetApiGroupsByGroupIdMeErrors];
+
+export type GetApiGroupsByGroupIdMeResponses = {
+    200: GroupViewerState;
+};
+
+export type GetApiGroupsByGroupIdMeResponse = GetApiGroupsByGroupIdMeResponses[keyof GetApiGroupsByGroupIdMeResponses];
+
+export type GetApiGroupsByGroupIdMembersData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/api/groups/{group_id}/members';
+};
+
+export type GetApiGroupsByGroupIdMembersErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiGroupsByGroupIdMembersError = GetApiGroupsByGroupIdMembersErrors[keyof GetApiGroupsByGroupIdMembersErrors];
+
+export type GetApiGroupsByGroupIdMembersResponses = {
+    200: Array<GroupMember>;
+};
+
+export type GetApiGroupsByGroupIdMembersResponse = GetApiGroupsByGroupIdMembersResponses[keyof GetApiGroupsByGroupIdMembersResponses];
+
 export type PostApiGroupsByGroupIdJoinData = {
     body?: never;
     path: {
@@ -2979,6 +3277,136 @@ export type PostApiGroupsByGroupIdJoinResponses = {
 };
 
 export type PostApiGroupsByGroupIdJoinResponse = PostApiGroupsByGroupIdJoinResponses[keyof PostApiGroupsByGroupIdJoinResponses];
+
+export type PostApiGroupsByGroupIdLeaveData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/api/groups/{group_id}/leave';
+};
+
+export type PostApiGroupsByGroupIdLeaveErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGroupsByGroupIdLeaveError = PostApiGroupsByGroupIdLeaveErrors[keyof PostApiGroupsByGroupIdLeaveErrors];
+
+export type PostApiGroupsByGroupIdInviteData = {
+    body: InviteGroupMember;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/api/groups/{group_id}/invite';
+};
+
+export type PostApiGroupsByGroupIdInviteErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGroupsByGroupIdInviteError = PostApiGroupsByGroupIdInviteErrors[keyof PostApiGroupsByGroupIdInviteErrors];
+
+export type PostApiGroupsByGroupIdInviteResponses = {
+    200: GroupMembership;
+};
+
+export type PostApiGroupsByGroupIdInviteResponse = PostApiGroupsByGroupIdInviteResponses[keyof PostApiGroupsByGroupIdInviteResponses];
+
+export type PostApiGroupsByGroupIdMembersByUserIdApproveData = {
+    body?: never;
+    path: {
+        group_id: string;
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/groups/{group_id}/members/{user_id}/approve';
+};
+
+export type PostApiGroupsByGroupIdMembersByUserIdApproveErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGroupsByGroupIdMembersByUserIdApproveError = PostApiGroupsByGroupIdMembersByUserIdApproveErrors[keyof PostApiGroupsByGroupIdMembersByUserIdApproveErrors];
+
+export type PostApiGroupsByGroupIdMembersByUserIdApproveResponses = {
+    200: GroupMembership;
+};
+
+export type PostApiGroupsByGroupIdMembersByUserIdApproveResponse = PostApiGroupsByGroupIdMembersByUserIdApproveResponses[keyof PostApiGroupsByGroupIdMembersByUserIdApproveResponses];
+
+export type PostApiGroupsByGroupIdMembersByUserIdRejectData = {
+    body?: never;
+    path: {
+        group_id: string;
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/groups/{group_id}/members/{user_id}/reject';
+};
+
+export type PostApiGroupsByGroupIdMembersByUserIdRejectErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGroupsByGroupIdMembersByUserIdRejectError = PostApiGroupsByGroupIdMembersByUserIdRejectErrors[keyof PostApiGroupsByGroupIdMembersByUserIdRejectErrors];
+
+export type PostApiGroupsByGroupIdMembersByUserIdRemoveData = {
+    body?: never;
+    path: {
+        group_id: string;
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/groups/{group_id}/members/{user_id}/remove';
+};
+
+export type PostApiGroupsByGroupIdMembersByUserIdRemoveErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGroupsByGroupIdMembersByUserIdRemoveError = PostApiGroupsByGroupIdMembersByUserIdRemoveErrors[keyof PostApiGroupsByGroupIdMembersByUserIdRemoveErrors];
 
 export type GetApiPlacesAutocompleteData = {
     body?: never;

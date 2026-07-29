@@ -143,3 +143,28 @@ pub struct GroupMembership {
     #[schemars(with = "String")]
     pub joined_at: OffsetDateTime,
 }
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct GroupViewerState {
+    pub membership_status: Option<GroupMemberStatus>,
+    pub role: Option<GroupRole>,
+    pub can_manage: bool,
+}
+
+#[derive(Debug, Serialize, FromRow, JsonSchema)]
+pub struct GroupMember {
+    pub user_id: Uuid,
+    pub display_name: String,
+    pub city: Option<String>,
+    pub skill_level: String,
+    pub role: GroupRole,
+    pub status: GroupMemberStatus,
+    #[serde(with = "time::serde::rfc3339")]
+    #[schemars(with = "String")]
+    pub joined_at: OffsetDateTime,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct InviteGroupMember {
+    pub user_id: Uuid,
+}

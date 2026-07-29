@@ -15,7 +15,7 @@ export function Screen({ children, centered = false }: Props) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView
-        behavior={Platform.select({ ios: 'padding', android: undefined })}
+        behavior={Platform.select({ ios: 'padding', android: 'height' })}
         style={[styles.keyboardView, centered && styles.centered]}
       >
         {children}

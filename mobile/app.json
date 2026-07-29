@@ -17,6 +17,7 @@
       "bundleIdentifier": "com.hcharlie1201.friendminton"
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#FF2D85",
         "foregroundImage": "./assets/android-icon-foreground.png",

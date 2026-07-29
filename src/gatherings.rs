@@ -12,7 +12,8 @@ use crate::{
 
 pub use gathering::{
     CourtSetup, CreateGathering, Gathering, GatheringJoinPolicy, GatheringParticipant,
-    GatheringParticipantStatus, GatheringSearch, GatheringViewerState,
+    GatheringParticipantStatus, GatheringParticipantView, GatheringSearch, GatheringViewerState,
+    InviteGatheringParticipant,
 };
 use gathering::{GatheringKind, GatheringVisibility, PlayFormat, StoredGathering};
 
@@ -22,7 +23,7 @@ const GATHERING_COLUMNS: &str = r#"
     g.description, g.capacity,
     g.cost_per_person_cents, g.currency, g.skill_level, g.skill_level_max, g.play_format,
     g.court_setup, g.court_count, g.social_tags, g.theme, g.cover_image_key, g.created_at,
-    g.updated_at
+    g.cancelled_at, g.updated_at
 "#;
 
 const MAX_TITLE_CHARS: usize = 120;
@@ -61,7 +62,7 @@ pub async fn create_gathering(
         RETURNING id, host_id, group_id, kind, visibility, join_policy, title, starts_at,
             ends_at, venue, city, court_id, latitude, longitude, description, capacity, cost_per_person_cents,
             currency, skill_level, skill_level_max, play_format, court_setup, court_count, social_tags, theme,
-            cover_image_key, created_at, updated_at
+            cover_image_key, created_at, cancelled_at, updated_at
         "#,
     )
     .bind(host_id)
@@ -117,7 +118,7 @@ pub async fn find_gatherings(
     validate_search_window(search.starts_after, search.starts_before)?;
 
     let mut query = QueryBuilder::<Postgres>::new(format!(
-        "SELECT {GATHERING_COLUMNS} FROM gatherings AS g WHERE (g.visibility = 'public'"
+        "SELECT {GATHERING_COLUMNS} FROM gatherings AS g WHERE g.cancelled_at IS NULL AND (g.visibility = 'public'"
     ));
     query
         .push(" OR g.host_id = ")
@@ -201,17 +202,18 @@ pub async fn join_gathering(
     user_id: Uuid,
 ) -> Result<GatheringParticipant, AppError> {
     let mut transaction = pool.begin().await?;
-    let (join_policy, capacity, visibility, group_id) = sqlx::query_as::<
+    let (join_policy, capacity, visibility, group_id, cancelled_at) = sqlx::query_as::<
         _,
         (
             GatheringJoinPolicy,
             Option<i32>,
             GatheringVisibility,
             Option<Uuid>,
+            Option<OffsetDateTime>,
         ),
     >(
         r#"
-        SELECT join_policy, capacity, visibility, group_id
+        SELECT join_policy, capacity, visibility, group_id, cancelled_at
         FROM gatherings
         WHERE id = $1
         FOR UPDATE
@@ -220,6 +222,11 @@ pub async fn join_gathering(
     .bind(gathering_id)
     .fetch_one(&mut *transaction)
     .await?;
+    if cancelled_at.is_some() {
+        return Err(AppError::Conflict(
+            "gathering has been cancelled".to_owned(),
+        ));
+    }
 
     let existing = sqlx::query_as::<_, GatheringParticipant>(
         r#"
@@ -305,14 +312,275 @@ pub async fn join_gathering(
     Ok(participant)
 }
 
+pub async fn gathering_participants(
+    pool: &Pool<Postgres>,
+    gathering_id: Uuid,
+    user_id: Uuid,
+) -> Result<Vec<GatheringParticipantView>, AppError> {
+    let host_id = sqlx::query_scalar::<_, Uuid>(
+        r#"
+        SELECT host_id FROM gatherings
+        WHERE id = $1 AND (
+            visibility = 'public' OR host_id = $2 OR EXISTS (
+                SELECT 1 FROM gathering_participants
+                WHERE gathering_id = $1 AND user_id = $2
+                    AND status IN ('going', 'invited')
+            )
+        )
+        "#,
+    )
+    .bind(gathering_id)
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
+    Ok(sqlx::query_as::<_, GatheringParticipantView>(
+        r#"
+        SELECT participant.user_id, users.display_name, users.city, users.skill_level,
+            participant.status, participant.joined_at
+        FROM gathering_participants AS participant
+        INNER JOIN users ON users.id = participant.user_id
+        WHERE participant.gathering_id = $1
+            AND ($2 OR participant.status = 'going')
+        ORDER BY CASE participant.status
+            WHEN 'going' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,
+            participant.joined_at, participant.user_id
+        "#,
+    )
+    .bind(gathering_id)
+    .bind(host_id == user_id)
+    .fetch_all(pool)
+    .await?)
+}
+
+pub async fn leave_gathering(
+    pool: &Pool<Postgres>,
+    gathering_id: Uuid,
+    user_id: Uuid,
+) -> Result<(), AppError> {
+    let mut transaction = pool.begin().await?;
+    let host_id = lock_gathering_host(&mut transaction, gathering_id).await?;
+    if host_id == user_id {
+        return Err(AppError::BadRequest(
+            "the host cannot leave their gathering".to_owned(),
+        ));
+    }
+    let deleted =
+        sqlx::query("DELETE FROM gathering_participants WHERE gathering_id = $1 AND user_id = $2")
+            .bind(gathering_id)
+            .bind(user_id)
+            .execute(&mut *transaction)
+            .await?;
+    if deleted.rows_affected() == 0 {
+        return Err(AppError::BadRequest(
+            "you are not part of this gathering".to_owned(),
+        ));
+    }
+    transaction.commit().await?;
+    Ok(())
+}
+
+pub async fn invite_gathering_participant(
+    pool: &Pool<Postgres>,
+    gathering_id: Uuid,
+    actor_id: Uuid,
+    target_id: Uuid,
+) -> Result<GatheringParticipant, AppError> {
+    let mut transaction = pool.begin().await?;
+    require_gathering_host(&mut transaction, gathering_id, actor_id).await?;
+    if actor_id == target_id {
+        return Err(AppError::BadRequest(
+            "the host is already attending".to_owned(),
+        ));
+    }
+    sqlx::query_scalar::<_, Uuid>("SELECT id FROM users WHERE id = $1")
+        .bind(target_id)
+        .fetch_one(&mut *transaction)
+        .await?;
+    let participant = sqlx::query_as::<_, GatheringParticipant>(
+        r#"
+        INSERT INTO gathering_participants (gathering_id, user_id, status)
+        VALUES ($1, $2, 'invited')
+        ON CONFLICT (gathering_id, user_id) DO NOTHING
+        RETURNING gathering_id, user_id, status, joined_at
+        "#,
+    )
+    .bind(gathering_id)
+    .bind(target_id)
+    .fetch_optional(&mut *transaction)
+    .await?
+    .ok_or_else(|| AppError::Conflict("player is already part of this gathering".to_owned()))?;
+    transaction.commit().await?;
+    Ok(participant)
+}
+
+pub async fn approve_gathering_participant(
+    pool: &Pool<Postgres>,
+    gathering_id: Uuid,
+    actor_id: Uuid,
+    target_id: Uuid,
+) -> Result<GatheringParticipant, AppError> {
+    let mut transaction = pool.begin().await?;
+    let capacity = require_gathering_host(&mut transaction, gathering_id, actor_id).await?;
+    enforce_gathering_capacity(&mut transaction, gathering_id, capacity).await?;
+    let participant = sqlx::query_as::<_, GatheringParticipant>(
+        r#"
+        UPDATE gathering_participants
+        SET status = 'going', joined_at = now()
+        WHERE gathering_id = $1 AND user_id = $2 AND status = 'pending'
+        RETURNING gathering_id, user_id, status, joined_at
+        "#,
+    )
+    .bind(gathering_id)
+    .bind(target_id)
+    .fetch_optional(&mut *transaction)
+    .await?
+    .ok_or_else(|| AppError::Conflict("request is no longer pending".to_owned()))?;
+    transaction.commit().await?;
+    Ok(participant)
+}
+
+pub async fn reject_gathering_participant(
+    pool: &Pool<Postgres>,
+    gathering_id: Uuid,
+    actor_id: Uuid,
+    target_id: Uuid,
+) -> Result<(), AppError> {
+    delete_managed_gathering_participant(
+        pool,
+        gathering_id,
+        actor_id,
+        target_id,
+        Some(GatheringParticipantStatus::Pending),
+    )
+    .await
+}
+
+pub async fn remove_gathering_participant(
+    pool: &Pool<Postgres>,
+    gathering_id: Uuid,
+    actor_id: Uuid,
+    target_id: Uuid,
+) -> Result<(), AppError> {
+    delete_managed_gathering_participant(pool, gathering_id, actor_id, target_id, None).await
+}
+
+pub async fn cancel_gathering(
+    pool: &Pool<Postgres>,
+    media: &MediaStorage,
+    gathering_id: Uuid,
+    actor_id: Uuid,
+) -> Result<Gathering, AppError> {
+    let mut transaction = pool.begin().await?;
+    require_gathering_host(&mut transaction, gathering_id, actor_id).await?;
+    let changed = sqlx::query(
+        "UPDATE gatherings SET cancelled_at = now(), updated_at = now() WHERE id = $1 AND cancelled_at IS NULL",
+    )
+    .bind(gathering_id)
+    .execute(&mut *transaction)
+    .await?;
+    if changed.rows_affected() == 0 {
+        return Err(AppError::Conflict(
+            "gathering is already cancelled".to_owned(),
+        ));
+    }
+    transaction.commit().await?;
+    get_gathering(pool, media, gathering_id, actor_id).await
+}
+
+async fn lock_gathering_host(
+    transaction: &mut sqlx::Transaction<'_, Postgres>,
+    gathering_id: Uuid,
+) -> Result<Uuid, AppError> {
+    Ok(
+        sqlx::query_scalar::<_, Uuid>("SELECT host_id FROM gatherings WHERE id = $1 FOR UPDATE")
+            .bind(gathering_id)
+            .fetch_one(&mut **transaction)
+            .await?,
+    )
+}
+
+async fn require_gathering_host(
+    transaction: &mut sqlx::Transaction<'_, Postgres>,
+    gathering_id: Uuid,
+    actor_id: Uuid,
+) -> Result<Option<i32>, AppError> {
+    let (host_id, capacity) = sqlx::query_as::<_, (Uuid, Option<i32>)>(
+        "SELECT host_id, capacity FROM gatherings WHERE id = $1 FOR UPDATE",
+    )
+    .bind(gathering_id)
+    .fetch_one(&mut **transaction)
+    .await?;
+    if host_id != actor_id {
+        return Err(AppError::Forbidden(
+            "only the gathering host can do that".to_owned(),
+        ));
+    }
+    Ok(capacity)
+}
+
+async fn enforce_gathering_capacity(
+    transaction: &mut sqlx::Transaction<'_, Postgres>,
+    gathering_id: Uuid,
+    capacity: Option<i32>,
+) -> Result<(), AppError> {
+    let Some(capacity) = capacity else {
+        return Ok(());
+    };
+    let going = sqlx::query_scalar::<_, i64>(
+        "SELECT count(*) FROM gathering_participants WHERE gathering_id = $1 AND status = 'going'",
+    )
+    .bind(gathering_id)
+    .fetch_one(&mut **transaction)
+    .await?;
+    if going >= i64::from(capacity) {
+        return Err(AppError::Conflict("gathering is full".to_owned()));
+    }
+    Ok(())
+}
+
+async fn delete_managed_gathering_participant(
+    pool: &Pool<Postgres>,
+    gathering_id: Uuid,
+    actor_id: Uuid,
+    target_id: Uuid,
+    expected: Option<GatheringParticipantStatus>,
+) -> Result<(), AppError> {
+    let mut transaction = pool.begin().await?;
+    require_gathering_host(&mut transaction, gathering_id, actor_id).await?;
+    if actor_id == target_id {
+        return Err(AppError::Forbidden("the host cannot be removed".to_owned()));
+    }
+    let status = sqlx::query_scalar::<_, GatheringParticipantStatus>(
+        "SELECT status FROM gathering_participants WHERE gathering_id = $1 AND user_id = $2 FOR UPDATE",
+    )
+    .bind(gathering_id)
+    .bind(target_id)
+    .fetch_optional(&mut *transaction)
+    .await?
+    .ok_or_else(|| AppError::Conflict("participant no longer exists".to_owned()))?;
+    if expected.is_some_and(|expected| expected != status) {
+        return Err(AppError::Conflict(
+            "request is no longer pending".to_owned(),
+        ));
+    }
+    sqlx::query("DELETE FROM gathering_participants WHERE gathering_id = $1 AND user_id = $2")
+        .bind(gathering_id)
+        .bind(target_id)
+        .execute(&mut *transaction)
+        .await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
 pub async fn gathering_viewer_state(
     pool: &Pool<Postgres>,
     gathering_id: Uuid,
     user_id: Uuid,
 ) -> Result<GatheringViewerState, AppError> {
-    let (starts_at, kind) = sqlx::query_as::<_, (OffsetDateTime, GatheringKind)>(
-        r#"
-        SELECT starts_at, kind
+    let (starts_at, kind, host_id, cancelled_at) =
+        sqlx::query_as::<_, (OffsetDateTime, GatheringKind, Uuid, Option<OffsetDateTime>)>(
+            r#"
+        SELECT starts_at, kind, host_id, cancelled_at
         FROM gatherings
         WHERE id = $1
             AND (
@@ -326,11 +594,11 @@ pub async fn gathering_viewer_state(
                 )
             )
         "#,
-    )
-    .bind(gathering_id)
-    .bind(user_id)
-    .fetch_one(pool)
-    .await?;
+        )
+        .bind(gathering_id)
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
     let participant_status = sqlx::query_scalar::<_, GatheringParticipantStatus>(
         r#"
         SELECT status
@@ -362,7 +630,9 @@ pub async fn gathering_viewer_state(
         can_finish: participant_status == Some(GatheringParticipantStatus::Going)
             && workout_id.is_none()
             && kind != GatheringKind::Social
-            && starts_at <= OffsetDateTime::now_utc(),
+            && starts_at <= OffsetDateTime::now_utc()
+            && cancelled_at.is_none(),
+        can_manage: host_id == user_id,
         participant_status,
         workout_id,
         post_id,
@@ -602,6 +872,7 @@ async fn hydrate_gathering(
         theme: stored.theme,
         cover_image_key: stored.cover_image_key,
         cover_image_url,
+        cancelled_at: stored.cancelled_at,
         created_at: stored.created_at,
         updated_at: stored.updated_at,
     })

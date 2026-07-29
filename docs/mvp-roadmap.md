@@ -7,12 +7,12 @@ should be loaded before MVP work and updated as implementation lands.
 
 ## Current focus
 
-**Step 3 — validate unified discovery on staging.** Unified category search,
-opaque cursor pagination, server-side query/location/skill filters, persisted
-discovery location, search-first mobile states, and an Oakland launch dataset
-are implemented. Remaining Step 3 work is a staging API/mobile build and
-TestFlight smoke test. Step 2's Apple Developer credentials and Apple-login
-staging smoke test remain an external prerequisite for closing Step 2.
+**Step 7 — editable profiles, moderation, and consistency.** Step 5 chat is
+paused at the user's direction. The active slice is editable player identity,
+blocking/reporting, and a completed weekly snapshot with current/longest weekly
+streaks, recent active days, weekly goal progress, and an eight-week consistency
+score. Step 3's staging smoke test and Step 2's Apple-login staging prerequisites
+remain external validation tasks.
 
 ### Finish Step 1 runbook
 
@@ -75,10 +75,10 @@ Update the status table below and move current focus to Step 2.
 | 1 | Real authentication, sessions, Google login, and returning-user login | Staging complete; SES public-send access deferred |
 | 2 | Sign in with Apple and in-app account deletion | In progress; deletion shipped, Apple staging smoke pending |
 | 3 | Unified discovery and search | In progress; implementation complete, staging smoke pending |
-| 4 | Complete group and gathering membership flows | Not started |
-| 5 | Minimal gathering and group chat | Not started |
+| 4 | Complete group and gathering membership flows | Complete |
+| 5 | Minimal gathering and group chat | Paused before implementation |
 | 6 | Event-driven notifications, push, and transactional email | Not started; SES foundation ready |
-| 7 | Editable profiles, reporting, blocking, and moderation | Not started |
+| 7 | Editable profiles, reporting, blocking, moderation, and consistency | In progress |
 | 8 | Standalone manual activities; explicitly decide phone tracking scope | Not started |
 
 ## Step 1 — real authentication and sessions
@@ -242,6 +242,17 @@ for deleted group covers are not swept in this step.
 - Every membership policy exposed by the UI can complete end to end.
 - Capacity and authorization are enforced transactionally and tested.
 
+### Implementation progress
+
+- [x] Add transactional group Join/Request/Accept/Leave state and manager
+  invite/approve/reject/remove APIs.
+- [x] Add gathering guest lists, Leave/Withdraw, host invite/approve/reject/remove,
+  cancellation, and cancelled-state discovery filtering.
+- [x] Wire the generated mobile client to member/participant lists, player-name
+  invite search, user actions, manager controls, and retryable API errors.
+- [x] Cover manager/host authorization, full-capacity approval, invite acceptance,
+  leave/remove, and cancellation in database-backed integration tests.
+
 ## Step 5 — minimal chat
 
 ### Scope
@@ -289,12 +300,25 @@ for deleted group covers are not swept in this step.
 - Add user/content reporting, blocking, content filtering, and support contact
   information.
 - Add the minimum admin review/removal workflow and audit trail.
+- Add current and longest weekly activity streaks, weekly goal progress, recent
+  active days, and an eight-week consistency score to the player snapshot.
 
 ### Acceptance criteria
 
 - Profile changes are authorized and reflected throughout the app.
 - Blocking prevents relevant discovery, profile, and chat interactions.
 - Reports can be reviewed and resolved.
+
+### Implementation progress
+
+- [x] Expand the weekly snapshot with a calendar-week activity goal, current and
+  longest weekly streaks, active days in the last 28 days, active weeks in the
+  last eight, and an eight-week consistency percentage.
+- [x] Surface streak protection, goal progress, consistency tiers, and personal
+  best context on Home and the personal profile.
+- [ ] Add authorized editing for display name, city, skill, bio, and avatar.
+- [ ] Add blocking and user/content reporting with filtering.
+- [ ] Add the minimum admin report review/removal workflow and audit trail.
 
 ## Step 8 — activities and phone tracking decision
 

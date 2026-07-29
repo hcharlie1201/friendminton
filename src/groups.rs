@@ -10,7 +10,8 @@ use crate::{
 
 use group::StoredBadmintonGroup;
 pub use group::{
-    BadmintonGroup, CreateBadmintonGroup, GroupMemberStatus, GroupMembership, GroupSearch,
+    BadmintonGroup, CreateBadmintonGroup, GroupMember, GroupMemberStatus, GroupMembership,
+    GroupSearch, GroupViewerState, InviteGroupMember,
 };
 use group::{GroupJoinPolicy, GroupRole, GroupVisibility};
 
@@ -175,25 +176,26 @@ pub async fn join_group(
     group_id: Uuid,
     user_id: Uuid,
 ) -> Result<GroupMembership, AppError> {
+    let mut transaction = pool.begin().await?;
     let (visibility, join_policy) = sqlx::query_as::<_, (GroupVisibility, GroupJoinPolicy)>(
-        "SELECT visibility, join_policy FROM badminton_groups WHERE id = $1",
+        "SELECT visibility, join_policy FROM badminton_groups WHERE id = $1 FOR UPDATE",
     )
     .bind(group_id)
-    .fetch_one(pool)
+    .fetch_one(&mut *transaction)
     .await?;
     let existing = sqlx::query_as::<_, GroupMembership>(
         "SELECT group_id, user_id, role, status, joined_at FROM badminton_group_members WHERE group_id = $1 AND user_id = $2",
     )
     .bind(group_id)
     .bind(user_id)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *transaction)
     .await?;
     let status = next_status(
         visibility,
         join_policy,
         existing.as_ref().map(|membership| membership.status),
     )?;
-    Ok(sqlx::query_as::<_, GroupMembership>(
+    let membership = sqlx::query_as::<_, GroupMembership>(
         r#"
         INSERT INTO badminton_group_members (group_id, user_id, role, status)
         VALUES ($1, $2, $3, $4)
@@ -206,8 +208,325 @@ pub async fn join_group(
     .bind(user_id)
     .bind(GroupRole::Member)
     .bind(status)
+    .fetch_one(&mut *transaction)
+    .await?;
+    transaction.commit().await?;
+    Ok(membership)
+}
+
+pub async fn group_viewer_state(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    user_id: Uuid,
+) -> Result<GroupViewerState, AppError> {
+    get_visible_group_row(pool, group_id, user_id).await?;
+    let membership = sqlx::query_as::<_, (GroupRole, GroupMemberStatus)>(
+        "SELECT role, status FROM badminton_group_members WHERE group_id = $1 AND user_id = $2",
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(GroupViewerState {
+        role: membership.map(|value| value.0),
+        membership_status: membership.map(|value| value.1),
+        can_manage: membership.is_some_and(|(role, status)| {
+            status == GroupMemberStatus::Member
+                && matches!(role, GroupRole::Owner | GroupRole::Admin)
+        }),
+    })
+}
+
+pub async fn group_members(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    user_id: Uuid,
+) -> Result<Vec<GroupMember>, AppError> {
+    get_visible_group_row(pool, group_id, user_id).await?;
+    let can_manage = can_manage_group(pool, group_id, user_id).await?;
+    Ok(sqlx::query_as::<_, GroupMember>(
+        r#"
+        SELECT membership.user_id, users.display_name, users.city, users.skill_level,
+            membership.role, membership.status, membership.joined_at
+        FROM badminton_group_members AS membership
+        INNER JOIN users ON users.id = membership.user_id
+        WHERE membership.group_id = $1
+            AND ($2 OR membership.status = 'member')
+        ORDER BY
+            CASE membership.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END,
+            membership.joined_at, membership.user_id
+        "#,
+    )
+    .bind(group_id)
+    .bind(can_manage)
+    .fetch_all(pool)
+    .await?)
+}
+
+pub async fn leave_group(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    user_id: Uuid,
+) -> Result<(), AppError> {
+    let mut transaction = pool.begin().await?;
+    let role = sqlx::query_scalar::<_, GroupRole>(
+        r#"
+        SELECT role FROM badminton_group_members
+        WHERE group_id = $1 AND user_id = $2
+        FOR UPDATE
+        "#,
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .fetch_optional(&mut *transaction)
+    .await?
+    .ok_or_else(|| AppError::BadRequest("you are not part of this group".to_owned()))?;
+    if role == GroupRole::Owner {
+        return Err(AppError::BadRequest(
+            "the group owner cannot leave the group".to_owned(),
+        ));
+    }
+    delete_group_membership(&mut transaction, group_id, user_id).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+pub async fn invite_group_member(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    actor_id: Uuid,
+    target_id: Uuid,
+) -> Result<GroupMembership, AppError> {
+    let mut transaction = pool.begin().await?;
+    require_group_manager(&mut transaction, group_id, actor_id).await?;
+    if actor_id == target_id {
+        return Err(AppError::BadRequest(
+            "you are already in this group".to_owned(),
+        ));
+    }
+    ensure_user_exists(&mut transaction, target_id).await?;
+    let membership = sqlx::query_as::<_, GroupMembership>(
+        r#"
+        INSERT INTO badminton_group_members (group_id, user_id, role, status)
+        VALUES ($1, $2, 'member', 'invited')
+        ON CONFLICT (group_id, user_id) DO NOTHING
+        RETURNING group_id, user_id, role, status, joined_at
+        "#,
+    )
+    .bind(group_id)
+    .bind(target_id)
+    .fetch_optional(&mut *transaction)
+    .await?
+    .ok_or_else(|| AppError::Conflict("player already has a group membership".to_owned()))?;
+    transaction.commit().await?;
+    Ok(membership)
+}
+
+pub async fn approve_group_member(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    actor_id: Uuid,
+    target_id: Uuid,
+) -> Result<GroupMembership, AppError> {
+    update_group_member_status(
+        pool,
+        group_id,
+        actor_id,
+        target_id,
+        GroupMemberStatus::Pending,
+        GroupMemberStatus::Member,
+    )
+    .await
+}
+
+pub async fn reject_group_member(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    actor_id: Uuid,
+    target_id: Uuid,
+) -> Result<(), AppError> {
+    delete_managed_group_membership(
+        pool,
+        group_id,
+        actor_id,
+        target_id,
+        Some(GroupMemberStatus::Pending),
+    )
+    .await
+}
+
+pub async fn remove_group_member(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    actor_id: Uuid,
+    target_id: Uuid,
+) -> Result<(), AppError> {
+    delete_managed_group_membership(pool, group_id, actor_id, target_id, None).await
+}
+
+async fn get_visible_group_row(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    user_id: Uuid,
+) -> Result<(), AppError> {
+    sqlx::query_scalar::<_, Uuid>(
+        r#"
+        SELECT id FROM badminton_groups
+        WHERE id = $1 AND (
+            visibility = 'public' OR EXISTS (
+                SELECT 1 FROM badminton_group_members
+                WHERE group_id = $1 AND user_id = $2
+                    AND status IN ('member', 'invited')
+            )
+        )
+        "#,
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
+    Ok(())
+}
+
+async fn can_manage_group(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    user_id: Uuid,
+) -> Result<bool, AppError> {
+    Ok(sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS (
+            SELECT 1 FROM badminton_group_members
+            WHERE group_id = $1 AND user_id = $2 AND status = 'member'
+                AND role IN ('owner', 'admin')
+        )
+        "#,
+    )
+    .bind(group_id)
+    .bind(user_id)
     .fetch_one(pool)
     .await?)
+}
+
+async fn require_group_manager(
+    transaction: &mut sqlx::Transaction<'_, Postgres>,
+    group_id: Uuid,
+    user_id: Uuid,
+) -> Result<GroupRole, AppError> {
+    sqlx::query_scalar::<_, Uuid>("SELECT id FROM badminton_groups WHERE id = $1 FOR UPDATE")
+        .bind(group_id)
+        .fetch_one(&mut **transaction)
+        .await?;
+    sqlx::query_scalar::<_, GroupRole>(
+        r#"
+        SELECT role FROM badminton_group_members
+        WHERE group_id = $1 AND user_id = $2 AND status = 'member'
+            AND role IN ('owner', 'admin')
+        "#,
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .fetch_optional(&mut **transaction)
+    .await?
+    .ok_or_else(|| AppError::Forbidden("only group managers can do that".to_owned()))
+}
+
+async fn ensure_user_exists(
+    transaction: &mut sqlx::Transaction<'_, Postgres>,
+    user_id: Uuid,
+) -> Result<(), AppError> {
+    sqlx::query_scalar::<_, Uuid>("SELECT id FROM users WHERE id = $1")
+        .bind(user_id)
+        .fetch_one(&mut **transaction)
+        .await?;
+    Ok(())
+}
+
+async fn update_group_member_status(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    actor_id: Uuid,
+    target_id: Uuid,
+    expected: GroupMemberStatus,
+    next: GroupMemberStatus,
+) -> Result<GroupMembership, AppError> {
+    let mut transaction = pool.begin().await?;
+    require_group_manager(&mut transaction, group_id, actor_id).await?;
+    let membership = sqlx::query_as::<_, GroupMembership>(
+        r#"
+        UPDATE badminton_group_members
+        SET status = $4, joined_at = now()
+        WHERE group_id = $1 AND user_id = $2 AND status = $3
+        RETURNING group_id, user_id, role, status, joined_at
+        "#,
+    )
+    .bind(group_id)
+    .bind(target_id)
+    .bind(expected)
+    .bind(next)
+    .fetch_optional(&mut *transaction)
+    .await?
+    .ok_or_else(|| AppError::Conflict("membership is no longer pending".to_owned()))?;
+    transaction.commit().await?;
+    Ok(membership)
+}
+
+async fn delete_managed_group_membership(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    actor_id: Uuid,
+    target_id: Uuid,
+    expected: Option<GroupMemberStatus>,
+) -> Result<(), AppError> {
+    let mut transaction = pool.begin().await?;
+    require_group_manager(&mut transaction, group_id, actor_id).await?;
+    let target = sqlx::query_as::<_, (GroupRole, GroupMemberStatus)>(
+        "SELECT role, status FROM badminton_group_members WHERE group_id = $1 AND user_id = $2 FOR UPDATE",
+    )
+    .bind(group_id)
+    .bind(target_id)
+    .fetch_optional(&mut *transaction)
+    .await?
+    .ok_or_else(|| AppError::Conflict("membership no longer exists".to_owned()))?;
+    if target.0 == GroupRole::Owner {
+        return Err(AppError::Forbidden(
+            "the group owner cannot be removed".to_owned(),
+        ));
+    }
+    if expected.is_some_and(|expected| expected != target.1) {
+        return Err(AppError::Conflict(
+            "membership is no longer pending".to_owned(),
+        ));
+    }
+    delete_group_membership(&mut transaction, group_id, target_id).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+async fn delete_group_membership(
+    transaction: &mut sqlx::Transaction<'_, Postgres>,
+    group_id: Uuid,
+    user_id: Uuid,
+) -> Result<(), AppError> {
+    sqlx::query(
+        r#"
+        DELETE FROM gathering_participants AS participant
+        USING gatherings
+        WHERE participant.gathering_id = gatherings.id
+            AND gatherings.group_id = $1 AND participant.user_id = $2
+            AND gatherings.starts_at > now()
+        "#,
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .execute(&mut **transaction)
+    .await?;
+    sqlx::query("DELETE FROM badminton_group_members WHERE group_id = $1 AND user_id = $2")
+        .bind(group_id)
+        .bind(user_id)
+        .execute(&mut **transaction)
+        .await?;
+    Ok(())
 }
 
 fn next_status(

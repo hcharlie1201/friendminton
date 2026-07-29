@@ -56,7 +56,7 @@ export const DiscoveryFilterSheet = memo(function DiscoveryFilterSheet({
           onPress={onClose}
           style={styles.backdrop}
         />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.sheetPosition}>
+        <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: 'height' })} style={styles.sheetPosition}>
           <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, MINIMUM_SHEET_BOTTOM_PADDING) }]}>
             <View style={styles.grabber} />
             <View style={styles.header}>
@@ -82,6 +82,7 @@ export const DiscoveryFilterSheet = memo(function DiscoveryFilterSheet({
             </View>
 
             <ScrollView
+              automaticallyAdjustKeyboardInsets
               contentContainerStyle={styles.bodyContent}
               keyboardShouldPersistTaps="handled"
               style={styles.body}

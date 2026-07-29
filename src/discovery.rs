@@ -129,6 +129,7 @@ pub async fn search(
                 (-extract(epoch FROM g.starts_at))::BIGINT AS sort_key
             FROM gatherings AS g
             WHERE $7 IN ('all', 'games')
+                AND g.cancelled_at IS NULL
                 AND (
                     g.visibility = 'public'
                     OR g.host_id = $1

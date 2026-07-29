@@ -20,6 +20,7 @@ import { apiData, authHeaders } from '../api/runtime';
 import { useSession } from '../auth/session';
 import { errorMessage } from '../common/errors';
 import { GatheringDetailHero } from '../components/gatherings';
+import { GatheringParticipantsPanel } from '../components/membership';
 import { Button, colors, fonts } from '../components/ui';
 import { gatheringKindLabel, type GatheringKind } from '../features/gatherings/gatheringDraft';
 import {
@@ -55,6 +56,7 @@ export function GatheringDetailScreen() {
           onJoin={participation.join}
           onViewPost={viewActivityPost}
           viewerState={viewerQuery.data}
+          userId={user?.id ?? ''}
         />
       ) : query.isPending ? (
         <GatheringDetailLoading />
@@ -74,6 +76,7 @@ function GatheringDetailContent({
   onJoin,
   onViewPost,
   viewerState,
+  userId,
 }: {
   gathering: Gathering;
   isFinishing: boolean;
@@ -83,6 +86,7 @@ function GatheringDetailContent({
   onJoin: () => void;
   onViewPost: () => void;
   viewerState?: GatheringViewerState;
+  userId: string;
 }) {
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -128,6 +132,7 @@ function GatheringDetailContent({
       </GatheringDetailSection>
 
       <GatheringParticipationActions
+        cancelled={Boolean(gathering.cancelled_at)}
         gathering={gathering}
         isFinishing={isFinishing}
         isJoining={isJoining}
@@ -137,11 +142,18 @@ function GatheringDetailContent({
         onViewPost={onViewPost}
         viewerState={viewerState}
       />
+      <GatheringParticipantsPanel
+        cancelled={Boolean(gathering.cancelled_at)}
+        gatheringId={gathering.id}
+        userId={userId}
+        viewerState={viewerState}
+      />
     </ScrollView>
   );
 }
 
 function GatheringParticipationActions({
+  cancelled,
   gathering,
   isFinishing,
   isJoining,
@@ -151,6 +163,7 @@ function GatheringParticipationActions({
   onViewPost,
   viewerState,
 }: {
+  cancelled: boolean;
   gathering: Gathering;
   isFinishing: boolean;
   isJoining: boolean;
@@ -177,14 +190,16 @@ function GatheringParticipationActions({
       <View style={styles.participationHeading}>
         <MaterialCommunityIcons color={colors.primaryStrong} name="badminton" size={27} />
         <View style={styles.rsvpCopy}>
-          <Text style={styles.rsvpTitle}>{participationTitle(status, hasActivity)}</Text>
+          <Text style={styles.rsvpTitle}>{cancelled ? 'Gathering cancelled' : participationTitle(status, hasActivity)}</Text>
           <Text style={styles.rsvpBody}>
-            {participationBody(status, hasActivity, hasPost, viewerState?.can_finish ?? false, gathering.kind)}
+            {cancelled
+              ? 'This event is no longer accepting participants.'
+              : participationBody(status, hasActivity, hasPost, viewerState?.can_finish ?? false, gathering.kind)}
           </Text>
         </View>
       </View>
-      {(!status || status === 'invited') && <Button loading={isJoining} onPress={onJoin}>{joinLabel}</Button>}
-      {status === 'going' && !hasActivity && isPlayGathering && (
+      {!cancelled && (!status || status === 'invited') && <Button loading={isJoining} onPress={onJoin}>{joinLabel}</Button>}
+      {!cancelled && status === 'going' && !hasActivity && isPlayGathering && (
         <Button disabled={!viewerState?.can_finish} icon="checkmark-circle" loading={isFinishing} onPress={onFinish}>
           Finish my session
         </Button>

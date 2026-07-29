@@ -117,7 +117,7 @@ export function CreateGroupScreen() {
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.select({ ios: 'padding', android: 'height' })}
         style={styles.keyboardView}
       >
         <FlowHeader
@@ -127,6 +127,7 @@ export function CreateGroupScreen() {
           step={flow.step}
         />
         <ScrollView
+          automaticallyAdjustKeyboardInsets
           contentContainerStyle={styles.scrollContent}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"

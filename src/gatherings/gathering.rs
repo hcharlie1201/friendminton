@@ -121,6 +121,9 @@ pub struct Gathering {
     pub theme: Option<String>,
     pub cover_image_key: Option<String>,
     pub cover_image_url: Option<String>,
+    #[serde(with = "time::serde::rfc3339::option")]
+    #[schemars(with = "Option<String>")]
+    pub cancelled_at: Option<OffsetDateTime>,
     #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub created_at: OffsetDateTime,
@@ -198,6 +201,24 @@ pub struct GatheringViewerState {
     pub workout_id: Option<Uuid>,
     pub post_id: Option<Uuid>,
     pub can_finish: bool,
+    pub can_manage: bool,
+}
+
+#[derive(Debug, Serialize, FromRow, JsonSchema)]
+pub struct GatheringParticipantView {
+    pub user_id: Uuid,
+    pub display_name: String,
+    pub city: Option<String>,
+    pub skill_level: String,
+    pub status: GatheringParticipantStatus,
+    #[serde(with = "time::serde::rfc3339")]
+    #[schemars(with = "String")]
+    pub joined_at: OffsetDateTime,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct InviteGatheringParticipant {
+    pub user_id: Uuid,
 }
 
 #[derive(Debug, FromRow)]
@@ -228,6 +249,7 @@ pub(super) struct StoredGathering {
     pub social_tags: Vec<SocialTag>,
     pub theme: Option<String>,
     pub cover_image_key: Option<String>,
+    pub cancelled_at: Option<OffsetDateTime>,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
 }

@@ -194,7 +194,14 @@ export function HomeContent({
     <>
       <WeeklySnapshot
         activities={snapshot?.activities ?? 0}
+        activeDays={snapshot?.active_days_last_28 ?? 0}
+        activeWeeks={snapshot?.active_weeks_last_8 ?? 0}
+        consistency={snapshot?.consistency_percent ?? 0}
+        currentStreak={snapshot?.current_streak_weeks ?? 0}
         games={snapshot?.games ?? 0}
+        goal={snapshot?.weekly_goal ?? 1}
+        goalProgress={snapshot?.weekly_goal_progress ?? 0}
+        longestStreak={snapshot?.longest_streak_weeks ?? 0}
         minutes={snapshot?.duration_minutes ?? 0}
       />
       {editingPostId !== null && (

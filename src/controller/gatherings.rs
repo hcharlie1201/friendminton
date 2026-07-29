@@ -5,6 +5,7 @@ use aide::axum::{
 use axum::{
     Json,
     extract::{Path, Query, State},
+    http::StatusCode,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -16,8 +17,8 @@ use crate::{
     auth::CurrentUser,
     error::AppError,
     gatherings::{
-        self, CreateGathering, Gathering, GatheringParticipant, GatheringSearch,
-        GatheringViewerState,
+        self, CreateGathering, Gathering, GatheringParticipant, GatheringParticipantView,
+        GatheringSearch, GatheringViewerState, InviteGatheringParticipant,
     },
 };
 
@@ -26,13 +27,38 @@ pub fn routes() -> ApiRouter<AppState> {
         .api_route("/", post(create_gathering).get(find_gatherings))
         .api_route("/{gathering_id}", get(get_gathering))
         .api_route("/{gathering_id}/me", get(get_gathering_viewer_state))
+        .api_route(
+            "/{gathering_id}/participants",
+            get(get_gathering_participants),
+        )
         .api_route("/{gathering_id}/join", post(join_gathering))
+        .api_route("/{gathering_id}/leave", post(leave_gathering))
+        .api_route("/{gathering_id}/invite", post(invite_gathering_participant))
+        .api_route(
+            "/{gathering_id}/participants/{user_id}/approve",
+            post(approve_gathering_participant),
+        )
+        .api_route(
+            "/{gathering_id}/participants/{user_id}/reject",
+            post(reject_gathering_participant),
+        )
+        .api_route(
+            "/{gathering_id}/participants/{user_id}/remove",
+            post(remove_gathering_participant),
+        )
+        .api_route("/{gathering_id}/cancel", post(cancel_gathering))
         .api_route("/{gathering_id}/finish", post(finish_gathering))
 }
 
 #[derive(Deserialize, JsonSchema)]
 pub(crate) struct GatheringPath {
     gathering_id: Uuid,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub(crate) struct GatheringParticipantPath {
+    gathering_id: Uuid,
+    user_id: Uuid,
 }
 
 pub(crate) async fn create_gathering(
@@ -72,6 +98,99 @@ pub(crate) async fn join_gathering(
 ) -> Result<Json<GatheringParticipant>, AppError> {
     let participant = gatherings::join_gathering(&state.pool, path.gathering_id, user_id).await?;
     Ok(Json(participant))
+}
+
+pub(crate) async fn get_gathering_participants(
+    State(state): State<AppState>,
+    CurrentUser { id: user_id }: CurrentUser,
+    Path(path): Path<GatheringPath>,
+) -> Result<Json<Vec<GatheringParticipantView>>, AppError> {
+    Ok(Json(
+        gatherings::gathering_participants(&state.pool, path.gathering_id, user_id).await?,
+    ))
+}
+
+pub(crate) async fn leave_gathering(
+    State(state): State<AppState>,
+    CurrentUser { id: user_id }: CurrentUser,
+    Path(path): Path<GatheringPath>,
+) -> Result<StatusCode, AppError> {
+    gatherings::leave_gathering(&state.pool, path.gathering_id, user_id).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub(crate) async fn invite_gathering_participant(
+    State(state): State<AppState>,
+    CurrentUser { id: actor_id }: CurrentUser,
+    Path(path): Path<GatheringPath>,
+    Json(payload): Json<InviteGatheringParticipant>,
+) -> Result<Json<GatheringParticipant>, AppError> {
+    Ok(Json(
+        gatherings::invite_gathering_participant(
+            &state.pool,
+            path.gathering_id,
+            actor_id,
+            payload.user_id,
+        )
+        .await?,
+    ))
+}
+
+pub(crate) async fn approve_gathering_participant(
+    State(state): State<AppState>,
+    CurrentUser { id: actor_id }: CurrentUser,
+    Path(path): Path<GatheringParticipantPath>,
+) -> Result<Json<GatheringParticipant>, AppError> {
+    Ok(Json(
+        gatherings::approve_gathering_participant(
+            &state.pool,
+            path.gathering_id,
+            actor_id,
+            path.user_id,
+        )
+        .await?,
+    ))
+}
+
+pub(crate) async fn reject_gathering_participant(
+    State(state): State<AppState>,
+    CurrentUser { id: actor_id }: CurrentUser,
+    Path(path): Path<GatheringParticipantPath>,
+) -> Result<StatusCode, AppError> {
+    gatherings::reject_gathering_participant(
+        &state.pool,
+        path.gathering_id,
+        actor_id,
+        path.user_id,
+    )
+    .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub(crate) async fn remove_gathering_participant(
+    State(state): State<AppState>,
+    CurrentUser { id: actor_id }: CurrentUser,
+    Path(path): Path<GatheringParticipantPath>,
+) -> Result<StatusCode, AppError> {
+    gatherings::remove_gathering_participant(
+        &state.pool,
+        path.gathering_id,
+        actor_id,
+        path.user_id,
+    )
+    .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub(crate) async fn cancel_gathering(
+    State(state): State<AppState>,
+    CurrentUser { id: actor_id }: CurrentUser,
+    Path(path): Path<GatheringPath>,
+) -> Result<Json<Gathering>, AppError> {
+    Ok(Json(
+        gatherings::cancel_gathering(&state.pool, &state.media, path.gathering_id, actor_id)
+            .await?,
+    ))
 }
 
 pub(crate) async fn get_gathering_viewer_state(
@@ -176,6 +295,148 @@ mod tests {
         assert_eq!(invalid_cover.status, StatusCode::BAD_REQUEST);
 
         api.cleanup_users(&[host_id]).await;
+    }
+
+    #[tokio::test]
+    async fn participant_controls_enforce_host_authorization_and_locked_capacity() {
+        let api = TestApi::new().await;
+        let host_id = api.insert_user("controls-host").await;
+        let first_id = api.insert_user("controls-first").await;
+        let second_id = api.insert_user("controls-second").await;
+        let outsider_id = api.insert_user("controls-outsider").await;
+        let created = api
+            .json(
+                Method::POST,
+                "/api/gatherings",
+                Some(host_id),
+                Some(gathering_payload(
+                    "Approval session",
+                    &unique_city(),
+                    "public",
+                    "approval_required",
+                    Some(2),
+                )),
+            )
+            .await;
+        let gathering_id = response_uuid(&created.body, "id");
+        for user_id in [first_id, second_id] {
+            let requested = api
+                .json(
+                    Method::POST,
+                    &format!("/api/gatherings/{gathering_id}/join"),
+                    Some(user_id),
+                    None,
+                )
+                .await;
+            assert_eq!(requested.body["status"], "pending");
+        }
+
+        let forbidden = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/participants/{first_id}/approve"),
+                Some(outsider_id),
+                None,
+            )
+            .await;
+        assert_eq!(forbidden.status, StatusCode::FORBIDDEN);
+
+        let approved = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/participants/{first_id}/approve"),
+                Some(host_id),
+                None,
+            )
+            .await;
+        assert_eq!(approved.body["status"], "going");
+        let full = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/participants/{second_id}/approve"),
+                Some(host_id),
+                None,
+            )
+            .await;
+        assert_eq!(full.status, StatusCode::CONFLICT);
+
+        let removed = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/participants/{first_id}/remove"),
+                Some(host_id),
+                None,
+            )
+            .await;
+        assert_eq!(removed.status, StatusCode::NO_CONTENT);
+        let approved = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/participants/{second_id}/approve"),
+                Some(host_id),
+                None,
+            )
+            .await;
+        assert_eq!(approved.body["status"], "going");
+        let left = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/leave"),
+                Some(second_id),
+                None,
+            )
+            .await;
+        assert_eq!(left.status, StatusCode::NO_CONTENT);
+
+        let invited = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/invite"),
+                Some(host_id),
+                Some(json!({ "user_id": first_id })),
+            )
+            .await;
+        assert_eq!(invited.body["status"], "invited");
+        let accepted = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/join"),
+                Some(first_id),
+                None,
+            )
+            .await;
+        assert_eq!(accepted.body["status"], "going");
+
+        let forbidden_cancel = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/cancel"),
+                Some(outsider_id),
+                None,
+            )
+            .await;
+        assert_eq!(forbidden_cancel.status, StatusCode::FORBIDDEN);
+        let cancelled = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/cancel"),
+                Some(host_id),
+                None,
+            )
+            .await;
+        assert_eq!(cancelled.status, StatusCode::OK, "{}", cancelled.body);
+        assert!(cancelled.body["cancelled_at"].is_string());
+        let join_cancelled = api
+            .json(
+                Method::POST,
+                &format!("/api/gatherings/{gathering_id}/join"),
+                Some(second_id),
+                None,
+            )
+            .await;
+        assert_eq!(join_cancelled.status, StatusCode::CONFLICT);
+        api.cleanup_users(&[host_id, first_id, second_id, outsider_id])
+            .await;
     }
 
     #[tokio::test]

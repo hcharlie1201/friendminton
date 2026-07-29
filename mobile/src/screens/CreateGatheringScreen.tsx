@@ -56,8 +56,9 @@ export function CreateGatheringScreen() {
     <SafeAreaView edges={['top', 'bottom']} style={styles.screen}>
       <StatusBar style="dark" />
       <GatheringCreatorHeader kind={draft.value.kind} onClose={close.requestClose} />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardView}>
+      <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: 'height' })} style={styles.keyboardView}>
         <ScrollView
+          automaticallyAdjustKeyboardInsets
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
