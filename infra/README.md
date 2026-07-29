@@ -13,7 +13,7 @@ Each stack has an independent state object in the encrypted, versioned, private
 | `state-bootstrap` | Terraform state bucket and its safety settings |
 | `shared` | ECR, GitHub OIDC, IAM deployment roles, repository Actions variables |
 | `email` | SES identities, sending controls, event logs, alarms, and sender IAM users |
-| `staging` | Existing staging Lightsail instance, static IP, firewall, and media bucket |
+| `staging` | Existing staging Lightsail instance, static IP, firewall, media bucket, and CloudWatch CPU/memory alarms |
 | `production` | Isolated production Lightsail instance, static IP, firewall, and media bucket |
 
 The staging and shared import blocks are intentionally retained as migration history. Once an
@@ -36,6 +36,11 @@ terraform apply staging.tfplan
 
 Use the matching backend file for the other stacks. Do not use `-target` for routine changes, and
 never commit plan files, state files, `.terraform/`, or `terraform.tfvars`.
+
+Staging owns `AWS/Lightsail` `CPUUtilization` and `MemoryUtilization` alarms on
+`friendminton-staging`, publishing to SNS topic `friendminton-staging-alerts`. Set optional
+`alert_email` in an uncommitted `terraform.tfvars` (see `staging/terraform.tfvars.example`), then
+confirm the SNS subscription email after apply.
 
 ## Transactional email
 

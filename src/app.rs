@@ -6,7 +6,7 @@ use aide::{
     openapi::OpenApi,
     swagger::Swagger,
 };
-use axum::{Extension, Json, Router};
+use axum::{Extension, Json, Router, extract::DefaultBodyLimit};
 use sqlx::{Pool, Postgres};
 use std::{path::PathBuf, time::Duration};
 use tower_http::{services::ServeDir, timeout::TimeoutLayer, trace::TraceLayer};
@@ -41,6 +41,7 @@ pub fn router(state: AppState, config: &AppConfig) -> Router {
         .nest("/api", api_routes())
         .nest_service("/uploads", ServeDir::new(upload_dir))
         .finish_api(&mut api)
+        .layer(DefaultBodyLimit::max(2 * 1024 * 1024))
         .layer(TimeoutLayer::with_status_code(
             axum::http::StatusCode::REQUEST_TIMEOUT,
             Duration::from_secs(20),

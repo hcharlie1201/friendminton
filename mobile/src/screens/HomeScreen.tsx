@@ -93,12 +93,16 @@ function useHomeRefresh(
 ) {
   const [imageRefreshToken, setImageRefreshToken] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshInFlight = useRef(false);
   const refresh = useCallback(async () => {
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
     setIsRefreshing(true);
     try {
       await withRefreshDeadline(refreshHomeData(queryClient, userId, activeTab));
       setImageRefreshToken((token) => token + 1);
     } finally {
+      refreshInFlight.current = false;
       setIsRefreshing(false);
     }
   }, [activeTab, queryClient, userId]);
@@ -640,11 +644,11 @@ async function refreshHomeData(
 ) {
   const tasks: Array<Promise<unknown>> = [];
   if (activeTab === 'home') {
-    tasks.push(queryClient.invalidateQueries({ exact: true, queryKey: feedQueryKey }));
+    tasks.push(queryClient.resetQueries({ exact: true, queryKey: feedQueryKey }));
     tasks.push(queryClient.invalidateQueries({ queryKey: ['weeklySnapshot', userId] }));
   } else if (activeTab === 'discover') {
-    tasks.push(queryClient.invalidateQueries({ queryKey: ['players'] }));
-    tasks.push(queryClient.invalidateQueries({ queryKey: ['gatherings'] }));
+    tasks.push(queryClient.invalidateQueries({ queryKey: ['players', 'search'] }));
+    tasks.push(queryClient.invalidateQueries({ queryKey: ['gatherings', userId] }));
   } else if (activeTab === 'you') {
     tasks.push(queryClient.invalidateQueries({ queryKey: ['players', 'profile', userId] }));
     tasks.push(queryClient.invalidateQueries({ queryKey: ['groups', 'mine', userId] }));
