@@ -8,4 +8,4 @@ export { SearchBar } from './SearchBar';
 export { Section } from './Section';
 export { TextField } from './TextField';
 export { colors } from './theme';
-export { fonts } from './typography';
+export { fonts, textSizes, textWeights } from './typography';

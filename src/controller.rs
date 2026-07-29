@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod courts;
+pub mod discovery;
 pub mod engagement;
 pub mod game_invites;
 pub mod gatherings;

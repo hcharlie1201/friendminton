@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { memo, useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, fonts } from '../ui';
+import { colors, textSizes, textWeights } from '../ui';
 import { DiscoveryFilterSheet } from './DiscoveryFilterSheet';
 import type { DiscoveryPreferences, SkillLevel } from './types';
 
@@ -10,7 +10,14 @@ type Props = DiscoveryPreferences & {
   onApply: (preferences: DiscoveryPreferences) => void;
 };
 
-export const DiscoveryFilters = memo(function DiscoveryFilters({ city, latitude, longitude, onApply, skillLevel }: Props) {
+export const DiscoveryFilters = memo(function DiscoveryFilters({
+  city,
+  latitude,
+  locationEnabled,
+  longitude,
+  onApply,
+  skillLevel,
+}: Props) {
   const filterSheet = useFilterSheetActions(onApply);
 
   return (
@@ -21,7 +28,7 @@ export const DiscoveryFilters = memo(function DiscoveryFilters({ city, latitude,
           <View style={styles.locationRow}>
             <Ionicons color={colors.primary} name="location" size={19} />
             <Text numberOfLines={1} style={styles.locationText}>
-              {city}
+              {locationEnabled ? city : 'Anywhere'}
             </Text>
           </View>
           <Text style={styles.preferenceText}>{levelLabel(skillLevel)}</Text>
@@ -42,6 +49,7 @@ export const DiscoveryFilters = memo(function DiscoveryFilters({ city, latitude,
       <DiscoveryFilterSheet
         city={city}
         latitude={latitude}
+        locationEnabled={locationEnabled}
         longitude={longitude}
         onApply={filterSheet.apply}
         onClose={filterSheet.close}
@@ -91,10 +99,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   eyebrow: {
+    ...textSizes.caption,
+    ...textWeights.strong,
     color: colors.textMuted,
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    fontWeight: '700',
   },
   locationRow: {
     alignItems: 'center',
@@ -102,16 +109,15 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   locationText: {
+    ...textSizes.large,
+    ...textWeights.heavy,
     color: colors.text,
     flex: 1,
-    fontFamily: fonts.black,
-    fontSize: 20,
-    fontWeight: '900',
   },
   preferenceText: {
+    ...textSizes.small,
+    ...textWeights.regular,
     color: colors.textMuted,
-    fontFamily: fonts.regular,
-    fontSize: 13,
   },
   filterButton: {
     alignItems: 'center',
@@ -125,10 +131,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
   },
   filterLabel: {
+    ...textSizes.small,
+    ...textWeights.heavy,
     color: colors.primaryStrong,
-    fontFamily: fonts.black,
-    fontSize: 14,
-    fontWeight: '900',
   },
   activeDot: {
     backgroundColor: colors.primary,

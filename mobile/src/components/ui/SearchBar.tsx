@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { colors } from './theme';
-import { fonts } from './typography';
+import { textSizes, textWeights } from './typography';
 
 type Props = {
   autoFocus?: boolean;
@@ -28,7 +28,7 @@ export function SearchBar({ autoFocus = false, isLoading = false, onChangeText, 
           clearButtonMode="never"
           maxLength={80}
           onChangeText={onChangeText}
-          placeholder="Search players"
+          placeholder="Search games, courts, groups, players"
           placeholderTextColor={colors.textMuted}
           returnKeyType="search"
           style={styles.input}
@@ -70,10 +70,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   input: {
+    ...textSizes.medium,
+    ...textWeights.regular,
     color: colors.text,
     flex: 1,
-    fontFamily: fonts.regular,
-    fontSize: 16,
     minWidth: 0,
     paddingVertical: 0,
   },

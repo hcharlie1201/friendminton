@@ -55,4 +55,4 @@ else
   exit 1
 fi
 
-echo "Loaded three development users, workouts, and photo posts."
+echo "Loaded development users, workouts, posts, and the Oakland discovery set."

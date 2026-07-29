@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getCurrentCity, LocationPermissionError } from '../../features/location/currentCity';
-import { Button, colors, fonts, TextField } from '../ui';
+import { Button, colors, textSizes, textWeights, TextField } from '../ui';
 import { SkillLevelPicker } from './SkillLevelPicker';
 import type { DiscoveryPreferences, SkillLevel } from './types';
 
@@ -29,6 +29,7 @@ const MINIMUM_SHEET_BOTTOM_PADDING = 16;
 export const DiscoveryFilterSheet = memo(function DiscoveryFilterSheet({
   city,
   latitude,
+  locationEnabled,
   longitude,
   onApply,
   onClose,
@@ -36,7 +37,15 @@ export const DiscoveryFilterSheet = memo(function DiscoveryFilterSheet({
   visible,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const filter = useDiscoveryFilterSheet({ city, latitude, longitude, onApply, skillLevel, visible });
+  const filter = useDiscoveryFilterSheet({
+    city,
+    latitude,
+    locationEnabled,
+    longitude,
+    onApply,
+    skillLevel,
+    visible,
+  });
 
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
@@ -81,6 +90,7 @@ export const DiscoveryFilterSheet = memo(function DiscoveryFilterSheet({
                 <TextField
                   accessibilityLabel="Discovery city"
                   autoCapitalize="words"
+                  editable={filter.draftLocationEnabled}
                   onChangeText={filter.setDraftCity}
                   placeholder="City"
                   value={filter.draftCity}
@@ -93,6 +103,14 @@ export const DiscoveryFilterSheet = memo(function DiscoveryFilterSheet({
                   variant="secondary"
                 >
                   Use current location
+                </Button>
+                <Button
+                  icon={filter.draftLocationEnabled ? 'earth-outline' : 'location-outline'}
+                  onPress={filter.toggleLocation}
+                  size="compact"
+                  variant="secondary"
+                >
+                  {filter.draftLocationEnabled ? 'Search anywhere' : `Use ${city}`}
                 </Button>
               </FilterSection>
 
@@ -111,26 +129,37 @@ export const DiscoveryFilterSheet = memo(function DiscoveryFilterSheet({
   );
 });
 
-function useDiscoveryFilterSheet({ city, latitude, longitude, onApply, skillLevel, visible }: Omit<Props, 'onClose'>) {
+function useDiscoveryFilterSheet({
+  city,
+  latitude,
+  locationEnabled,
+  longitude,
+  onApply,
+  skillLevel,
+  visible,
+}: Omit<Props, 'onClose'>) {
   const [isLocating, setIsLocating] = useState(false);
   const [draftCity, setDraftCity] = useState(city);
+  const [draftLocationEnabled, setDraftLocationEnabled] = useState(locationEnabled);
   const [draftSkillLevel, setDraftSkillLevel] = useState<SkillLevel | null>(skillLevel);
 
   useEffect(() => {
     if (visible) {
       setDraftCity(city);
+      setDraftLocationEnabled(locationEnabled);
       setDraftSkillLevel(skillLevel);
     }
-  }, [city, skillLevel, visible]);
+  }, [city, locationEnabled, skillLevel, visible]);
 
   const reset = useCallback(() => {
     setDraftCity(city);
+    setDraftLocationEnabled(locationEnabled);
     setDraftSkillLevel(null);
-  }, [city]);
+  }, [city, locationEnabled]);
 
   const apply = useCallback(() => {
     const normalizedCity = draftCity.trim();
-    if (!normalizedCity) {
+    if (draftLocationEnabled && !normalizedCity) {
       Alert.alert('Add a location', 'Choose a city so we know where to find players.');
       return;
     }
@@ -139,30 +168,45 @@ function useDiscoveryFilterSheet({ city, latitude, longitude, onApply, skillLeve
     onApply({
       city: normalizedCity,
       latitude: cityUnchanged ? latitude : null,
+      locationEnabled: draftLocationEnabled,
       longitude: cityUnchanged ? longitude : null,
       skillLevel: draftSkillLevel,
     });
-  }, [city, draftCity, draftSkillLevel, latitude, longitude, onApply]);
+  }, [
+    city,
+    draftCity,
+    draftLocationEnabled,
+    draftSkillLevel,
+    latitude,
+    longitude,
+    onApply,
+  ]);
 
   const useCurrentLocation = useCallback(async () => {
     setIsLocating(true);
     try {
       setDraftCity(await getCurrentCity());
+      setDraftLocationEnabled(true);
     } catch (error) {
       showLocationError(error);
     } finally {
       setIsLocating(false);
     }
   }, []);
+  const toggleLocation = useCallback(() => {
+    setDraftLocationEnabled((enabled) => !enabled);
+  }, []);
 
   return {
     apply,
     draftCity,
+    draftLocationEnabled,
     draftSkillLevel,
     isLocating,
     reset,
     setDraftCity,
     setDraftSkillLevel,
+    toggleLocation,
     useCurrentLocation,
   };
 }
@@ -227,16 +271,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
+    ...textSizes.large,
+    ...textWeights.heavy,
     color: colors.text,
-    fontFamily: fonts.black,
-    fontSize: 19,
-    fontWeight: '900',
   },
   resetLabel: {
+    ...textSizes.small,
+    ...textWeights.strong,
     color: colors.primaryStrong,
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    fontWeight: '700',
   },
   body: {
     flexShrink: 1,
@@ -249,14 +291,13 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   sectionTitle: {
+    ...textSizes.medium,
+    ...textWeights.heavy,
     color: colors.text,
-    fontFamily: fonts.black,
-    fontSize: 17,
-    fontWeight: '900',
   },
   sectionHelp: {
+    ...textSizes.small,
+    ...textWeights.regular,
     color: colors.textMuted,
-    fontFamily: fonts.regular,
-    fontSize: 13,
   },
 });

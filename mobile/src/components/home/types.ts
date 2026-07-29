@@ -4,6 +4,7 @@ export type SkillLevel = 'beginner' | 'intermediate' | 'advanced' | 'competitive
 export type DiscoveryPreferences = {
   city: string;
   latitude: number | null;
+  locationEnabled: boolean;
   longitude: number | null;
   skillLevel: SkillLevel | null;
 };

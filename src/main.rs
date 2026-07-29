@@ -8,6 +8,7 @@ mod config;
 mod controller;
 mod courts;
 mod db;
+mod discovery;
 mod email;
 mod engagement;
 mod error;

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type RefObject } from 'react';
 import { useRouter } from 'expo-router';
 import {
   Alert,
@@ -18,6 +18,7 @@ import {
 
 import {
   type BadmintonGroup,
+  type DiscoveryCategory,
   getApiEngagementNotifications,
   getApiEngagementNotificationsUnreadCount,
   getApiEngagementWeeklySnapshot,
@@ -43,7 +44,6 @@ import {
   BottomTabBar,
   HomeContent,
   InlineLoading,
-  type DiscoveryPreferences,
   type DiscoveryLocation,
   type HomeActions,
   type SkillLevel,
@@ -59,9 +59,10 @@ import {
 } from '../features/posts/postDraft';
 import { uploadPostPhotos } from '../features/posts/uploads';
 import { feedQueryKey } from '../features/posts/feed';
-import { usePlayerSearch } from '../features/players/usePlayerSearch';
 import { useGatheringDiscovery } from '../features/gatherings/useGatheringDiscovery';
 import { useHostedGatherings } from '../features/gatherings/useHostedGatherings';
+import { useUnifiedDiscovery } from '../features/discovery/useUnifiedDiscovery';
+import { useDiscoveryPreferences } from '../features/discovery/useDiscoveryPreferences';
 
 type WriteMutation = {
   mutate: () => void;
@@ -70,21 +71,6 @@ type WriteMutation = {
 const feedPageSize = 20;
 const feedLoadAheadDistance = 320;
 const HOME_REFRESH_DEADLINE_MS = 12_000;
-
-function useDiscoveryPreferences(initialLocation: DiscoveryLocation) {
-  const [location, setLocation] = useState<DiscoveryLocation>(initialLocation);
-  const [skillLevel, setSkillLevel] = useState<SkillLevel | null>(null);
-  const apply = useCallback((preferences: DiscoveryPreferences) => {
-    setLocation({
-      city: preferences.city,
-      latitude: preferences.latitude,
-      longitude: preferences.longitude,
-    });
-    setSkillLevel(preferences.skillLevel);
-  }, []);
-
-  return { apply, ...location, setLocation, skillLevel };
-}
 
 function useHomeRefresh(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -108,6 +94,19 @@ function useHomeRefresh(
   }, [activeTab, queryClient, userId]);
 
   return { imageRefreshToken, isRefreshing, refresh };
+}
+
+function useDiscoveryResultActions(
+  fetchNextPage: () => Promise<unknown>,
+  refetch: () => Promise<unknown>,
+) {
+  const loadMore = useCallback(() => {
+    void fetchNextPage();
+  }, [fetchNextPage]);
+  const retry = useCallback(() => {
+    void refetch();
+  }, [refetch]);
+  return { loadMore, retry };
 }
 
 function useFeedPagination({
@@ -145,15 +144,29 @@ function useFeedPagination({
 export function HomeScreen() {
   const queryClient = useQueryClient();
   const homeScrollRef = useRef<ScrollView>(null);
-  const { clearSession, discoveryLocation, signOut, user } = useSession();
+  const {
+    clearSession,
+    discoveryLocation,
+    discoveryLocationEnabled,
+    signOut,
+    updateDiscoveryPreferences,
+    user,
+  } = useSession();
   const currentUser = requireSessionUser(user);
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const discoveryPreferences = useDiscoveryPreferences(
     initialDiscoveryLocation(discoveryLocation, currentUser.city),
+    discoveryLocationEnabled,
+    updateDiscoveryPreferences,
   );
-  const { city, latitude, longitude, skillLevel } = discoveryPreferences;
-  const [playerSearch, setPlayerSearch] = useState('');
+  const { city, latitude, locationEnabled, longitude, skillLevel } = discoveryPreferences;
+  const filterCity = locationEnabled ? city : '';
+  const filterLatitude = locationEnabled ? latitude : null;
+  const filterLongitude = locationEnabled ? longitude : null;
+  const discoveryAreaLabel = locationEnabled ? city : 'Anywhere';
+  const [discoverySearch, setDiscoverySearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [discoveryCategory, setDiscoveryCategory] = useState<DiscoveryCategory>('all');
   const [postDraft, setPostDraft] = useState<PostDraft>(emptyPostDraft);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const homeRefresh = useHomeRefresh(queryClient, currentUser.id, activeTab);
@@ -164,17 +177,21 @@ export function HomeScreen() {
   const openGatheringCreator = useGatheringCreatorNavigation(city);
   const openGroupCreator = useGroupCreatorNavigation(city);
 
-  const playersQuery = usePlayerSearch({
-    city,
+  const discoveryQuery = useUnifiedDiscovery({
+    category: discoveryCategory,
+    city: filterCity,
     enabled: activeTab === 'discover',
-    query: playerSearch,
+    latitude: filterLatitude,
+    longitude: filterLongitude,
+    query: discoverySearch,
     skillLevel,
+    userId: currentUser.id,
   });
   const gatheringsQuery = useGatheringDiscovery({
-    city,
+    city: filterCity,
     enabled: activeTab === 'discover' || activeTab === 'groups',
-    latitude,
-    longitude,
+    latitude: filterLatitude,
+    longitude: filterLongitude,
     skillLevel,
     userId: currentUser.id,
   });
@@ -193,15 +210,15 @@ export function HomeScreen() {
   });
   const groupsQuery = useQuery({
     enabled: activeTab === 'groups',
-    queryKey: ['groups', 'discover', city, latitude, longitude, currentUser.id],
+    queryKey: ['groups', 'discover', filterCity, filterLatitude, filterLongitude, currentUser.id],
     queryFn: () => apiData<BadmintonGroup[]>(getApiGroups({
       headers: authHeaders(currentUser.id),
       query: {
-        city,
-        latitude,
+        city: filterCity || undefined,
+        latitude: filterLatitude,
         limit: 50,
-        longitude,
-        radius_km: latitude !== null && longitude !== null ? 40 : null,
+        longitude: filterLongitude,
+        radius_km: filterLatitude !== null && filterLongitude !== null ? 40 : null,
       },
     })),
   });
@@ -260,12 +277,14 @@ export function HomeScreen() {
       ]);
     },
   });
-  const players = playersQuery.data ?? [];
+  const discoveryActions = useDiscoveryResultActions(
+    discoveryQuery.fetchNextPage,
+    discoveryQuery.refetch,
+  );
   const feed = feedQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const notifications = notificationsQuery.data ?? [];
   const unreadNotificationCount = unreadNotificationsQuery.data?.count ?? 0;
   const isInitialLoading =
-    playersQuery.isLoading ||
     gatheringsQuery.isLoading ||
     hostedGatheringsQuery.isLoading ||
     profileQuery.isLoading ||
@@ -289,9 +308,11 @@ export function HomeScreen() {
     homeScrollRef,
   });
   const headerActions = useHeaderActions({
+    homeScrollRef,
     markNotificationsReadMutation,
     setActiveTab,
-    setPlayerSearch,
+    setDiscoveryCategory,
+    setDiscoverySearch,
     setSearchOpen,
   });
   const onFeedScroll = useFeedPagination({
@@ -311,10 +332,10 @@ export function HomeScreen() {
         onOpenNotifications={headerActions.openNotifications}
         onOpenSearch={headerActions.openSearch}
         onOpenSettings={headerActions.openSettings}
-        onSearchChange={setPlayerSearch}
+        onSearchChange={setDiscoverySearch}
         searchOpen={searchOpen}
-        searchIsLoading={playersQuery.isSearching}
-        searchValue={playerSearch}
+        searchIsLoading={discoveryQuery.isSearching}
+        searchValue={discoverySearch}
       />
 
       <ScrollView
@@ -338,10 +359,19 @@ export function HomeScreen() {
         <HomeContent
           actions={actions}
           activeTab={activeTab}
-          city={city}
-          latitude={latitude}
-          longitude={longitude}
+          city={discoveryAreaLabel}
+          filterCity={city}
+          latitude={filterLatitude}
+          locationEnabled={locationEnabled}
+          longitude={filterLongitude}
           currentUser={currentUser}
+          discoveryCategory={discoveryCategory}
+          discoveryHasError={discoveryQuery.isError}
+          discoveryHasNextPage={discoveryQuery.hasNextPage}
+          discoveryIsFetchingNextPage={discoveryQuery.isFetchingNextPage}
+          discoveryIsLoading={discoveryQuery.isPending && discoverySearch.trim().length > 0}
+          discoveryItems={discoveryQuery.items}
+          discoveryQuery={discoveryQuery.effectiveQuery}
           editingPostId={editingPostId}
           feed={feed}
           feedRefreshToken={homeRefresh.imageRefreshToken}
@@ -350,16 +380,17 @@ export function HomeScreen() {
           groups={groupsQuery.data ?? []}
           joinedGroups={joinedGroupsQuery.data ?? []}
           notifications={notifications}
+          onDiscoveryCategoryChange={setDiscoveryCategory}
+          onDiscoveryPreferencesChange={discoveryPreferences.apply}
+          onLoadMoreDiscovery={discoveryActions.loadMore}
           onLocationChange={discoveryPreferences.setLocation}
           onPostDraftChange={setPostDraft}
-          onRetryPlayerSearch={playersQuery.refetch}
-          players={players}
+          onRetryDiscovery={discoveryActions.retry}
           profile={profileQuery.data}
-          playerSearchQuery={playersQuery.effectiveQuery}
-          playerSearchHasError={playersQuery.isError}
           postDraft={postDraft}
           postIsSaving={createPostMutation.isPending}
           snapshot={snapshotQuery.data}
+          skillLevel={skillLevel}
         />
         {activeTab === 'home' && feedQuery.isFetchingNextPage && (
           <InlineLoading label="Loading more activities..." />
@@ -453,7 +484,7 @@ function useHomeActions({
   setEditingPostId: (postId: string | null) => void;
   setPostDraft: (draft: PostDraft) => void;
   signOut: () => Promise<void>;
-  homeScrollRef: React.RefObject<ScrollView | null>;
+  homeScrollRef: RefObject<ScrollView | null>;
 }) {
   return useMemo(
     () => ({
@@ -533,11 +564,11 @@ function usePostNavigation() {
 function changeTab(
   tab: Tab,
   setActiveTab: (tab: Tab) => void,
-  setPlayerSearch: (query: string) => void,
+  setDiscoverySearch: (query: string) => void,
   setSearchOpen: (open: boolean) => void,
 ) {
   setActiveTab(tab);
-  setPlayerSearch('');
+  setDiscoverySearch('');
   setSearchOpen(false);
 }
 
@@ -574,7 +605,7 @@ function beginPostEdit(
   setPostDraft: (draft: PostDraft) => void,
   setEditingPostId: (postId: string | null) => void,
   setActiveTab: (tab: Tab) => void,
-  homeScrollRef: React.RefObject<ScrollView | null>,
+  homeScrollRef: RefObject<ScrollView | null>,
 ) {
   setPostDraft(draftFromPost(post));
   setEditingPostId(post.id);
@@ -591,36 +622,64 @@ function resetPostEditor(
 }
 
 function useHeaderActions({
+  homeScrollRef,
   markNotificationsReadMutation,
   setActiveTab,
-  setPlayerSearch,
+  setDiscoveryCategory,
+  setDiscoverySearch,
   setSearchOpen,
 }: {
+  homeScrollRef: RefObject<ScrollView | null>;
   markNotificationsReadMutation: WriteMutation;
   setActiveTab: (tab: Tab) => void;
-  setPlayerSearch: (query: string) => void;
+  setDiscoveryCategory: (category: DiscoveryCategory) => void;
+  setDiscoverySearch: (query: string) => void;
   setSearchOpen: (open: boolean) => void;
 }) {
   return useMemo(
     () => ({
-      changeTab: (tab: Tab) => changeTab(tab, setActiveTab, setPlayerSearch, setSearchOpen),
-      clearSearch: () => setPlayerSearch(''),
-      closeSearch: () => closePlayerSearch(setPlayerSearch, setSearchOpen),
+      changeTab: (tab: Tab) => changeTab(tab, setActiveTab, setDiscoverySearch, setSearchOpen),
+      clearSearch: () => setDiscoverySearch(''),
+      closeSearch: () => closeDiscoverySearch(setDiscoverySearch, setSearchOpen),
       openNotifications: () => openNotifications({ markNotificationsReadMutation, setActiveTab }),
-      openSearch: () => openPlayerSearch(setActiveTab, setSearchOpen),
+      openSearch: () => openDiscoverySearch({
+        homeScrollRef,
+        setActiveTab,
+        setDiscoveryCategory,
+        setSearchOpen,
+      }),
       openSettings: () => setActiveTab('you'),
     }),
-    [markNotificationsReadMutation, setActiveTab, setPlayerSearch, setSearchOpen],
+    [
+      homeScrollRef,
+      markNotificationsReadMutation,
+      setActiveTab,
+      setDiscoveryCategory,
+      setDiscoverySearch,
+      setSearchOpen,
+    ],
   );
 }
 
-function openPlayerSearch(setActiveTab: (tab: Tab) => void, setSearchOpen: (open: boolean) => void) {
+function openDiscoverySearch({
+  homeScrollRef,
+  setActiveTab,
+  setDiscoveryCategory,
+  setSearchOpen,
+}: {
+  homeScrollRef: RefObject<ScrollView | null>;
+  setActiveTab: (tab: Tab) => void;
+  setDiscoveryCategory: (category: DiscoveryCategory) => void;
+  setSearchOpen: (open: boolean) => void;
+}) {
   setActiveTab('discover');
+  setDiscoveryCategory('all');
   setSearchOpen(true);
+  homeScrollRef.current?.scrollTo({ animated: true, y: 0 });
 }
 
-function closePlayerSearch(setPlayerSearch: (query: string) => void, setSearchOpen: (open: boolean) => void) {
-  setPlayerSearch('');
+function closeDiscoverySearch(setDiscoverySearch: (query: string) => void, setSearchOpen: (open: boolean) => void) {
+  setDiscoverySearch('');
   setSearchOpen(false);
 }
 

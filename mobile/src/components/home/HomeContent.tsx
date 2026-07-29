@@ -1,5 +1,7 @@
 import type {
   BadmintonGroup,
+  DiscoveryCategory,
+  DiscoveryResult,
   FeedPost,
   Gathering,
   Notification,
@@ -9,15 +11,15 @@ import type {
 } from '../../api/generated';
 import { StyleSheet, View } from 'react-native';
 import { ActivityPostCard } from '../feed/ActivityPostCard';
-import { DiscoverHub } from '../discovery';
+import { DiscoverHub, UnifiedDiscoveryResults } from '../discovery';
 import { HostedGatheringList } from '../gatherings';
 import { GroupsHub } from '../groups';
 import { PostComposer } from '../feed/PostComposer';
 import { JoinedGroupsList, PersonalProfileHero } from '../profile';
 import type { PostDraft } from '../../features/posts/postDraft';
-import { PlayerSearchResults } from './PlayerSearchResults';
+import { DiscoveryFilters } from './DiscoveryFilters';
 import { SettingsPanel } from './SettingsPanel';
-import type { DiscoveryLocation, Tab } from './types';
+import type { DiscoveryLocation, DiscoveryPreferences, SkillLevel, Tab } from './types';
 import { WeeklySnapshot } from './WeeklySnapshot';
 
 export type HomeActions = {
@@ -44,20 +46,30 @@ type Props = {
   groups: BadmintonGroup[];
   joinedGroups: BadmintonGroup[];
   city: string;
+  filterCity: string;
   latitude: number | null;
+  locationEnabled: boolean;
   longitude: number | null;
   currentUser: Pick<User, 'id' | 'display_name' | 'email'>;
   editingPostId: string | null;
   notifications: Notification[];
+  onDiscoveryCategoryChange: (category: DiscoveryCategory) => void;
+  onDiscoveryPreferencesChange: (preferences: DiscoveryPreferences) => void;
+  onLoadMoreDiscovery: () => void;
   onLocationChange: (location: DiscoveryLocation) => void;
-  players: Player[];
   profile?: Player;
   onPostDraftChange: (draft: PostDraft) => void;
-  onRetryPlayerSearch: () => void;
+  onRetryDiscovery: () => void;
   postDraft: PostDraft;
   postIsSaving: boolean;
-  playerSearchQuery: string;
-  playerSearchHasError: boolean;
+  discoveryCategory: DiscoveryCategory;
+  discoveryHasError: boolean;
+  discoveryHasNextPage: boolean;
+  discoveryIsFetchingNextPage: boolean;
+  discoveryIsLoading: boolean;
+  discoveryItems: DiscoveryResult[];
+  discoveryQuery: string;
+  skillLevel: SkillLevel | null;
   snapshot?: WeeklySnapshotData;
 };
 
@@ -65,7 +77,9 @@ export function HomeContent({
   actions,
   activeTab,
   city,
+  filterCity,
   latitude,
+  locationEnabled,
   longitude,
   currentUser,
   editingPostId,
@@ -76,20 +90,51 @@ export function HomeContent({
   groups,
   joinedGroups,
   notifications,
+  onDiscoveryCategoryChange,
+  onDiscoveryPreferencesChange,
+  onLoadMoreDiscovery,
   onLocationChange,
-  players,
   profile,
   onPostDraftChange,
-  onRetryPlayerSearch,
+  onRetryDiscovery,
   postDraft,
   postIsSaving,
-  playerSearchQuery,
-  playerSearchHasError,
+  discoveryCategory,
+  discoveryHasError,
+  discoveryHasNextPage,
+  discoveryIsFetchingNextPage,
+  discoveryIsLoading,
+  discoveryItems,
+  discoveryQuery,
+  skillLevel,
   snapshot,
 }: Props) {
   if (activeTab === 'discover') {
     return (
       <>
+        <DiscoveryFilters
+          city={filterCity}
+          latitude={latitude}
+          locationEnabled={locationEnabled}
+          longitude={longitude}
+          onApply={onDiscoveryPreferencesChange}
+          skillLevel={skillLevel}
+        />
+        <UnifiedDiscoveryResults
+          category={discoveryCategory}
+          hasError={discoveryHasError}
+          hasNextPage={discoveryHasNextPage}
+          isFetchingNextPage={discoveryIsFetchingNextPage}
+          isLoading={discoveryIsLoading}
+          items={discoveryItems}
+          onCategoryChange={onDiscoveryCategoryChange}
+          onLoadMore={onLoadMoreDiscovery}
+          onOpenGathering={actions.openGathering}
+          onOpenGroup={actions.openGroup}
+          onOpenPlayer={actions.openPlayer}
+          onRetry={onRetryDiscovery}
+          query={discoveryQuery}
+        />
         <DiscoverHub
           city={city}
           gatherings={gatherings}
@@ -98,15 +143,6 @@ export function HomeContent({
           onCreateGathering={actions.createGathering}
           onOpenGathering={actions.openGathering}
         />
-        {playerSearchQuery.length > 0 && (
-          <PlayerSearchResults
-            hasError={playerSearchHasError}
-            onOpenPlayer={actions.openPlayer}
-            onRetry={onRetryPlayerSearch}
-            players={players}
-            query={playerSearchQuery}
-          />
-        )}
       </>
     );
   }
@@ -143,7 +179,7 @@ export function HomeContent({
           onOpenGathering={actions.openGathering}
         />
         <SettingsPanel
-          city={city}
+          city={filterCity}
           email={currentUser.email}
           notifications={notifications}
           onAccountDeleted={actions.deleteAccount}

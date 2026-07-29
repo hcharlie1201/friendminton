@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, fonts, SearchBar } from '../ui';
+import { colors, SearchBar, textSizes, textWeights } from '../ui';
 import type { Tab } from './types';
 
 type Props = {
@@ -52,7 +52,7 @@ export function AppHeader({
         <Pressable accessibilityRole="button" onPress={onOpenSettings} style={styles.avatar}>
           <Text style={styles.avatarText}>F</Text>
         </Pressable>
-        <Pressable accessibilityLabel="Search players" accessibilityRole="button" hitSlop={8} onPress={onOpenSearch}>
+        <Pressable accessibilityLabel="Search discovery" accessibilityRole="button" hitSlop={8} onPress={onOpenSearch}>
           <Ionicons color={colors.text} name="search" size={32} />
         </Pressable>
       </View>
@@ -115,16 +115,14 @@ const styles = StyleSheet.create({
     width: 42,
   },
   avatarText: {
+    ...textSizes.large,
+    ...textWeights.heavy,
     color: colors.textOnPrimary,
-    fontFamily: fonts.black,
-    fontSize: 20,
-    fontWeight: '900',
   },
   title: {
+    ...textSizes.xLarge,
+    ...textWeights.heavy,
     color: colors.text,
-    fontFamily: fonts.black,
-    fontSize: 22,
-    fontWeight: '900',
   },
   badge: {
     alignItems: 'center',
@@ -138,9 +136,8 @@ const styles = StyleSheet.create({
     top: -8,
   },
   badgeText: {
+    ...textSizes.small,
+    ...textWeights.heavy,
     color: colors.textInverse,
-    fontFamily: fonts.black,
-    fontSize: 13,
-    fontWeight: '900',
   },
 });

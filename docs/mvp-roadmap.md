@@ -7,10 +7,12 @@ should be loaded before MVP work and updated as implementation lands.
 
 ## Current focus
 
-**Step 2 — finish Apple staging smoke tests.** Account deletion is implemented
-end-to-end (reauthenticated API, provider revocation, settings UI, and
-integration tests). Remaining Step 2 work is Apple Developer credentials, a new
-native build, and a TestFlight smoke test for Sign in with Apple.
+**Step 3 — validate unified discovery on staging.** Unified category search,
+opaque cursor pagination, server-side query/location/skill filters, persisted
+discovery location, search-first mobile states, and an Oakland launch dataset
+are implemented. Remaining Step 3 work is a staging API/mobile build and
+TestFlight smoke test. Step 2's Apple Developer credentials and Apple-login
+staging smoke test remain an external prerequisite for closing Step 2.
 
 ### Finish Step 1 runbook
 
@@ -72,7 +74,7 @@ Update the status table below and move current focus to Step 2.
 | --- | --- | --- |
 | 1 | Real authentication, sessions, Google login, and returning-user login | Staging complete; SES public-send access deferred |
 | 2 | Sign in with Apple and in-app account deletion | In progress; deletion shipped, Apple staging smoke pending |
-| 3 | Unified discovery and search | Not started |
+| 3 | Unified discovery and search | In progress; implementation complete, staging smoke pending |
 | 4 | Complete group and gathering membership flows | Not started |
 | 5 | Minimal gathering and group chat | Not started |
 | 6 | Event-driven notifications, push, and transactional email | Not started; SES foundation ready |
@@ -206,6 +208,25 @@ for deleted group covers are not swept in this step.
 - One query can be narrowed by category and produces useful, paginated results.
 - Changing or restarting the app does not unexpectedly reset location.
 - Loading, empty, and failure states are distinguishable and retryable.
+
+### Implementation progress
+
+- [x] Add one authenticated discovery endpoint for games, courts, groups, and
+  players with category, text, location, radius, and skill filters.
+- [x] Add opaque keyset cursors with stable cross-category ordering and bounded
+  page sizes.
+- [x] Replace player-only mobile search with category tabs, mixed results,
+  retryable loading/error/empty states, and incremental loading.
+- [x] Render active search results above the existing discovery carousels.
+- [x] Surface discovery location/level controls, allow location-free
+  "Anywhere" discovery, and persist both the location and its enabled state in
+  the restored SecureStore session.
+- [x] Seed a reusable Oakland-area development set with four courts, three
+  groups, and six upcoming gatherings.
+- [x] Cover authentication, category narrowing, cursor continuation, invalid
+  cursors, query escaping, and cursor serialization in backend tests.
+- [ ] Deploy the API and mobile build to staging and smoke-test category search,
+  pagination, retry states, and location persistence on TestFlight.
 
 ## Step 4 — membership and host controls
 

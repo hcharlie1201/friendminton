@@ -38,6 +38,11 @@ pub fn base_document(public_base_url: &str, environment: &str) -> OpenApi {
                 ..Tag::default()
             },
             Tag {
+                name: "discovery".into(),
+                description: Some("Unified game, court, group, and player discovery".into()),
+                ..Tag::default()
+            },
+            Tag {
                 name: "gatherings".into(),
                 description: Some("Create and join badminton play sessions and socials".into()),
                 ..Tag::default()

@@ -301,6 +301,39 @@ export type DeleteAccount = {
     password?: string | null;
 };
 
+export type DiscoveryCategory = 'all' | 'games' | 'courts' | 'groups' | 'players';
+
+export type DiscoveryPage = {
+    items: Array<DiscoveryResult>;
+    next_cursor?: string | null;
+};
+
+export type DiscoveryResult = {
+    category: 'games';
+    item: Gathering;
+} | {
+    category: 'courts';
+    item: Court;
+} | {
+    category: 'groups';
+    item: BadmintonGroup;
+} | {
+    category: 'players';
+    item: Player;
+};
+
+export type DiscoverySearch = {
+    category?: DiscoveryCategory;
+    city?: string | null;
+    cursor?: string | null;
+    latitude?: number | null;
+    limit?: number | null;
+    longitude?: number | null;
+    query?: string | null;
+    radius_km?: number | null;
+    skill_level?: string | null;
+};
+
 export type EmailAddressRequest = {
     email: string;
 };
@@ -2584,6 +2617,43 @@ export type GetApiCourtsByCourtIdResponses = {
 };
 
 export type GetApiCourtsByCourtIdResponse = GetApiCourtsByCourtIdResponses[keyof GetApiCourtsByCourtIdResponses];
+
+export type GetApiDiscoveryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        category?: DiscoveryCategory;
+        city?: string | null;
+        cursor?: string | null;
+        latitude?: number | null;
+        limit?: number | null;
+        longitude?: number | null;
+        query?: string | null;
+        radius_km?: number | null;
+        skill_level?: string | null;
+    };
+    url: '/api/discovery';
+};
+
+export type GetApiDiscoveryErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiDiscoveryError = GetApiDiscoveryErrors[keyof GetApiDiscoveryErrors];
+
+export type GetApiDiscoveryResponses = {
+    200: DiscoveryPage;
+};
+
+export type GetApiDiscoveryResponse = GetApiDiscoveryResponses[keyof GetApiDiscoveryResponses];
 
 export type GetApiGatheringsData = {
     body?: never;

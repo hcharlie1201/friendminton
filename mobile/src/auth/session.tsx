@@ -28,6 +28,7 @@ export type SessionLocation = {
 type SessionUser = Pick<User, 'id' | 'display_name' | 'email'> & Pick<Partial<User>, 'city'>;
 type StoredSession = {
   discoveryLocation: SessionLocation | null;
+  discoveryLocationEnabled: boolean;
   needsOnboarding: boolean;
   token: string;
   user: SessionUser;
@@ -36,12 +37,14 @@ type SessionContextValue = {
   clearSession: () => Promise<void>;
   completeOnboarding: (location: SessionLocation) => Promise<void>;
   discoveryLocation: SessionLocation | null;
+  discoveryLocationEnabled: boolean;
   isLoading: boolean;
   needsOnboarding: boolean;
   restoreError: string | null;
   retryRestore: () => void;
   signIn: (session: AuthenticatedSession) => Promise<void>;
   signOut: () => Promise<void>;
+  updateDiscoveryPreferences: (location: SessionLocation, locationEnabled: boolean) => Promise<void>;
   user: SessionUser | null;
 };
 type RestoreResult = {
@@ -129,7 +132,21 @@ function useStoredSession(): SessionContextValue {
     const nextSession: StoredSession = {
       ...storedSession,
       discoveryLocation: location,
+      discoveryLocationEnabled: true,
       needsOnboarding: false,
+    };
+    await persistSession(nextSession);
+    setStoredSession(nextSession);
+  }, [storedSession]);
+  const updateDiscoveryPreferences = useCallback(async (
+    location: SessionLocation,
+    locationEnabled: boolean,
+  ) => {
+    if (!storedSession) return;
+    const nextSession = {
+      ...storedSession,
+      discoveryLocation: location,
+      discoveryLocationEnabled: locationEnabled,
     };
     await persistSession(nextSession);
     setStoredSession(nextSession);
@@ -139,12 +156,14 @@ function useStoredSession(): SessionContextValue {
       clearSession,
       completeOnboarding,
       discoveryLocation: storedSession?.discoveryLocation ?? null,
+      discoveryLocationEnabled: storedSession?.discoveryLocationEnabled ?? true,
       isLoading,
       needsOnboarding: storedSession?.needsOnboarding ?? false,
       restoreError,
       retryRestore,
       signIn,
       signOut,
+      updateDiscoveryPreferences,
       user: storedSession?.user ?? null,
     }),
     [
@@ -156,6 +175,7 @@ function useStoredSession(): SessionContextValue {
       signIn,
       signOut,
       storedSession,
+      updateDiscoveryPreferences,
     ],
   );
 
@@ -226,6 +246,7 @@ function normalizeStoredSession(value: unknown): StoredSession | null {
 
   return {
     discoveryLocation: normalizeSessionLocation(candidate.discoveryLocation),
+    discoveryLocationEnabled: candidate.discoveryLocationEnabled !== false,
     needsOnboarding: Boolean(candidate.needsOnboarding),
     token: candidate.token,
     user: candidate.user,
@@ -247,6 +268,7 @@ function sessionFromAuthentication(session: AuthenticatedSession): StoredSession
   const city = session.user.city?.trim() || null;
   return {
     discoveryLocation: city ? { city, latitude: null, longitude: null } : null,
+    discoveryLocationEnabled: true,
     needsOnboarding: !city,
     token: session.token,
     user: session.user,
