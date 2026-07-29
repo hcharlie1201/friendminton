@@ -25,6 +25,7 @@ export type HomeActions = {
   createGathering: () => void;
   createGroup: () => void;
   createPost: () => void;
+  deleteAccount: () => Promise<void>;
   editPost: (post: FeedPost) => void;
   openGathering: (gatheringId: string) => void;
   openGroup: (groupId: string) => void;
@@ -145,6 +146,7 @@ export function HomeContent({
           city={city}
           email={currentUser.email}
           notifications={notifications}
+          onAccountDeleted={actions.deleteAccount}
           onLocationChange={onLocationChange}
           onSignOut={actions.signOut}
         />

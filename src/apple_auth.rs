@@ -16,8 +16,24 @@ use crate::config::AppleAuthenticationConfig;
 const APPLE_ISSUER: &str = "https://appleid.apple.com";
 const APPLE_JWKS_URL: &str = "https://appleid.apple.com/auth/keys";
 const APPLE_TOKEN_URL: &str = "https://appleid.apple.com/auth/token";
+const APPLE_REVOKE_URL: &str = "https://appleid.apple.com/auth/revoke";
 const CLIENT_SECRET_TTL_SECONDS: i64 = 600;
 const JWKS_CACHE_TTL: Duration = Duration::from_secs(6 * 60 * 60);
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum AppleTokenTypeHint {
+    AccessToken,
+    RefreshToken,
+}
+
+impl AppleTokenTypeHint {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::AccessToken => "access_token",
+            Self::RefreshToken => "refresh_token",
+        }
+    }
+}
 
 #[derive(Clone)]
 pub(crate) struct AppleAuthClient {
@@ -33,6 +49,7 @@ struct AppleAuthClientInner {
     jwks: RwLock<Option<CachedJwks>>,
     jwks_url: String,
     token_url: String,
+    revoke_url: String,
 }
 
 struct CachedJwks {
@@ -150,6 +167,7 @@ impl AppleAuthClient {
                 jwks: RwLock::new(None),
                 jwks_url: APPLE_JWKS_URL.to_owned(),
                 token_url: APPLE_TOKEN_URL.to_owned(),
+                revoke_url: APPLE_REVOKE_URL.to_owned(),
             }),
         }))
     }
@@ -220,6 +238,46 @@ impl AppleAuthClient {
             refresh_token: response.refresh_token,
             id_token: response.id_token,
             expires_in_seconds: response.expires_in,
+        })
+    }
+
+    pub(crate) async fn revoke_token(
+        &self,
+        token: &str,
+        token_type_hint: AppleTokenTypeHint,
+    ) -> Result<(), AppleAuthError> {
+        let client_secret = self.client_secret()?;
+        let body = url::form_urlencoded::Serializer::new(String::new())
+            .append_pair("client_id", &self.inner.client_id)
+            .append_pair("client_secret", &client_secret)
+            .append_pair("token", token)
+            .append_pair("token_type_hint", token_type_hint.as_str())
+            .finish();
+        let response = self
+            .inner
+            .client
+            .post(&self.inner.revoke_url)
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .map_err(|error| AppleAuthError::Upstream(error.to_string()))?;
+        let status = response.status();
+        if status.is_success() {
+            return Ok(());
+        }
+        let body = response
+            .bytes()
+            .await
+            .map_err(|error| AppleAuthError::Upstream(error.to_string()))?;
+        let provider_error = serde_json::from_slice::<AppleTokenError>(&body)
+            .ok()
+            .and_then(|response| response.error)
+            .unwrap_or_else(|| status.to_string());
+        Err(if status.is_client_error() {
+            AppleAuthError::InvalidCredential("provider token was rejected")
+        } else {
+            AppleAuthError::Upstream(provider_error)
         })
     }
 
@@ -328,7 +386,7 @@ fn decode_identity_token(
 
 #[cfg(test)]
 mod tests {
-    use axum::{Json, Router, routing::get};
+    use axum::{Json, Router, http::StatusCode, routing::get};
     use serde_json::json;
 
     use super::*;
@@ -454,10 +512,58 @@ mod tests {
                 })),
                 jwks_url: format!("http://{address}/keys"),
                 token_url: "http://unused.test".to_owned(),
+                revoke_url: "http://unused.test".to_owned(),
             }),
         };
 
         assert!(client.decoding_key("new-key").await.is_ok());
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn revokes_provider_tokens_against_apple_revoke_endpoint() {
+        use axum::routing::post;
+        use std::sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        };
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let revoke_calls = calls.clone();
+        let app = Router::new().route(
+            "/revoke",
+            post(move || {
+                let revoke_calls = revoke_calls.clone();
+                async move {
+                    revoke_calls.fetch_add(1, Ordering::SeqCst);
+                    StatusCode::OK
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        let client = AppleAuthClient {
+            inner: Arc::new(AppleAuthClientInner {
+                client: reqwest::Client::new(),
+                client_id: CLIENT_ID.to_owned(),
+                team_id: "TEAM".to_owned(),
+                key_id: "KEY".to_owned(),
+                private_key: EncodingKey::from_ec_pem(EC_PRIVATE_KEY).unwrap(),
+                jwks: RwLock::new(None),
+                jwks_url: "http://unused.test".to_owned(),
+                token_url: "http://unused.test".to_owned(),
+                revoke_url: format!("http://{address}/revoke"),
+            }),
+        };
+
+        client
+            .revoke_token("refresh-token-value", AppleTokenTypeHint::RefreshToken)
+            .await
+            .unwrap();
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
         server.abort();
     }
 

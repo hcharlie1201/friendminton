@@ -1,17 +1,16 @@
 # Friendminton MVP roadmap
 
-Last updated: 2026-07-27
+Last updated: 2026-07-28
 
 This document is the persistent source of truth for the public-MVP sequence. It
 should be loaded before MVP work and updated as implementation lands.
 
 ## Current focus
 
-**Step 2 — validate Sign in with Apple, then implement account deletion.** Native
-Apple credential exchange, server-side token validation, safe account linking,
-encrypted refresh-token storage, and the iOS login surface are implemented locally.
-Apple Developer credentials, a new native build, and a TestFlight smoke test remain
-before Apple login ships. Account deletion has not started.
+**Step 2 — finish Apple staging smoke tests.** Account deletion is implemented
+end-to-end (reauthenticated API, provider revocation, settings UI, and
+integration tests). Remaining Step 2 work is Apple Developer credentials, a new
+native build, and a TestFlight smoke test for Sign in with Apple.
 
 ### Finish Step 1 runbook
 
@@ -72,7 +71,7 @@ Update the status table below and move current focus to Step 2.
 | Step | Deliverable | Status |
 | --- | --- | --- |
 | 1 | Real authentication, sessions, Google login, and returning-user login | Staging complete; SES public-send access deferred |
-| 2 | Sign in with Apple and in-app account deletion | In progress; Apple login implemented locally |
+| 2 | Sign in with Apple and in-app account deletion | In progress; deletion shipped, Apple staging smoke pending |
 | 3 | Unified discovery and search | Not started |
 | 4 | Complete group and gathering membership flows | Not started |
 | 5 | Minimal gathering and group chat | Not started |
@@ -160,6 +159,14 @@ Update the status table below and move current focus to Step 2.
 - Delete or anonymize associated profile and user-generated data according to
   the product retention policy, and revoke provider/session tokens.
 
+### Retention policy (account deletion)
+
+Hard-delete the product `users` row. Relational data that references the user
+cascades away (sessions, provider accounts, workouts, posts, notifications,
+hosted gatherings, owned groups, memberships, and related join rows). Court
+`created_by` is cleared (`ON DELETE SET NULL`). Orphaned local/S3 media objects
+for deleted group covers are not swept in this step.
+
 ### Acceptance criteria
 
 - Apple review requirements for third-party login and account deletion are met.
@@ -181,7 +188,7 @@ Update the status table below and move current focus to Step 2.
   private relay separation, credential cleanup, and session restoration in tests.
 - [ ] Configure the Apple Developer key and staging environment variables.
 - [ ] Build and smoke-test Apple login on a real-device development build and TestFlight.
-- [ ] Design and implement reauthenticated account deletion and provider revocation.
+- [x] Design and implement reauthenticated account deletion and provider revocation.
 
 ## Step 3 — unified discovery and search
 

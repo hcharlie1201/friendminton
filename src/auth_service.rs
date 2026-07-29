@@ -7,9 +7,13 @@ use better_auth::{
     adapters::SqlxAdapter,
     plugins::{
         AccountManagementPlugin, EmailPasswordPlugin, OAuthPlugin, SessionManagementPlugin,
-        oauth::{OAuthProvider, OAuthUserInfo, encryption::maybe_encrypt},
+        oauth::{
+            OAuthProvider, OAuthUserInfo,
+            encryption::{maybe_decrypt, maybe_encrypt},
+        },
     },
 };
+use better_auth_core::utils::password::verify_password;
 use better_auth_core::{
     AccountConfig, AccountLinkingConfig, AccountOps, AuthAccount, AuthSession, AuthUser,
     CreateAccount, CreateUser, Middleware, RateLimitConfig, RateLimitMiddleware, UpdateAccount,
@@ -22,13 +26,30 @@ use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
 use crate::{
-    apple_auth::{AppleTokenSet, VerifiedAppleIdentity},
+    apple_auth::{AppleTokenSet, AppleTokenTypeHint, VerifiedAppleIdentity},
     config::AuthenticationConfig,
 };
 
 const AUTH_BASE_PATH: &str = "/api/auth";
 const GOOGLE_PROVIDER_ID: &str = "google";
 const APPLE_PROVIDER_ID: &str = "apple";
+pub(crate) const ACCOUNT_DELETION_CONFIRMATION: &str = "DELETE";
+
+#[derive(Clone, Debug)]
+pub(crate) struct AccountDeletionRequirements {
+    pub confirmation_phrase: &'static str,
+    pub requires_password: bool,
+    pub requires_apple_reauth: bool,
+    pub has_apple: bool,
+    pub has_google: bool,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ProviderRevocationToken {
+    pub provider_id: &'static str,
+    pub token: String,
+    pub apple_token_type: Option<AppleTokenTypeHint>,
+}
 
 pub(crate) struct AppleSignInResult {
     pub token: String,
@@ -517,6 +538,169 @@ impl AuthService {
             return Ok(false);
         }
         self.auth.session_manager().revoke_session(token).await
+    }
+
+    pub(crate) async fn account_deletion_requirements(
+        &self,
+        product_user_id: Uuid,
+    ) -> AuthResult<AccountDeletionRequirements> {
+        let user = self
+            .authenticated_user_for_product_id(product_user_id)
+            .await?;
+        let accounts = self.auth.database().get_user_accounts(user.id()).await?;
+        let has_password = user.password_hash().is_some();
+        let has_apple = accounts
+            .iter()
+            .any(|account| account.provider_id() == APPLE_PROVIDER_ID);
+        let has_google = accounts
+            .iter()
+            .any(|account| account.provider_id() == GOOGLE_PROVIDER_ID);
+
+        Ok(AccountDeletionRequirements {
+            confirmation_phrase: ACCOUNT_DELETION_CONFIRMATION,
+            requires_password: has_password,
+            requires_apple_reauth: has_apple && !has_password,
+            has_apple,
+            has_google,
+        })
+    }
+
+    pub(crate) async fn verify_account_deletion_reauth(
+        &self,
+        product_user_id: Uuid,
+        password: Option<&str>,
+        apple_identity: Option<&VerifiedAppleIdentity>,
+    ) -> AuthResult<()> {
+        let user = self
+            .authenticated_user_for_product_id(product_user_id)
+            .await?;
+        let accounts = self.auth.database().get_user_accounts(user.id()).await?;
+        let has_password = user.password_hash().is_some();
+        let apple_subject = accounts.iter().find_map(|account| {
+            (account.provider_id() == APPLE_PROVIDER_ID).then(|| account.account_id().to_owned())
+        });
+
+        if has_password {
+            let password = password
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .ok_or_else(|| {
+                    AuthError::bad_request("password is required to delete this account")
+                })?;
+            let stored_hash = user.password_hash().ok_or(AuthError::InvalidCredentials)?;
+            verify_password(None, password, stored_hash).await?;
+            return Ok(());
+        }
+
+        if let Some(expected_subject) = apple_subject {
+            let identity = apple_identity.ok_or_else(|| {
+                AuthError::bad_request("Sign in with Apple is required to delete this account")
+            })?;
+            if identity.subject != expected_subject {
+                return Err(AuthError::InvalidCredentials);
+            }
+            return Ok(());
+        }
+
+        Ok(())
+    }
+
+    pub(crate) async fn provider_tokens_for_revocation(
+        &self,
+        product_user_id: Uuid,
+        fresh_apple_tokens: Option<&AppleTokenSet>,
+    ) -> AuthResult<Vec<ProviderRevocationToken>> {
+        let user = self
+            .authenticated_user_for_product_id(product_user_id)
+            .await?;
+        let accounts = self.auth.database().get_user_accounts(user.id()).await?;
+        let mut tokens = Vec::new();
+
+        if let Some(account) = accounts
+            .iter()
+            .find(|account| account.provider_id() == APPLE_PROVIDER_ID)
+        {
+            if let Some(fresh) = fresh_apple_tokens {
+                if let Some(refresh_token) = fresh.refresh_token.as_deref() {
+                    tokens.push(ProviderRevocationToken {
+                        provider_id: APPLE_PROVIDER_ID,
+                        token: refresh_token.to_owned(),
+                        apple_token_type: Some(AppleTokenTypeHint::RefreshToken),
+                    });
+                } else {
+                    tokens.push(ProviderRevocationToken {
+                        provider_id: APPLE_PROVIDER_ID,
+                        token: fresh.access_token.clone(),
+                        apple_token_type: Some(AppleTokenTypeHint::AccessToken),
+                    });
+                }
+            } else if let Some(token) = self.decrypt_account_token(account.refresh_token())? {
+                tokens.push(ProviderRevocationToken {
+                    provider_id: APPLE_PROVIDER_ID,
+                    token,
+                    apple_token_type: Some(AppleTokenTypeHint::RefreshToken),
+                });
+            } else if let Some(token) = self.decrypt_account_token(account.access_token())? {
+                tokens.push(ProviderRevocationToken {
+                    provider_id: APPLE_PROVIDER_ID,
+                    token,
+                    apple_token_type: Some(AppleTokenTypeHint::AccessToken),
+                });
+            } else {
+                return Err(AuthError::bad_request(
+                    "Sign in with Apple is required to revoke this account's Apple credentials",
+                ));
+            }
+        }
+
+        if let Some(account) = accounts
+            .iter()
+            .find(|account| account.provider_id() == GOOGLE_PROVIDER_ID)
+            && let Some(token) = self
+                .decrypt_account_token(account.refresh_token())?
+                .or(self.decrypt_account_token(account.access_token())?)
+        {
+            tokens.push(ProviderRevocationToken {
+                provider_id: GOOGLE_PROVIDER_ID,
+                token,
+                apple_token_type: None,
+            });
+        }
+
+        Ok(tokens)
+    }
+
+    pub(crate) async fn hard_delete_user(&self, product_user_id: Uuid) -> AuthResult<()> {
+        let result = sqlx::query("DELETE FROM users WHERE id = $1")
+            .bind(product_user_id)
+            .execute(&self.pool)
+            .await?;
+        if result.rows_affected() == 0 {
+            return Err(AuthError::UserNotFound);
+        }
+        Ok(())
+    }
+
+    async fn authenticated_user_for_product_id(
+        &self,
+        product_user_id: Uuid,
+    ) -> AuthResult<AuthUserRow> {
+        let auth_user_id = sqlx::query_scalar::<_, String>(
+            "SELECT auth_user_id FROM users WHERE id = $1 AND email_verified = TRUE",
+        )
+        .bind(product_user_id)
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or(AuthError::UserNotFound)?;
+        self.auth
+            .database()
+            .get_user_by_id(&auth_user_id)
+            .await?
+            .ok_or(AuthError::UserNotFound)
+    }
+
+    fn decrypt_account_token(&self, value: Option<&str>) -> AuthResult<Option<String>> {
+        maybe_decrypt(value, true, &self.secret)
     }
 
     pub(crate) fn bearer_token(authorization: Option<&str>) -> AuthResult<&str> {

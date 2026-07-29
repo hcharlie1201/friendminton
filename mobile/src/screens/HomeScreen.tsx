@@ -145,7 +145,7 @@ function useFeedPagination({
 export function HomeScreen() {
   const queryClient = useQueryClient();
   const homeScrollRef = useRef<ScrollView>(null);
-  const { discoveryLocation, signOut, user } = useSession();
+  const { clearSession, discoveryLocation, signOut, user } = useSession();
   const currentUser = requireSessionUser(user);
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const discoveryPreferences = useDiscoveryPreferences(
@@ -274,6 +274,7 @@ export function HomeScreen() {
     feedQuery.isLoading ||
     snapshotQuery.isLoading;
   const actions = useHomeActions({
+    clearSession,
     createPostMutation,
     openGathering,
     openGroup,
@@ -426,6 +427,7 @@ function requireSessionUser(user: ReturnType<typeof useSession>['user']) {
 }
 
 function useHomeActions({
+  clearSession,
   createPostMutation,
   openGathering,
   openGroup,
@@ -439,6 +441,7 @@ function useHomeActions({
   signOut,
   homeScrollRef,
 }: {
+  clearSession: () => Promise<void>;
   createPostMutation: WriteMutation;
   openGathering: (gatheringId: string) => void;
   openGroup: (groupId: string) => void;
@@ -458,6 +461,7 @@ function useHomeActions({
       createGathering: openGatheringCreator,
       createGroup: openGroupCreator,
       createPost: () => createPostMutation.mutate(),
+      deleteAccount: () => clearSession(),
       editPost: (post: FeedPost) =>
         beginPostEdit(post, setPostDraft, setEditingPostId, setActiveTab, homeScrollRef),
       openGathering,
@@ -467,6 +471,7 @@ function useHomeActions({
       signOut: () => void signOut(),
     }),
     [
+      clearSession,
       createPostMutation,
       openGathering,
       openGroup,

@@ -147,6 +147,13 @@ Official references:
 - [Generate and validate tokens](https://developer.apple.com/documentation/signinwithapplerestapi/generate-and-validate-tokens)
 - [Account deletion and Apple token revocation](https://developer.apple.com/support/offering-account-deletion-in-your-app)
 
+In-app account deletion lives under Settings → Delete account. The API requires the confirmation
+phrase `DELETE`, password reauthentication when a password exists, or a fresh Sign in with Apple
+credential for Apple-only accounts. Before the `users` row is hard-deleted, the server revokes
+stored Apple tokens via `https://appleid.apple.com/auth/revoke` (fail closed) and best-effort
+revokes Google tokens. Apple env vars (`APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`,
+`APPLE_PRIVATE_KEY_BASE64`) must be configured for Apple-linked account deletion to succeed.
+
 Authentication is a coordinated compatibility cutover. The legacy TestFlight client sends
 `x-user-id`, while the new API accepts only bearer sessions. Deploy the new API, build a new mobile
 binary with the staging API URL, and smoke-test the new TestFlight build in the same staging window.

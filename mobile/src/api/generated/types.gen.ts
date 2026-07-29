@@ -4,6 +4,14 @@ export type ClientOptions = {
     baseUrl: 'http://localhost:3000' | (string & {});
 };
 
+export type AccountDeletionRequirements = {
+    confirmation_phrase: string;
+    has_apple: boolean;
+    has_google: boolean;
+    requires_apple_reauth: boolean;
+    requires_password: boolean;
+};
+
 export type ApiKeyLocation = 'query' | 'header' | 'cookie';
 
 export type AppleSignIn = {
@@ -283,6 +291,14 @@ export type CreateWorkout = {
     notes?: string | null;
     occurred_at: string;
     workout_type: string;
+};
+
+export type DeleteAccount = {
+    apple_authorization_code?: string | null;
+    apple_identity_token?: string | null;
+    apple_nonce?: string | null;
+    confirmation: string;
+    password?: string | null;
 };
 
 export type EmailAddressRequest = {
@@ -2034,6 +2050,60 @@ export type PostApiAuthSignOutResponses = {
 };
 
 export type PostApiAuthSignOutResponse = PostApiAuthSignOutResponses[keyof PostApiAuthSignOutResponses];
+
+export type GetApiAuthAccountDeletionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/auth/account-deletion';
+};
+
+export type GetApiAuthAccountDeletionErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiAuthAccountDeletionError = GetApiAuthAccountDeletionErrors[keyof GetApiAuthAccountDeletionErrors];
+
+export type GetApiAuthAccountDeletionResponses = {
+    200: AccountDeletionRequirements;
+};
+
+export type GetApiAuthAccountDeletionResponse = GetApiAuthAccountDeletionResponses[keyof GetApiAuthAccountDeletionResponses];
+
+export type PostApiAuthDeleteAccountData = {
+    body: DeleteAccount;
+    path?: never;
+    query?: never;
+    url: '/api/auth/delete-account';
+};
+
+export type PostApiAuthDeleteAccountErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiAuthDeleteAccountError = PostApiAuthDeleteAccountErrors[keyof PostApiAuthDeleteAccountErrors];
+
+export type PostApiAuthDeleteAccountResponses = {
+    200: StatusResponse;
+};
+
+export type PostApiAuthDeleteAccountResponse = PostApiAuthDeleteAccountResponses[keyof PostApiAuthDeleteAccountResponses];
 
 export type PostApiAuthOauthGoogleStartData = {
     body: GoogleOAuthStart;

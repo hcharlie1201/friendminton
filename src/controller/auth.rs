@@ -25,9 +25,13 @@ use url::Url;
 use crate::{
     accounts::{self, User},
     app::AppState,
-    apple_auth::{AppleAuthError, VerifiedAppleIdentity},
+    apple_auth::{AppleAuthError, AppleTokenSet, AppleTokenTypeHint, VerifiedAppleIdentity},
     auth::CurrentUser,
-    auth_service::{AppleSignInDecision, AuthService, PendingAppleSignIn, StoredAppleTokens},
+    auth_service::{
+        ACCOUNT_DELETION_CONFIRMATION, AccountDeletionRequirements as AuthDeletionRequirements,
+        AppleSignInDecision, AuthService, PendingAppleSignIn, ProviderRevocationToken,
+        StoredAppleTokens,
+    },
     email::EmailKind,
     error::AppError,
 };
@@ -61,6 +65,8 @@ pub fn routes() -> ApiRouter<AppState> {
         .api_route("/reset-password", post(reset_password))
         .api_route("/session", get(get_session))
         .api_route("/sign-out", post(sign_out))
+        .api_route("/account-deletion", get(account_deletion_requirements))
+        .api_route("/delete-account", post(delete_account))
         .api_route("/oauth/google/start", post(start_google_oauth))
         .api_route("/oauth/apple/challenge", post(start_apple_sign_in))
         .api_route("/oauth/apple", post(sign_in_with_apple))
@@ -123,6 +129,24 @@ pub(crate) struct AuthenticatedSession {
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct StatusResponse {
     success: bool,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct AccountDeletionRequirements {
+    confirmation_phrase: String,
+    requires_password: bool,
+    requires_apple_reauth: bool,
+    has_apple: bool,
+    has_google: bool,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub(crate) struct DeleteAccount {
+    confirmation: String,
+    password: Option<String>,
+    apple_identity_token: Option<String>,
+    apple_authorization_code: Option<String>,
+    apple_nonce: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -805,6 +829,208 @@ pub(crate) async fn sign_out(
         .map_err(auth_internal_error)?;
 
     Ok(Json(StatusResponse { success: true }))
+}
+
+pub(crate) async fn account_deletion_requirements(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+) -> Result<Json<AccountDeletionRequirements>, AppError> {
+    let requirements = state
+        .auth
+        .account_deletion_requirements(current_user.id)
+        .await
+        .map_err(map_auth_service_error)?;
+    Ok(Json(account_deletion_requirements_response(requirements)))
+}
+
+pub(crate) async fn delete_account(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Json(payload): Json<DeleteAccount>,
+) -> Result<Json<StatusResponse>, AppError> {
+    if payload.confirmation.trim() != ACCOUNT_DELETION_CONFIRMATION {
+        return Err(AppError::BadRequest(format!(
+            "confirmation must be exactly \"{ACCOUNT_DELETION_CONFIRMATION}\""
+        )));
+    }
+
+    let requirements = state
+        .auth
+        .account_deletion_requirements(current_user.id)
+        .await
+        .map_err(map_auth_service_error)?;
+    let apple_reauth = load_apple_reauth_for_deletion(&state, &payload, &requirements).await?;
+    if requirements.has_apple && state.apple_auth.is_none() {
+        return Err(AppError::ServiceUnavailable(
+            "Apple sign-in is not configured",
+        ));
+    }
+    state
+        .auth
+        .verify_account_deletion_reauth(
+            current_user.id,
+            payload.password.as_deref(),
+            apple_reauth.as_ref().map(|(identity, _)| identity),
+        )
+        .await
+        .map_err(map_auth_service_error)?;
+
+    let fresh_apple_tokens = apple_reauth.as_ref().map(|(_, tokens)| tokens);
+    let revocation_tokens = state
+        .auth
+        .provider_tokens_for_revocation(current_user.id, fresh_apple_tokens)
+        .await
+        .map_err(map_auth_service_error)?;
+    revoke_provider_tokens(&state, &revocation_tokens).await?;
+    state
+        .auth
+        .hard_delete_user(current_user.id)
+        .await
+        .map_err(map_auth_service_error)?;
+
+    Ok(Json(StatusResponse { success: true }))
+}
+
+fn account_deletion_requirements_response(
+    requirements: AuthDeletionRequirements,
+) -> AccountDeletionRequirements {
+    AccountDeletionRequirements {
+        confirmation_phrase: requirements.confirmation_phrase.to_owned(),
+        requires_password: requirements.requires_password,
+        requires_apple_reauth: requirements.requires_apple_reauth,
+        has_apple: requirements.has_apple,
+        has_google: requirements.has_google,
+    }
+}
+
+async fn load_apple_reauth_for_deletion(
+    state: &AppState,
+    payload: &DeleteAccount,
+    requirements: &AuthDeletionRequirements,
+) -> Result<Option<(VerifiedAppleIdentity, AppleTokenSet)>, AppError> {
+    let has_apple_fields = payload.apple_identity_token.is_some()
+        || payload.apple_authorization_code.is_some()
+        || payload.apple_nonce.is_some();
+    if !requirements.requires_apple_reauth && !has_apple_fields && !requirements.has_apple {
+        return Ok(None);
+    }
+    if !has_apple_fields {
+        if requirements.requires_apple_reauth {
+            return Err(AppError::BadRequest(
+                "Sign in with Apple is required to delete this account".to_owned(),
+            ));
+        }
+        return Ok(None);
+    }
+
+    let identity_token = payload
+        .apple_identity_token
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| AppError::BadRequest("apple_identity_token is required".to_owned()))?;
+    let authorization_code = payload
+        .apple_authorization_code
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| AppError::BadRequest("apple_authorization_code is required".to_owned()))?;
+    let nonce = payload
+        .apple_nonce
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| AppError::BadRequest("apple_nonce is required".to_owned()))?;
+
+    let apple = state
+        .apple_auth
+        .as_ref()
+        .ok_or(AppError::ServiceUnavailable(
+            "Apple sign-in is not configured",
+        ))?;
+    let nonce_hash = sha256_bytes(nonce);
+    let challenge_is_active = sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM auth_apple_challenges
+            WHERE nonce_hash = $1 AND expires_at > now()
+        )
+        "#,
+    )
+    .bind(&nonce_hash)
+    .fetch_one(&state.pool)
+    .await?;
+    if !challenge_is_active {
+        return Err(AppError::Unauthorized);
+    }
+    sqlx::query("DELETE FROM auth_apple_challenges WHERE nonce_hash = $1")
+        .bind(&nonce_hash)
+        .execute(&state.pool)
+        .await?;
+
+    let identity = apple
+        .verify_identity_token(identity_token, Some(nonce))
+        .await
+        .map_err(map_apple_auth_error)?;
+    let tokens = apple
+        .exchange_authorization_code(authorization_code)
+        .await
+        .map_err(map_apple_auth_error)?;
+    Ok(Some((identity, tokens)))
+}
+
+async fn revoke_provider_tokens(
+    state: &AppState,
+    tokens: &[ProviderRevocationToken],
+) -> Result<(), AppError> {
+    for token in tokens {
+        match token.provider_id {
+            "apple" => {
+                let apple = state
+                    .apple_auth
+                    .as_ref()
+                    .ok_or(AppError::ServiceUnavailable(
+                        "Apple sign-in is not configured",
+                    ))?;
+                let hint = token
+                    .apple_token_type
+                    .unwrap_or(AppleTokenTypeHint::RefreshToken);
+                apple
+                    .revoke_token(&token.token, hint)
+                    .await
+                    .map_err(map_apple_auth_error)?;
+            }
+            "google" => {
+                if let Err(error) = revoke_google_token(&token.token).await {
+                    tracing::warn!(error = %error, "Google token revocation failed during account deletion");
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+async fn revoke_google_token(token: &str) -> Result<(), AppError> {
+    let response = reqwest::Client::new()
+        .post("https://oauth2.googleapis.com/revoke")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(format!("token={}", urlencoding_encode(token)))
+        .send()
+        .await
+        .map_err(|error| AppError::ExternalService(error.to_string()))?;
+    if response.status().is_success() || response.status().as_u16() == 400 {
+        return Ok(());
+    }
+    Err(AppError::ExternalService(format!(
+        "Google revoke returned {}",
+        response.status()
+    )))
+}
+
+fn urlencoding_encode(value: &str) -> String {
+    url::form_urlencoded::byte_serialize(value.as_bytes()).collect()
 }
 
 pub(crate) async fn start_apple_sign_in(
@@ -2972,6 +3198,224 @@ mod tests {
             "{}",
             replayed.body
         );
+
+        api.cleanup_users(&[user_id]).await;
+    }
+
+    #[tokio::test]
+    async fn reauthenticated_account_deletion_removes_user_data_and_revokes_sessions() {
+        let api = TestApi::new().await;
+        let email = format!("delete-account-{}@example.test", Uuid::new_v4());
+        let password = "delete-account-password";
+        let created = api
+            .json(
+                Method::POST,
+                "/api/auth/sign-up/email",
+                None,
+                Some(json!({
+                    "email": email,
+                    "password": password,
+                    "display_name": "Delete Me",
+                    "city": "Oakland"
+                })),
+            )
+            .await;
+        assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+        let (user_id, auth_user_id) = user_ids_for_email(&api, &email).await;
+        verify_user(&api, &auth_user_id).await;
+
+        let signed_in = api
+            .json(
+                Method::POST,
+                "/api/auth/sign-in/email",
+                None,
+                Some(json!({ "email": email, "password": password })),
+            )
+            .await;
+        assert_eq!(signed_in.status, StatusCode::OK, "{}", signed_in.body);
+        let token = signed_in.body["token"]
+            .as_str()
+            .expect("session token")
+            .to_owned();
+
+        sqlx::query(
+            r#"
+            INSERT INTO workouts (
+                id, user_id, title, workout_type, duration_minutes, duration_milliseconds, occurred_at
+            )
+            VALUES ($1, $2, 'Cascade check', 'open_play', 45, 2700000, now())
+            "#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(user_id)
+        .execute(&api.pool)
+        .await
+        .expect("insert workout owned by deleting user");
+
+        let requirements = api
+            .json_with_header(
+                Method::GET,
+                "/api/auth/account-deletion",
+                "authorization",
+                &format!("Bearer {token}"),
+                None,
+            )
+            .await;
+        assert_eq!(requirements.status, StatusCode::OK, "{}", requirements.body);
+        assert_eq!(requirements.body["confirmation_phrase"], json!("DELETE"));
+        assert_eq!(requirements.body["requires_password"], json!(true));
+        assert_eq!(requirements.body["requires_apple_reauth"], json!(false));
+
+        let wrong_password = api
+            .json_with_header(
+                Method::POST,
+                "/api/auth/delete-account",
+                "authorization",
+                &format!("Bearer {token}"),
+                Some(json!({
+                    "confirmation": "DELETE",
+                    "password": "not-the-password"
+                })),
+            )
+            .await;
+        assert_eq!(
+            wrong_password.status,
+            StatusCode::UNAUTHORIZED,
+            "{}",
+            wrong_password.body
+        );
+
+        let bad_confirmation = api
+            .json_with_header(
+                Method::POST,
+                "/api/auth/delete-account",
+                "authorization",
+                &format!("Bearer {token}"),
+                Some(json!({
+                    "confirmation": "please delete",
+                    "password": password
+                })),
+            )
+            .await;
+        assert_eq!(
+            bad_confirmation.status,
+            StatusCode::BAD_REQUEST,
+            "{}",
+            bad_confirmation.body
+        );
+
+        let deleted = api
+            .json_with_header(
+                Method::POST,
+                "/api/auth/delete-account",
+                "authorization",
+                &format!("Bearer {token}"),
+                Some(json!({
+                    "confirmation": "DELETE",
+                    "password": password
+                })),
+            )
+            .await;
+        assert_eq!(deleted.status, StatusCode::OK, "{}", deleted.body);
+        assert_eq!(deleted.body["success"], json!(true));
+
+        let user_exists =
+            sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)")
+                .bind(user_id)
+                .fetch_one(&api.pool)
+                .await
+                .expect("check deleted user");
+        assert!(!user_exists);
+        let workout_exists = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM workouts WHERE user_id = $1)",
+        )
+        .bind(user_id)
+        .fetch_one(&api.pool)
+        .await
+        .expect("check cascaded workouts");
+        assert!(!workout_exists);
+
+        let revoked = api
+            .json_with_header(
+                Method::GET,
+                "/api/auth/session",
+                "authorization",
+                &format!("Bearer {token}"),
+                None,
+            )
+            .await;
+        assert_eq!(revoked.status, StatusCode::UNAUTHORIZED, "{}", revoked.body);
+
+        let unauthenticated = api
+            .json(
+                Method::POST,
+                "/api/auth/delete-account",
+                None,
+                Some(json!({
+                    "confirmation": "DELETE",
+                    "password": password
+                })),
+            )
+            .await;
+        assert_eq!(
+            unauthenticated.status,
+            StatusCode::UNAUTHORIZED,
+            "{}",
+            unauthenticated.body
+        );
+    }
+
+    #[tokio::test]
+    async fn apple_only_account_deletion_requires_apple_reauthentication() {
+        let api = TestApi::new().await;
+        let subject = format!("apple-delete-{}", Uuid::new_v4());
+        let email = format!("apple-delete-{}@example.test", Uuid::new_v4());
+        let session = api
+            .sign_in_with_apple(
+                apple_identity(&subject, Some(&email)),
+                apple_tokens(Some("apple-delete-refresh")),
+                Some("Apple Delete"),
+            )
+            .await;
+        let user_id = api.domain_user_id_for_token(&session.token).await;
+
+        let requirements = api
+            .json_with_header(
+                Method::GET,
+                "/api/auth/account-deletion",
+                "authorization",
+                &format!("Bearer {}", session.token),
+                None,
+            )
+            .await;
+        assert_eq!(requirements.status, StatusCode::OK, "{}", requirements.body);
+        assert_eq!(requirements.body["requires_password"], json!(false));
+        assert_eq!(requirements.body["requires_apple_reauth"], json!(true));
+        assert_eq!(requirements.body["has_apple"], json!(true));
+
+        let missing_apple = api
+            .json_with_header(
+                Method::POST,
+                "/api/auth/delete-account",
+                "authorization",
+                &format!("Bearer {}", session.token),
+                Some(json!({ "confirmation": "DELETE" })),
+            )
+            .await;
+        assert_eq!(
+            missing_apple.status,
+            StatusCode::BAD_REQUEST,
+            "{}",
+            missing_apple.body
+        );
+
+        let still_exists =
+            sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)")
+                .bind(user_id)
+                .fetch_one(&api.pool)
+                .await
+                .expect("check apple user still present");
+        assert!(still_exists);
 
         api.cleanup_users(&[user_id]).await;
     }
