@@ -75,6 +75,7 @@ fn api_routes() -> ApiRouter<AppState> {
         .nest("/places", controller::places::routes())
         .nest("/game-invites", controller::game_invites::routes())
         .nest("/engagement", controller::engagement::routes())
+        .nest("/moderation", controller::moderation::routes())
         .nest("/uploads", controller::uploads::routes())
 }
 

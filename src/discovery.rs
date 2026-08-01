@@ -130,6 +130,11 @@ pub async fn search(
             FROM gatherings AS g
             WHERE $7 IN ('all', 'games')
                 AND g.cancelled_at IS NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM user_blocks
+                    WHERE (blocker_id = $1 AND blocked_id = g.host_id)
+                       OR (blocker_id = g.host_id AND blocked_id = $1)
+                )
                 AND (
                     g.visibility = 'public'
                     OR g.host_id = $1
@@ -238,6 +243,11 @@ pub async fn search(
                 extract(epoch FROM u.created_at)::BIGINT
             FROM users AS u
             WHERE $7 IN ('all', 'players')
+                AND NOT EXISTS (
+                    SELECT 1 FROM user_blocks
+                    WHERE (blocker_id = $1 AND blocked_id = u.id)
+                       OR (blocker_id = u.id AND blocked_id = $1)
+                )
                 -- Explicit player text search is global. Location and skill
                 -- remain browse filters, but must not hide a known person.
                 AND ($2::TEXT IS NOT NULL OR $3::TEXT IS NULL OR u.city ILIKE $3 ESCAPE '\')
@@ -326,7 +336,7 @@ async fn hydrate_candidate(
             groups::get_group(pool, media, candidate.entity_id, user_id).await?,
         )),
         "players" => Ok(DiscoveryResult::Players(
-            accounts::get_player(pool, candidate.entity_id).await?,
+            accounts::get_player(pool, media, user_id, candidate.entity_id).await?,
         )),
         category => Err(AppError::BadRequest(format!(
             "unsupported discovery category {category}"

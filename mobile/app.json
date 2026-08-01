@@ -50,7 +50,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Friendminton lets you choose photos for badminton posts and gathering covers."
+          "photosPermission": "Friendminton lets you choose photos for your profile, badminton posts, and gathering covers."
         }
       ],
       "expo-font",

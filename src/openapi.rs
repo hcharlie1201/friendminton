@@ -67,6 +67,11 @@ pub fn base_document(public_base_url: &str, environment: &str) -> OpenApi {
                 description: Some("Weekly summaries and notifications".into()),
                 ..Tag::default()
             },
+            Tag {
+                name: "moderation".into(),
+                description: Some("Blocking, reporting, and administrator review".into()),
+                ..Tag::default()
+            },
         ],
         servers: vec![Server {
             url: public_base_url.into(),

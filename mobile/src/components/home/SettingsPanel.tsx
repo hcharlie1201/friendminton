@@ -1,6 +1,6 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useCallback, useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Platform, StyleSheet, Text, View } from 'react-native';
 
 import {
   getApiAuthAccountDeletion,
@@ -25,6 +25,8 @@ type Props = {
   onLocationChange: (location: DiscoveryLocation) => void;
   onAccountDeleted: () => Promise<void>;
   onSignOut: () => void;
+  isAdmin: boolean;
+  onOpenModeration: () => void;
 };
 
 export function SettingsPanel({
@@ -34,6 +36,8 @@ export function SettingsPanel({
   onLocationChange,
   onAccountDeleted,
   onSignOut,
+  isAdmin,
+  onOpenModeration,
 }: Props) {
   const location = useSettingsLocation(onLocationChange);
   const deletion = useAccountDeletion(onAccountDeleted);
@@ -63,6 +67,10 @@ export function SettingsPanel({
           Use current location
         </Button>
       </View>
+
+      {isAdmin && <View style={styles.section}><Text style={styles.sectionTitle}>Administration</Text><Button icon="shield-checkmark-outline" onPress={onOpenModeration} variant="secondary">Review safety reports</Button></View>}
+
+      <SupportSection />
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Notifications</Text>
@@ -126,6 +134,11 @@ export function SettingsPanel({
       </View>
     </View>
   );
+}
+
+function SupportSection() {
+  const contact = useCallback(() => { void Linking.openURL('mailto:support@friendminton.com?subject=Friendminton%20support'); }, []);
+  return <View style={styles.section}><Text style={styles.sectionTitle}>Help & safety</Text><Text style={styles.help}>Need help with your account or a safety concern?</Text><Button icon="mail-outline" onPress={contact} variant="secondary">Contact support</Button></View>;
 }
 
 function useSettingsLocation(onLocationChange: Props['onLocationChange']) {

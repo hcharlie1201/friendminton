@@ -15,6 +15,7 @@ mod error;
 mod gatherings;
 mod groups;
 mod media;
+mod moderation;
 mod openapi;
 mod places;
 mod play;

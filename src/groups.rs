@@ -86,6 +86,12 @@ pub async fn find_groups(
     query
         .push_bind(user_id)
         .push(" AND own_membership.status IN ('member', 'invited')))");
+    query
+        .push(" AND NOT EXISTS (SELECT 1 FROM user_blocks WHERE (blocker_id = ")
+        .push_bind(user_id)
+        .push(" AND blocked_id = g.owner_id) OR (blocker_id = g.owner_id AND blocked_id = ")
+        .push_bind(user_id)
+        .push("))");
     let has_coordinate_search = search.latitude.is_some() || search.longitude.is_some();
     let fallback_city = normalized_optional(search.city);
     if !has_coordinate_search && let Some(city) = &fallback_city {
@@ -155,7 +161,13 @@ pub async fn get_group(
         r#"
         SELECT {GROUP_COLUMNS}
         FROM badminton_groups AS g
-        WHERE g.id = $1 AND (
+        WHERE g.id = $1
+          AND NOT EXISTS (
+            SELECT 1 FROM user_blocks
+            WHERE (blocker_id = $2 AND blocked_id = g.owner_id)
+               OR (blocker_id = g.owner_id AND blocked_id = $2)
+          )
+          AND (
             g.visibility = 'public' OR EXISTS (
                 SELECT 1 FROM badminton_group_members AS membership
                 WHERE membership.group_id = g.id AND membership.user_id = $2
@@ -176,6 +188,12 @@ pub async fn join_group(
     group_id: Uuid,
     user_id: Uuid,
 ) -> Result<GroupMembership, AppError> {
+    let owner_id =
+        sqlx::query_scalar::<_, Uuid>("SELECT owner_id FROM badminton_groups WHERE id = $1")
+            .bind(group_id)
+            .fetch_one(pool)
+            .await?;
+    crate::accounts::ensure_interaction_allowed(pool, user_id, owner_id).await?;
     let mut transaction = pool.begin().await?;
     let (visibility, join_policy) = sqlx::query_as::<_, (GroupVisibility, GroupJoinPolicy)>(
         "SELECT visibility, join_policy FROM badminton_groups WHERE id = $1 FOR UPDATE",
@@ -297,6 +315,7 @@ pub async fn invite_group_member(
     actor_id: Uuid,
     target_id: Uuid,
 ) -> Result<GroupMembership, AppError> {
+    crate::accounts::ensure_interaction_allowed(pool, actor_id, target_id).await?;
     let mut transaction = pool.begin().await?;
     require_group_manager(&mut transaction, group_id, actor_id).await?;
     if actor_id == target_id {
@@ -371,9 +390,15 @@ async fn get_visible_group_row(
 ) -> Result<(), AppError> {
     sqlx::query_scalar::<_, Uuid>(
         r#"
-        SELECT id FROM badminton_groups
-        WHERE id = $1 AND (
-            visibility = 'public' OR EXISTS (
+        SELECT g.id FROM badminton_groups AS g
+        WHERE g.id = $1
+          AND NOT EXISTS (
+            SELECT 1 FROM user_blocks
+            WHERE (blocker_id = $2 AND blocked_id = g.owner_id)
+               OR (blocker_id = g.owner_id AND blocked_id = $2)
+          )
+          AND (
+            g.visibility = 'public' OR EXISTS (
                 SELECT 1 FROM badminton_group_members
                 WHERE group_id = $1 AND user_id = $2
                     AND status IN ('member', 'invited')

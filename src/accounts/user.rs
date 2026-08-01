@@ -12,6 +12,8 @@ pub struct User {
     pub city: Option<String>,
     pub skill_level: String,
     pub bio: Option<String>,
+    pub avatar_key: Option<String>,
+    pub is_admin: bool,
     #[serde(with = "time::serde::rfc3339")]
     #[schemars(with = "String")]
     pub created_at: OffsetDateTime,
@@ -27,6 +29,17 @@ pub struct Player {
     pub city: Option<String>,
     pub skill_level: String,
     pub bio: Option<String>,
+    pub avatar_key: Option<String>,
+    pub avatar_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct UpdateProfile {
+    pub display_name: String,
+    pub city: Option<String>,
+    pub skill_level: String,
+    pub bio: Option<String>,
+    pub avatar_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

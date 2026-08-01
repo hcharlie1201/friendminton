@@ -25,7 +25,7 @@ export type SessionLocation = {
   longitude: number | null;
 };
 
-type SessionUser = Pick<User, 'id' | 'display_name' | 'email'> & Pick<Partial<User>, 'city'>;
+type SessionUser = Pick<User, 'id' | 'display_name' | 'email' | 'is_admin'> & Pick<Partial<User>, 'city'>;
 type StoredSession = {
   discoveryLocation: SessionLocation | null;
   discoveryLocationEnabled: boolean;
@@ -45,6 +45,7 @@ type SessionContextValue = {
   signIn: (session: AuthenticatedSession) => Promise<void>;
   signOut: () => Promise<void>;
   updateDiscoveryPreferences: (location: SessionLocation, locationEnabled: boolean) => Promise<void>;
+  updateUser: (user: Pick<User, 'display_name' | 'city'>) => Promise<void>;
   user: SessionUser | null;
 };
 type RestoreResult = {
@@ -151,6 +152,12 @@ function useStoredSession(): SessionContextValue {
     await persistSession(nextSession);
     setStoredSession(nextSession);
   }, [storedSession]);
+  const updateUser = useCallback(async (user: Pick<User, 'display_name' | 'city'>) => {
+    if (!storedSession) return;
+    const nextSession = { ...storedSession, user: { ...storedSession.user, ...user } };
+    await persistSession(nextSession);
+    setStoredSession(nextSession);
+  }, [storedSession]);
   const value = useMemo<SessionContextValue>(
     () => ({
       clearSession,
@@ -164,6 +171,7 @@ function useStoredSession(): SessionContextValue {
       signIn,
       signOut,
       updateDiscoveryPreferences,
+      updateUser,
       user: storedSession?.user ?? null,
     }),
     [
@@ -176,6 +184,7 @@ function useStoredSession(): SessionContextValue {
       signOut,
       storedSession,
       updateDiscoveryPreferences,
+      updateUser,
     ],
   );
 
@@ -249,7 +258,7 @@ function normalizeStoredSession(value: unknown): StoredSession | null {
     discoveryLocationEnabled: candidate.discoveryLocationEnabled !== false,
     needsOnboarding: Boolean(candidate.needsOnboarding),
     token: candidate.token,
-    user: candidate.user,
+    user: { ...candidate.user, is_admin: candidate.user.is_admin === true },
   };
 }
 

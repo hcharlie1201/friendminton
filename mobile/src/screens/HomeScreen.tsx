@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type RefObject } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import {
   Alert,
   RefreshControl,
@@ -174,6 +174,8 @@ export function HomeScreen() {
   const openGathering = useGatheringDetailNavigation();
   const openGroup = useGroupDetailNavigation();
   const openPlayer = usePlayerProfileNavigation();
+  const editProfile = useProfileEditorNavigation();
+  const openModeration = useModerationNavigation();
   const openGatheringCreator = useGatheringCreatorNavigation(city);
   const openGroupCreator = useGroupCreatorNavigation(city);
 
@@ -300,6 +302,8 @@ export function HomeScreen() {
     openGroupCreator,
     openPlayer,
     openPost,
+    editProfile,
+    openModeration,
     openGatheringCreator,
     setActiveTab,
     setEditingPostId,
@@ -465,6 +469,8 @@ function useHomeActions({
   openGroupCreator,
   openPlayer,
   openPost,
+  editProfile,
+  openModeration,
   openGatheringCreator,
   setActiveTab,
   setEditingPostId,
@@ -479,6 +485,8 @@ function useHomeActions({
   openGroupCreator: () => void;
   openPlayer: (playerId: string) => void;
   openPost: (post: FeedPost) => void;
+  editProfile: () => void;
+  openModeration: () => void;
   openGatheringCreator: () => void;
   setActiveTab: (tab: Tab) => void;
   setEditingPostId: (postId: string | null) => void;
@@ -496,6 +504,8 @@ function useHomeActions({
       editPost: (post: FeedPost) =>
         beginPostEdit(post, setPostDraft, setEditingPostId, setActiveTab, homeScrollRef),
       openGathering,
+      editProfile,
+      openModeration,
       openGroup,
       openPlayer,
       openPost,
@@ -505,6 +515,8 @@ function useHomeActions({
       clearSession,
       createPostMutation,
       openGathering,
+      editProfile,
+      openModeration,
       openGroup,
       openGroupCreator,
       openPlayer,
@@ -517,6 +529,16 @@ function useHomeActions({
       homeScrollRef,
     ],
   );
+}
+
+function useProfileEditorNavigation() {
+  const router = useRouter();
+  return useCallback(() => router.push('/profile/edit' as Href), [router]);
+}
+
+function useModerationNavigation() {
+  const router = useRouter();
+  return useCallback(() => router.push('/moderation' as Href), [router]);
 }
 
 function useGatheringCreatorNavigation(city: string) {

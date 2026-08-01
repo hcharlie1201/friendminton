@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 
 import type { FeedPost } from '../../api/generated';
 import { formatDate } from '../../lib/dates';
 import { formatElapsedTime } from '../../lib/duration';
 import { colors, fonts } from '../ui';
 import { PostPhotoGallery } from './PostPhotoGallery';
+import { profileImageUrl } from '../../features/profile/profileImage';
 
 type Props = {
   canEdit: boolean;
@@ -20,6 +21,7 @@ export function ActivityPostCard({ canEdit, imageRefreshToken, onEdit, onOpen, p
   const body = post.body ?? '';
   const imageUrls = post.image_urls ?? [];
   const open = useOpenPostAction(onOpen, post);
+  const avatarUrl = profileImageUrl(post.avatar_url);
 
   return (
     <Pressable
@@ -30,9 +32,9 @@ export function ActivityPostCard({ canEdit, imageRefreshToken, onEdit, onOpen, p
       style={styles.post}
     >
       <View style={styles.header}>
-        <View style={styles.avatar}>
+        {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <View style={styles.avatar}>
           <Text style={styles.avatarText}>{initials(post.display_name)}</Text>
-        </View>
+        </View>}
         <View style={styles.headerCopy}>
           <Text style={styles.name}>{post.display_name}</Text>
           <Text style={styles.meta}>{post.location ? `${post.location} · ` : ''}{formatDate(post.created_at)}</Text>
@@ -145,6 +147,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
   },
+  avatarImage: { borderRadius: 20, height: 40, width: 40 },
   headerCopy: {
     flex: 1,
     gap: 2,

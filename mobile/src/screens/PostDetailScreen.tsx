@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getApiPostsByPostId, type FeedPost } from '../api/generated';
 import { apiData } from '../api/runtime';
+import { useSession } from '../auth/session';
 import { PostPhotoGallery } from '../components/feed/PostPhotoGallery';
 import { Button, colors, fonts } from '../components/ui';
 import { estimateBadmintonSession, type BadmintonEstimate } from '../features/posts/badmintonEstimates';
@@ -21,11 +22,13 @@ export function PostDetailScreen() {
   const postQuery = usePostDetail(postId);
   const goBack = useBackNavigation();
   const retry = usePostRetry(postQuery.refetch);
+  const { user } = useSession();
+  const report = usePostReport(postQuery.data);
 
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
-      <DetailHeader onBack={goBack} />
+      <DetailHeader onBack={goBack} onReport={report} showReport={Boolean(postQuery.data && postQuery.data.user_id !== user?.id)} />
       {postQuery.data ? (
         <PostDetailContent post={postQuery.data} />
       ) : postQuery.isPending ? (
@@ -71,7 +74,7 @@ function PostDetailContent({ post }: { post: FeedPost }) {
   );
 }
 
-function DetailHeader({ onBack }: { onBack: () => void }) {
+function DetailHeader({ onBack, onReport, showReport }: { onBack: () => void; onReport: () => void; showReport: boolean }) {
   return (
     <View style={styles.header}>
       <Pressable
@@ -84,9 +87,17 @@ function DetailHeader({ onBack }: { onBack: () => void }) {
         <Ionicons color={colors.text} name="chevron-back" size={28} />
       </Pressable>
       <Text style={styles.headerTitle}>Badminton Activity</Text>
-      <View style={styles.headerButton} />
+      {showReport ? <Pressable accessibilityLabel="Report activity" onPress={onReport} style={styles.headerButton}><Ionicons color={colors.text} name="flag-outline" size={22} /></Pressable> : <View style={styles.headerButton} />}
     </View>
   );
+}
+
+function usePostReport(post?: FeedPost) {
+  const router = useRouter();
+  return useCallback(() => {
+    if (!post) return;
+    router.push(`/report?targetId=${encodeURIComponent(post.id)}&targetType=post&label=${encodeURIComponent(`${post.display_name}'s activity`)}` as Href);
+  }, [post, router]);
 }
 
 function SessionSummary({

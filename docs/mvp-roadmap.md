@@ -1,18 +1,19 @@
 # Friendminton MVP roadmap
 
-Last updated: 2026-07-28
+Last updated: 2026-08-01
 
 This document is the persistent source of truth for the public-MVP sequence. It
 should be loaded before MVP work and updated as implementation lands.
 
 ## Current focus
 
-**Step 7 — editable profiles, moderation, and consistency.** Step 5 chat is
-paused at the user's direction. The active slice is editable player identity,
-blocking/reporting, and a completed weekly snapshot with current/longest weekly
-streaks, recent active days, weekly goal progress, and an eight-week consistency
-score. Step 3's staging smoke test and Step 2's Apple-login staging prerequisites
-remain external validation tasks.
+**Step 7 is complete.** Editable profiles and avatars, blocking and filtered
+content, user/post reporting, support contact, administrator review/removal, an
+audit trail, and the consistency snapshot are implemented with backend route
+tests and mobile typechecking. Step 5 chat remains paused at the user's
+direction. Step 3's staging smoke test and Step 2's Apple-login staging
+prerequisites remain external validation tasks; the next implementation slice
+is Step 6 unless the user chooses Step 8 first.
 
 ### Finish Step 1 runbook
 
@@ -78,7 +79,7 @@ Update the status table below and move current focus to Step 2.
 | 4 | Complete group and gathering membership flows | Complete |
 | 5 | Minimal gathering and group chat | Paused before implementation |
 | 6 | Event-driven notifications, push, and transactional email | Not started; SES foundation ready |
-| 7 | Editable profiles, reporting, blocking, moderation, and consistency | In progress |
+| 7 | Editable profiles, reporting, blocking, moderation, and consistency | Complete |
 | 8 | Standalone manual activities; explicitly decide phone tracking scope | Not started |
 
 ## Step 1 — real authentication and sessions
@@ -316,9 +317,14 @@ for deleted group covers are not swept in this step.
   last eight, and an eight-week consistency percentage.
 - [x] Surface streak protection, goal progress, consistency tiers, and personal
   best context on Home and the personal profile.
-- [ ] Add authorized editing for display name, city, skill, bio, and avatar.
-- [ ] Add blocking and user/content reporting with filtering.
-- [ ] Add the minimum admin report review/removal workflow and audit trail.
+- [x] Add authorized editing for display name, city, skill, bio, and avatar;
+  surface avatars across profile, discovery, and feed views.
+- [x] Add mutual blocking, filter blocked players and their hosted/content
+  surfaces, prevent invitations across a block, and add user/post reporting plus
+  support contact information. The same interaction check is ready for Step 5
+  chat when chat is implemented.
+- [x] Add an admin-only open-report queue with resolve/dismiss/content-removal
+  actions and a retained audit trail.
 
 ## Step 8 — activities and phone tracking decision
 

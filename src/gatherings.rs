@@ -131,6 +131,12 @@ pub async fn find_gatherings(
         )
         .push_bind(user_id)
         .push(" AND participant.status IN ('going', 'invited')))");
+    query
+        .push(" AND NOT EXISTS (SELECT 1 FROM user_blocks WHERE (blocker_id = ")
+        .push_bind(user_id)
+        .push(" AND blocked_id = g.host_id) OR (blocker_id = g.host_id AND blocked_id = ")
+        .push_bind(user_id)
+        .push("))");
 
     if let Some(city) = normalized_search_city(search.city)? {
         query
@@ -176,6 +182,11 @@ pub async fn get_gathering(
         SELECT {GATHERING_COLUMNS}
         FROM gatherings AS g
         WHERE g.id = $1
+            AND NOT EXISTS (
+                SELECT 1 FROM user_blocks
+                WHERE (blocker_id = $2 AND blocked_id = g.host_id)
+                   OR (blocker_id = g.host_id AND blocked_id = $2)
+            )
             AND (
                 g.visibility = 'public'
                 OR g.host_id = $2
@@ -201,6 +212,11 @@ pub async fn join_gathering(
     gathering_id: Uuid,
     user_id: Uuid,
 ) -> Result<GatheringParticipant, AppError> {
+    let host_id = sqlx::query_scalar::<_, Uuid>("SELECT host_id FROM gatherings WHERE id = $1")
+        .bind(gathering_id)
+        .fetch_one(pool)
+        .await?;
+    crate::accounts::ensure_interaction_allowed(pool, user_id, host_id).await?;
     let mut transaction = pool.begin().await?;
     let (join_policy, capacity, visibility, group_id, cancelled_at) = sqlx::query_as::<
         _,
@@ -392,6 +408,7 @@ pub async fn invite_gathering_participant(
             "the host is already attending".to_owned(),
         ));
     }
+    crate::accounts::ensure_interaction_allowed(pool, actor_id, target_id).await?;
     sqlx::query_scalar::<_, Uuid>("SELECT id FROM users WHERE id = $1")
         .bind(target_id)
         .fetch_one(&mut *transaction)

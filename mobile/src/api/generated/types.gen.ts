@@ -277,6 +277,13 @@ export type CreatePost = {
     workout_id: string;
 };
 
+export type CreateReport = {
+    details?: string | null;
+    reason: ReportReason;
+    target_id: string;
+    target_type: ReportTargetType;
+};
+
 export type CreateUploadTarget = {
     content_type: string;
     purpose?: UploadPurpose;
@@ -464,6 +471,7 @@ export type FeedPage = {
 };
 
 export type FeedPost = {
+    avatar_url?: string | null;
     body: string;
     created_at: string;
     display_name: string;
@@ -805,6 +813,33 @@ export type MediaType = {
 export type MobileOAuthExchange = {
     code: string;
     code_verifier: string;
+};
+
+export type ModerationAuditEntry = {
+    action: string;
+    admin_id?: string | null;
+    created_at: string;
+    id: string;
+    note?: string | null;
+    report_id?: string | null;
+    target_id: string;
+    target_type: string;
+};
+
+export type ModerationReport = {
+    created_at: string;
+    details?: string | null;
+    id: string;
+    reason: ReportReason;
+    reporter_id: string;
+    reporter_name: string;
+    resolution_note?: string | null;
+    reviewed_at?: string | null;
+    reviewed_by?: string | null;
+    status: string;
+    target_id: string;
+    target_label: string;
+    target_type: ReportTargetType;
 };
 
 export type Notification = {
@@ -1424,6 +1459,8 @@ export type PlacePrediction = {
 export type PlayFormat = 'open_play' | 'round_robin' | 'doubles' | 'singles' | 'drills' | 'coaching';
 
 export type Player = {
+    avatar_key?: string | null;
+    avatar_url?: string | null;
     bio?: string | null;
     city?: string | null;
     display_name: string;
@@ -1647,6 +1684,16 @@ export type ReferenceOrForSecurityScheme = {
     summary?: string | null;
 } | SecurityScheme;
 
+export type ReportPath = {
+    report_id: string;
+};
+
+export type ReportReason = 'harassment' | 'spam' | 'hate' | 'sexual_content' | 'violence' | 'other';
+
+export type ReportResolution = 'dismiss' | 'resolve' | 'remove_content';
+
+export type ReportTargetType = 'user' | 'post';
+
 export type RequestBody = {
     /**
      * A brief description of the request body.
@@ -1675,6 +1722,11 @@ export type RequestBody = {
 export type ResetPassword = {
     new_password: string;
     token: string;
+};
+
+export type ResolveReport = {
+    note?: string | null;
+    resolution: ReportResolution;
 };
 
 export type ResolvedPlace = {
@@ -1893,7 +1945,15 @@ export type UpdatePost = {
     workout_id: string;
 };
 
-export type UploadPurpose = 'post' | 'gathering_cover' | 'group_cover';
+export type UpdateProfile = {
+    avatar_key?: string | null;
+    bio?: string | null;
+    city?: string | null;
+    display_name: string;
+    skill_level: string;
+};
+
+export type UploadPurpose = 'post' | 'gathering_cover' | 'group_cover' | 'avatar';
 
 export type UploadTarget = {
     headers: {
@@ -1904,12 +1964,14 @@ export type UploadTarget = {
 };
 
 export type User = {
+    avatar_key?: string | null;
     bio?: string | null;
     city?: string | null;
     created_at: string;
     display_name: string;
     email: string;
     id: string;
+    is_admin: boolean;
     skill_level: string;
     updated_at: string;
 };
@@ -2383,6 +2445,79 @@ export type GetApiUsersResponses = {
 };
 
 export type GetApiUsersResponse = GetApiUsersResponses[keyof GetApiUsersResponses];
+
+export type PatchApiUsersMeData = {
+    body: UpdateProfile;
+    path?: never;
+    query?: never;
+    url: '/api/users/me';
+};
+
+export type PatchApiUsersMeErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PatchApiUsersMeError = PatchApiUsersMeErrors[keyof PatchApiUsersMeErrors];
+
+export type PatchApiUsersMeResponses = {
+    200: Player;
+};
+
+export type PatchApiUsersMeResponse = PatchApiUsersMeResponses[keyof PatchApiUsersMeResponses];
+
+export type DeleteApiUsersByIdBlockData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/users/{id}/block';
+};
+
+export type DeleteApiUsersByIdBlockErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type DeleteApiUsersByIdBlockError = DeleteApiUsersByIdBlockErrors[keyof DeleteApiUsersByIdBlockErrors];
+
+export type PostApiUsersByIdBlockData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/users/{id}/block';
+};
+
+export type PostApiUsersByIdBlockErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiUsersByIdBlockError = PostApiUsersByIdBlockErrors[keyof PostApiUsersByIdBlockErrors];
 
 export type GetApiUsersByIdData = {
     body?: never;
@@ -3651,6 +3786,116 @@ export type PostApiEngagementNotificationsReadErrors = {
 };
 
 export type PostApiEngagementNotificationsReadError = PostApiEngagementNotificationsReadErrors[keyof PostApiEngagementNotificationsReadErrors];
+
+export type GetApiModerationReportsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/moderation/reports';
+};
+
+export type GetApiModerationReportsErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiModerationReportsError = GetApiModerationReportsErrors[keyof GetApiModerationReportsErrors];
+
+export type GetApiModerationReportsResponses = {
+    200: Array<ModerationReport>;
+};
+
+export type GetApiModerationReportsResponse = GetApiModerationReportsResponses[keyof GetApiModerationReportsResponses];
+
+export type PostApiModerationReportsData = {
+    body: CreateReport;
+    path?: never;
+    query?: never;
+    url: '/api/moderation/reports';
+};
+
+export type PostApiModerationReportsErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiModerationReportsError = PostApiModerationReportsErrors[keyof PostApiModerationReportsErrors];
+
+export type PostApiModerationReportsResponses = {
+    200: ModerationReport;
+};
+
+export type PostApiModerationReportsResponse = PostApiModerationReportsResponses[keyof PostApiModerationReportsResponses];
+
+export type PatchApiModerationReportsByReportIdData = {
+    body: ResolveReport;
+    path: {
+        report_id: string;
+    };
+    query?: never;
+    url: '/api/moderation/reports/{report_id}';
+};
+
+export type PatchApiModerationReportsByReportIdErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PatchApiModerationReportsByReportIdError = PatchApiModerationReportsByReportIdErrors[keyof PatchApiModerationReportsByReportIdErrors];
+
+export type PatchApiModerationReportsByReportIdResponses = {
+    200: ModerationReport;
+};
+
+export type PatchApiModerationReportsByReportIdResponse = PatchApiModerationReportsByReportIdResponses[keyof PatchApiModerationReportsByReportIdResponses];
+
+export type GetApiModerationAuditLogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/moderation/audit-log';
+};
+
+export type GetApiModerationAuditLogErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiModerationAuditLogError = GetApiModerationAuditLogErrors[keyof GetApiModerationAuditLogErrors];
+
+export type GetApiModerationAuditLogResponses = {
+    200: Array<ModerationAuditEntry>;
+};
+
+export type GetApiModerationAuditLogResponse = GetApiModerationAuditLogResponses[keyof GetApiModerationAuditLogResponses];
 
 export type PostApiUploadsPresignData = {
     body: CreateUploadTarget;

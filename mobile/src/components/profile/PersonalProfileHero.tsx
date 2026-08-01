@@ -1,18 +1,20 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Player, WeeklySnapshot } from '../../api/generated';
 import { colors, fonts } from '../ui';
+import { profileImageUrl } from '../../features/profile/profileImage';
 
 type Props = {
   displayName: string;
   groupCount: number;
   player?: Player;
   snapshot?: WeeklySnapshot;
+  onEdit: () => void;
 };
 
-export function PersonalProfileHero({ displayName, groupCount, player, snapshot }: Props) {
+export function PersonalProfileHero({ displayName, groupCount, onEdit, player, snapshot }: Props) {
   const city = player?.city?.trim();
   const bio = player?.bio?.trim();
 
@@ -27,12 +29,10 @@ export function PersonalProfileHero({ displayName, groupCount, player, snapshot 
         <View pointerEvents="none" style={styles.cloudLarge} />
         <View pointerEvents="none" style={styles.cloudSmall} />
         <View style={styles.identity}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{profileInitials(displayName)}</Text>
-          </View>
+          <ProfileAvatar displayName={player?.display_name ?? displayName} url={player?.avatar_url} />
           <View style={styles.identityCopy}>
             <Text style={styles.eyebrow}>YOUR BADMINTON PROFILE</Text>
-            <Text accessibilityRole="header" style={styles.name}>{displayName}</Text>
+            <Text accessibilityRole="header" style={styles.name}>{player?.display_name ?? displayName}</Text>
             <View style={styles.profileMeta}>
               {city && <ProfileMeta icon="location-outline" label={city} />}
               {player?.skill_level && (
@@ -41,6 +41,10 @@ export function PersonalProfileHero({ displayName, groupCount, player, snapshot 
             </View>
           </View>
         </View>
+        <Pressable accessibilityRole="button" onPress={onEdit} style={styles.editButton}>
+          <Ionicons color={colors.primaryStrong} name="create-outline" size={17} />
+          <Text style={styles.editText}>Edit profile</Text>
+        </Pressable>
         <Text style={styles.bio}>{bio || 'Add a short bio about how you like to play and what you are working toward.'}</Text>
       </LinearGradient>
 
@@ -61,6 +65,13 @@ export function PersonalProfileHero({ displayName, groupCount, player, snapshot 
         </View>
       </View>
     </View>
+  );
+}
+
+function ProfileAvatar({ displayName, url }: { displayName: string; url?: string | null }) {
+  const source = profileImageUrl(url);
+  return source ? <Image source={{ uri: source }} style={styles.avatarImage} /> : (
+    <View style={styles.avatar}><Text style={styles.avatarText}>{profileInitials(displayName)}</Text></View>
   );
 }
 
@@ -158,6 +169,7 @@ const styles = StyleSheet.create({
     width: 82,
   },
   avatarText: { color: colors.textOnPrimary, fontFamily: fonts.black, fontSize: 27, fontWeight: '900' },
+  avatarImage: { borderColor: colors.surface, borderRadius: 24, borderWidth: 4, height: 82, width: 82 },
   identityCopy: { flex: 1, gap: 5, minWidth: 0 },
   eyebrow: { color: colors.primaryStrong, fontFamily: fonts.black, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   name: { color: colors.text, fontFamily: fonts.black, fontSize: 27, fontWeight: '900', lineHeight: 32 },
@@ -173,6 +185,8 @@ const styles = StyleSheet.create({
   },
   metaText: { color: colors.primaryStrong, fontFamily: fonts.bold, fontSize: 10, fontWeight: '700' },
   bio: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 13, lineHeight: 19, maxWidth: 330 },
+  editButton: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.surfaceOverlay, borderRadius: 99, flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingVertical: 8 },
+  editText: { color: colors.primaryStrong, fontFamily: fonts.bold, fontSize: 12, fontWeight: '700' },
   stats: { flexDirection: 'row', paddingHorizontal: 14 },
   stat: { alignItems: 'center', flex: 1, gap: 3, minWidth: 0, paddingHorizontal: 3 },
   statLabel: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 10 },

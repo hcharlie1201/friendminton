@@ -2,6 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, type ReactNode } from 'react';
 import {
   Linking,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -17,6 +18,7 @@ import type {
   Player,
 } from '../../api/generated';
 import { colors, textSizes, textWeights } from '../ui';
+import { profileImageUrl } from '../../features/profile/profileImage';
 
 type Props = {
   onOpenGathering: (gatheringId: string) => void;
@@ -84,9 +86,10 @@ function GroupResult({ group, onOpen }: { group: BadmintonGroup; onOpen: Props['
 
 function PlayerResult({ onOpen, player }: { onOpen: Props['onOpenPlayer']; player: Player }) {
   const open = useEntityOpen(player.id, onOpen);
+  const avatarUrl = profileImageUrl(player.avatar_url);
   return (
     <ResultPressable
-      icon={<Ionicons color={colors.primaryStrong} name="person" size={24} />}
+      icon={avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.playerImage} /> : <Ionicons color={colors.primaryStrong} name="person" size={24} />}
       label={`Open ${player.display_name}`}
       meta={`${skillLabel(player.skill_level)}${player.city ? ` · ${player.city}` : ''}`}
       onPress={open}
@@ -174,6 +177,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 54,
   },
+  playerImage: { borderRadius: 12, height: 54, width: 54 },
   copy: { flex: 1, gap: 4, minWidth: 0 },
   title: { ...textSizes.medium, ...textWeights.heavy, color: colors.text },
   meta: {

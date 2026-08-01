@@ -5,6 +5,7 @@ pub mod engagement;
 pub mod game_invites;
 pub mod gatherings;
 pub mod groups;
+pub mod moderation;
 pub mod places;
 pub mod posts;
 pub mod uploads;

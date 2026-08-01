@@ -49,16 +49,18 @@ pub(crate) async fn create_post(
 
 pub(crate) async fn feed(
     State(state): State<AppState>,
+    CurrentUser { id: viewer_id }: CurrentUser,
     Query(query): Query<FeedQuery>,
 ) -> Result<Json<FeedPage>, AppError> {
-    let page = activities::feed(&state.pool, &state.media, query).await?;
+    let page = activities::feed(&state.pool, &state.media, viewer_id, query).await?;
     Ok(Json(page))
 }
 
 pub(crate) async fn get_post(
     State(state): State<AppState>,
+    CurrentUser { id: viewer_id }: CurrentUser,
     Path(path): Path<PostPath>,
 ) -> Result<Json<FeedPost>, AppError> {
-    let post = activities::get_post(&state.pool, &state.media, path.post_id).await?;
+    let post = activities::get_post(&state.pool, &state.media, viewer_id, path.post_id).await?;
     Ok(Json(post))
 }

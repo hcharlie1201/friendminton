@@ -33,6 +33,8 @@ export type HomeActions = {
   openGroup: (groupId: string) => void;
   openPlayer: (playerId: string) => void;
   openPost: (post: FeedPost) => void;
+  editProfile: () => void;
+  openModeration: () => void;
   signOut: () => void;
 };
 
@@ -50,7 +52,7 @@ type Props = {
   latitude: number | null;
   locationEnabled: boolean;
   longitude: number | null;
-  currentUser: Pick<User, 'id' | 'display_name' | 'email'>;
+  currentUser: Pick<User, 'id' | 'display_name' | 'email' | 'is_admin'>;
   editingPostId: string | null;
   notifications: Notification[];
   onDiscoveryCategoryChange: (category: DiscoveryCategory) => void;
@@ -169,6 +171,7 @@ export function HomeContent({
         <PersonalProfileHero
           displayName={currentUser.display_name}
           groupCount={joinedGroups.length}
+          onEdit={actions.editProfile}
           player={profile}
           snapshot={snapshot}
         />
@@ -182,9 +185,11 @@ export function HomeContent({
           city={filterCity}
           email={currentUser.email}
           notifications={notifications}
+          isAdmin={currentUser.is_admin}
           onAccountDeleted={actions.deleteAccount}
           onLocationChange={onLocationChange}
           onSignOut={actions.signOut}
+          onOpenModeration={actions.openModeration}
         />
       </View>
     );

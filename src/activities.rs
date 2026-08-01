@@ -179,6 +179,7 @@ pub async fn update_post(
 pub async fn feed(
     pool: &Pool<Postgres>,
     media: &MediaStorage,
+    viewer_id: Uuid,
     query: FeedQuery,
 ) -> Result<FeedPage, AppError> {
     let limit = feed_limit(query.limit)?;
@@ -191,7 +192,7 @@ pub async fn feed(
     let mut posts = sqlx::query_as::<_, StoredFeedPost>(
         r#"
         SELECT posts.id, posts.user_id, users.display_name,
-            users.skill_level AS user_skill_level, posts.workout_id,
+            users.skill_level AS user_skill_level, users.avatar_key, posts.workout_id,
             workouts.title AS workout_title,
             workouts.workout_type AS workout_type,
             workouts.duration_milliseconds AS workout_duration_milliseconds,
@@ -202,9 +203,15 @@ pub async fn feed(
         FROM posts
         JOIN users ON users.id = posts.user_id
         LEFT JOIN workouts ON workouts.id = posts.workout_id
-        WHERE $1::timestamptz IS NULL
+        WHERE posts.moderated_at IS NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM user_blocks
+              WHERE (blocker_id = $4 AND blocked_id = posts.user_id)
+                 OR (blocker_id = posts.user_id AND blocked_id = $4)
+          )
+          AND ($1::timestamptz IS NULL
             OR posts.created_at < $1
-            OR (posts.created_at = $1 AND posts.id < $2)
+            OR (posts.created_at = $1 AND posts.id < $2))
         ORDER BY posts.created_at DESC, posts.id DESC
         LIMIT $3
         "#,
@@ -212,6 +219,7 @@ pub async fn feed(
     .bind(before_time)
     .bind(before_id)
     .bind(limit + 1)
+    .bind(viewer_id)
     .fetch_all(pool)
     .await?;
 
@@ -240,12 +248,13 @@ pub async fn feed(
 pub async fn get_post(
     pool: &Pool<Postgres>,
     media: &MediaStorage,
+    viewer_id: Uuid,
     post_id: Uuid,
 ) -> Result<FeedPost, AppError> {
     let post = sqlx::query_as::<_, StoredFeedPost>(
         r#"
         SELECT posts.id, posts.user_id, users.display_name,
-            users.skill_level AS user_skill_level, posts.workout_id,
+            users.skill_level AS user_skill_level, users.avatar_key, posts.workout_id,
             workouts.title AS workout_title,
             workouts.workout_type AS workout_type,
             workouts.duration_milliseconds AS workout_duration_milliseconds,
@@ -256,10 +265,16 @@ pub async fn get_post(
         FROM posts
         JOIN users ON users.id = posts.user_id
         LEFT JOIN workouts ON workouts.id = posts.workout_id
-        WHERE posts.id = $1
+        WHERE posts.id = $1 AND posts.moderated_at IS NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM user_blocks
+              WHERE (blocker_id = $2 AND blocked_id = posts.user_id)
+                 OR (blocker_id = posts.user_id AND blocked_id = $2)
+          )
         "#,
     )
     .bind(post_id)
+    .bind(viewer_id)
     .fetch_one(pool)
     .await?;
 
@@ -331,11 +346,20 @@ async fn hydrate_feed_post(
     post: StoredFeedPost,
 ) -> Result<FeedPost, AppError> {
     let image_urls = media.read_urls(&post.image_keys).await?;
+    let avatar_url = match &post.avatar_key {
+        Some(key) => media
+            .read_urls(std::slice::from_ref(key))
+            .await?
+            .into_iter()
+            .next(),
+        None => None,
+    };
     Ok(FeedPost {
         id: post.id,
         user_id: post.user_id,
         display_name: post.display_name,
         user_skill_level: post.user_skill_level,
+        avatar_url,
         workout_id: post.workout_id,
         workout_title: post.workout_title,
         workout_type: post.workout_type,
@@ -414,6 +438,7 @@ mod tests {
                 user_id,
                 display_name: "Court Tester".to_owned(),
                 user_skill_level: "advanced".to_owned(),
+                avatar_key: Some(format!("avatars/{user_id}/profile.jpg")),
                 workout_id: Some(workout_id),
                 workout_title: Some("Footwork intervals".to_owned()),
                 workout_type: Some("badminton".to_owned()),
@@ -434,6 +459,10 @@ mod tests {
         assert_eq!(post.user_id, user_id);
         assert_eq!(post.display_name, "Court Tester");
         assert_eq!(post.user_skill_level, "advanced");
+        assert_eq!(
+            post.avatar_url,
+            Some(format!("/uploads/avatars/{user_id}/profile.jpg"))
+        );
         assert_eq!(post.workout_id, Some(workout_id));
         assert_eq!(post.workout_title.as_deref(), Some("Footwork intervals"));
         assert_eq!(post.workout_type.as_deref(), Some("badminton"));

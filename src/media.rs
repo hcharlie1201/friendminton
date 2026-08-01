@@ -105,6 +105,7 @@ pub enum UploadPurpose {
     Post,
     GatheringCover,
     GroupCover,
+    Avatar,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -156,6 +157,7 @@ impl MediaStorage {
             UploadPurpose::Post => "posts",
             UploadPurpose::GatheringCover => "gatherings",
             UploadPurpose::GroupCover => "groups",
+            UploadPurpose::Avatar => "avatars",
         };
         let object_key = format!("{namespace}/{user_id}/{}.{}", Uuid::new_v4(), extension);
         let (upload_url, headers) = match self {
@@ -250,6 +252,13 @@ pub fn validate_group_cover_key(user_id: Uuid, object_key: &str) -> Result<(), A
     Ok(())
 }
 
+pub fn validate_avatar_key(user_id: Uuid, object_key: &str) -> Result<(), AppError> {
+    if !is_scoped_object_key(user_id, object_key, "avatars") {
+        return Err(AppError::BadRequest("invalid avatar object key".to_owned()));
+    }
+    Ok(())
+}
+
 fn validate_post_object_key(user_id: Uuid, object_key: &str) -> Result<(), AppError> {
     if !is_scoped_object_key(user_id, object_key, "posts") {
         return Err(AppError::BadRequest("invalid photo object key".to_owned()));
@@ -261,6 +270,7 @@ fn validate_upload_object_key(user_id: Uuid, object_key: &str) -> Result<(), App
     if !is_scoped_object_key(user_id, object_key, "posts")
         && !is_scoped_object_key(user_id, object_key, "gatherings")
         && !is_scoped_object_key(user_id, object_key, "groups")
+        && !is_scoped_object_key(user_id, object_key, "avatars")
     {
         return Err(AppError::BadRequest("invalid photo object key".to_owned()));
     }

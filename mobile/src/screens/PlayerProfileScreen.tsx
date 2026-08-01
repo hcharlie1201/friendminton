@@ -1,14 +1,17 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useQuery, type QueryObserverResult } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useMutation, useQuery, useQueryClient, type QueryObserverResult } from '@tanstack/react-query';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getApiUsersById, type Player } from '../api/generated';
-import { apiData } from '../api/runtime';
+import { getApiUsersById, postApiUsersByIdBlock, type Player } from '../api/generated';
+import { apiData, apiSuccess } from '../api/runtime';
+import { useSession } from '../auth/session';
+import { errorMessage } from '../common/errors';
 import { Button, colors, fonts } from '../components/ui';
+import { profileImageUrl } from '../features/profile/profileImage';
 
 export function PlayerProfileScreen() {
   const params = useLocalSearchParams<{ playerId?: string | string[] }>();
@@ -16,11 +19,14 @@ export function PlayerProfileScreen() {
   const query = usePlayerProfile(playerId);
   const goBack = usePlayerBackNavigation();
   const retry = usePlayerRetry(query.refetch);
+  const { user } = useSession();
+  const actions = usePlayerSafetyActions(playerId, query.data?.display_name ?? 'this player', goBack);
+  const isOwnProfile = user?.id === playerId;
 
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
-      <PlayerProfileHeader onBack={goBack} />
+      <PlayerProfileHeader onBack={goBack} onSafetyMenu={actions.openMenu} showSafetyMenu={!isOwnProfile} />
       {query.data ? (
         <PlayerProfileContent player={query.data} />
       ) : query.isPending ? (
@@ -33,12 +39,13 @@ export function PlayerProfileScreen() {
 }
 
 function PlayerProfileContent({ player }: { player: Player }) {
+  const avatarUrl = profileImageUrl(player.avatar_url);
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.hero}>
-        <View style={styles.avatar}>
+        {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : <View style={styles.avatar}>
           <Text style={styles.avatarText}>{playerInitials(player.display_name)}</Text>
-        </View>
+        </View>}
         <Text accessibilityRole="header" style={styles.name}>{player.display_name}</Text>
         <View style={styles.badges}>
           <ProfileBadge icon="speedometer-outline" label={skillLevelLabel(player.skill_level)} />
@@ -56,6 +63,8 @@ function PlayerProfileContent({ player }: { player: Player }) {
         </Text>
       </View>
 
+      <SupportButton />
+
       <View style={styles.card}>
         <View style={styles.cardTitleRow}>
           <Ionicons color={colors.primary} name="people-outline" size={22} />
@@ -69,7 +78,7 @@ function PlayerProfileContent({ player }: { player: Player }) {
   );
 }
 
-function PlayerProfileHeader({ onBack }: { onBack: () => void }) {
+function PlayerProfileHeader({ onBack, onSafetyMenu, showSafetyMenu }: { onBack: () => void; onSafetyMenu: () => void; showSafetyMenu: boolean }) {
   return (
     <View style={styles.header}>
       <Pressable
@@ -82,9 +91,24 @@ function PlayerProfileHeader({ onBack }: { onBack: () => void }) {
         <Ionicons color={colors.text} name="chevron-back" size={28} />
       </Pressable>
       <Text style={styles.headerTitle}>Player Profile</Text>
-      <View style={styles.headerButton} />
+      {showSafetyMenu ? <Pressable accessibilityLabel="Player safety options" onPress={onSafetyMenu} style={styles.headerButton}><Ionicons color={colors.text} name="ellipsis-horizontal" size={25} /></Pressable> : <View style={styles.headerButton} />}
     </View>
   );
+}
+
+function SupportButton() {
+  const contact = useCallback(() => { void Linking.openURL('mailto:support@friendminton.com?subject=Friendminton%20support'); }, []);
+  return <Pressable accessibilityRole="link" onPress={contact} style={styles.support}><Ionicons color={colors.primaryStrong} name="mail-outline" size={19} /><Text style={styles.supportText}>Contact Friendminton support</Text></Pressable>;
+}
+
+function usePlayerSafetyActions(playerId: string, playerName: string, goBack: () => void) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const block = useMutation({ mutationFn: () => apiSuccess(postApiUsersByIdBlock({ path: { id: playerId } })), onError: (error) => Alert.alert('Could not block player', errorMessage(error)), onSuccess: async () => { await Promise.all([queryClient.invalidateQueries({ queryKey: ['players'] }), queryClient.invalidateQueries({ queryKey: ['discovery'] }), queryClient.invalidateQueries({ queryKey: ['feed'] })]); goBack(); } });
+  const report = useCallback(() => router.push(`/report?targetId=${encodeURIComponent(playerId)}&targetType=user&label=${encodeURIComponent(playerName)}` as Href), [playerId, playerName, router]);
+  const confirmBlock = useCallback(() => Alert.alert(`Block ${playerName}?`, 'You will no longer see each other in discovery, profiles, the activity feed, or chat.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Block', style: 'destructive', onPress: () => block.mutate() }]), [block, playerName]);
+  const openMenu = useCallback(() => Alert.alert('Player safety', undefined, [{ text: 'Report player', onPress: report }, { text: 'Block player', onPress: confirmBlock, style: 'destructive' }, { text: 'Cancel', style: 'cancel' }]), [confirmBlock, report]);
+  return { openMenu };
 }
 
 function ProfileBadge({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
@@ -189,6 +213,7 @@ const styles = StyleSheet.create({
     width: 104,
   },
   avatarText: { color: colors.textOnPrimary, fontFamily: fonts.black, fontSize: 34, fontWeight: '900' },
+  avatarImage: { borderColor: colors.borderStrong, borderRadius: 52, borderWidth: 5, height: 104, width: 104 },
   name: { color: colors.text, fontFamily: fonts.black, fontSize: 28, fontWeight: '900', textAlign: 'center' },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
   badge: {
@@ -212,6 +237,8 @@ const styles = StyleSheet.create({
   cardTitleRow: { alignItems: 'center', flexDirection: 'row', gap: 9 },
   cardTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 17, fontWeight: '900' },
   bio: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22 },
+  support: { alignItems: 'center', flexDirection: 'row', gap: 8, justifyContent: 'center', padding: 12 },
+  supportText: { color: colors.primaryStrong, fontFamily: fonts.bold, fontSize: 14, fontWeight: '700' },
   centeredState: {
     alignItems: 'center',
     flex: 1,
