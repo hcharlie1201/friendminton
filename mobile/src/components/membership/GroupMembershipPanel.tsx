@@ -180,7 +180,7 @@ function showMembershipError(error: unknown) {
 }
 
 const styles = StyleSheet.create({
-  panel: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, gap: 12, padding: 18 },
+  panel: { backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 8, gap: 12, paddingHorizontal: 20, paddingVertical: 24 },
   title: { ...textSizes.large, ...textWeights.heavy, color: colors.text },
   body: { ...textSizes.small, ...textWeights.regular, color: colors.textMuted },
   member: { alignItems: 'center', borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 10, paddingTop: 12 },

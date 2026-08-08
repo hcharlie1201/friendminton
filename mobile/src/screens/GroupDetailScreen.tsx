@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getApiGroupsByGroupId, type BadmintonGroup, type GroupGoal } from '../api/generated';
@@ -13,6 +13,7 @@ import { useSession } from '../auth/session';
 import { GroupMembershipPanel } from '../components/membership';
 import { Button, colors, fonts } from '../components/ui';
 import { resolveGroupCoverUrl } from '../features/groups/groupPresentation';
+import { GroupDiscussion } from '../components/groups/GroupDiscussion';
 
 export function GroupDetailScreen() {
   const params = useLocalSearchParams<{ groupId?: string | string[] }>();
@@ -27,14 +28,14 @@ export function GroupDetailScreen() {
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
       <GroupDetailHeader onBack={goBack} />
-      {query.data ? (
+      {query.data ? <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: 'height' })} style={styles.flex} keyboardVerticalOffset={58}>
         <GroupDetailContent
           canHostEvents={query.data.owner_id === user?.id}
           group={query.data}
           onHostEvent={hostEvent}
           userId={user?.id ?? ''}
         />
-      ) : query.isPending ? (
+      </KeyboardAvoidingView> : query.isPending ? (
         <GroupDetailLoading />
       ) : (
         <GroupDetailError onRetry={retry} />
@@ -113,9 +114,9 @@ function GroupDetailContent({
 
       <GroupMembershipPanel groupId={group.id} joinPolicy={group.join_policy} userId={userId} />
 
-      {canHostEvents && (
-        <Button icon="calendar-outline" onPress={onHostEvent}>Host a group event</Button>
-      )}
+      {canHostEvents && <View style={styles.primaryAction}><Button icon="calendar-outline" onPress={onHostEvent}>Host a group event</Button></View>}
+
+      <GroupDiscussion groupId={group.id} userId={userId} />
 
       <View style={styles.section}>
         <View style={styles.sectionTitleRow}>
@@ -256,7 +257,7 @@ function singleParam(value: string | string[] | undefined) {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: colors.background, flex: 1 },
+  screen: { backgroundColor: colors.background, flex: 1 }, flex: { flex: 1 },
   header: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -269,11 +270,11 @@ const styles = StyleSheet.create({
   },
   headerButton: { alignItems: 'center', height: 42, justifyContent: 'center', width: 42 },
   headerTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 18, fontWeight: '900' },
-  content: { gap: 16, padding: 20, paddingBottom: 40 },
-  hero: { borderRadius: 24, gap: 8, minHeight: 230, overflow: 'hidden', padding: 22 },
+  content: { backgroundColor: colors.surface, paddingBottom: 40 },
+  hero: { gap: 8, minHeight: 250, overflow: 'hidden', padding: 22 },
   heroCoverImage: { height: '100%', left: 0, position: 'absolute', top: 0, width: '100%' },
   heroCoverShade: { backgroundColor: colors.overlayStrong, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
-  gallerySection: { gap: 9 },
+  gallerySection: { borderBottomColor: colors.border, borderBottomWidth: 8, gap: 9, paddingHorizontal: 20, paddingVertical: 20 },
   galleryTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 15, fontWeight: '900' },
   galleryStrip: { gap: 10, paddingRight: 4 },
   galleryImage: { borderRadius: 16, height: 116, width: 154 },
@@ -298,11 +299,12 @@ const styles = StyleSheet.create({
   visibilityText: { color: colors.textInverse, fontFamily: fonts.bold, fontSize: 10, fontWeight: '700' },
   name: { color: colors.textInverse, fontFamily: fonts.black, fontSize: 29, fontWeight: '900', lineHeight: 34, marginTop: 'auto' },
   city: { color: colors.imageOverlayText, fontFamily: fonts.bold, fontSize: 13, fontWeight: '700' },
-  stats: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, flexDirection: 'row', padding: 14 },
+  stats: { backgroundColor: colors.surface, borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: 'row', paddingHorizontal: 14, paddingVertical: 18 },
   stat: { alignItems: 'center', flex: 1, gap: 3, minWidth: 0 },
   statLabel: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 10 },
   statValue: { color: colors.text, fontFamily: fonts.black, fontSize: 15, fontWeight: '900' },
-  section: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, gap: 12, padding: 18 },
+  primaryAction: { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 20, paddingVertical: 18 },
+  section: { backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 8, gap: 12, paddingHorizontal: 20, paddingVertical: 24 },
   sectionTitleRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   sectionTitle: { color: colors.text, fontFamily: fonts.black, fontSize: 17, fontWeight: '900' },
   description: { color: colors.textMuted, fontFamily: fonts.regular, fontSize: 14, lineHeight: 21 },

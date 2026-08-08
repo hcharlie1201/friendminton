@@ -1,6 +1,8 @@
+mod discussion;
 mod group;
 
 use sqlx::{Pool, Postgres, QueryBuilder};
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::{
@@ -8,6 +10,10 @@ use crate::{
     media::{MediaStorage, validate_group_cover_key},
 };
 
+pub use discussion::{
+    CreateGroupMessage, GroupMessage, GroupMessagePage, GroupMessageQuery, SetGroupMessageReaction,
+};
+use discussion::{GroupMessageReaction, StoredGroupMessage, StoredReaction};
 use group::StoredBadmintonGroup;
 pub use group::{
     BadmintonGroup, CreateBadmintonGroup, GroupMember, GroupMemberStatus, GroupMembership,
@@ -24,6 +30,7 @@ const GROUP_COLUMNS: &str = r#"
     g.created_at, g.updated_at
 "#;
 const MAX_GROUP_GOALS: usize = 5;
+const GROUP_MESSAGE_MAX_CHARS: usize = 2000;
 
 pub async fn create_group(
     pool: &Pool<Postgres>,
@@ -149,6 +156,251 @@ pub async fn find_joined_groups(
     .fetch_all(pool)
     .await?;
     hydrate_groups(media, groups).await
+}
+
+pub async fn group_messages(
+    pool: &Pool<Postgres>,
+    media: &MediaStorage,
+    group_id: Uuid,
+    user_id: Uuid,
+    query: GroupMessageQuery,
+) -> Result<GroupMessagePage, AppError> {
+    require_group_member(pool, group_id, user_id).await?;
+    let limit = query.limit.unwrap_or(30);
+    if !(1..=50).contains(&limit) {
+        return Err(AppError::BadRequest(
+            "message limit must be between 1 and 50".to_owned(),
+        ));
+    }
+    let cursor = query
+        .cursor
+        .as_deref()
+        .map(decode_message_cursor)
+        .transpose()?;
+    let (before_time, before_id) = cursor.unzip();
+    let unread_count = sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT count(*) FROM group_messages AS message
+        LEFT JOIN group_conversation_reads AS read
+          ON read.group_id = message.group_id AND read.user_id = $2
+        WHERE message.group_id = $1 AND message.deleted_at IS NULL
+          AND message.user_id <> $2
+          AND message.created_at > COALESCE(read.last_read_at, '-infinity'::timestamptz)
+          AND NOT EXISTS (SELECT 1 FROM user_blocks WHERE
+            (blocker_id = $2 AND blocked_id = message.user_id)
+            OR (blocker_id = message.user_id AND blocked_id = $2))
+    "#,
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
+    let mut stored = sqlx::query_as::<_, StoredGroupMessage>(
+        r#"
+        SELECT message.id, message.group_id, message.user_id, users.display_name,
+            users.avatar_key, message.body, message.created_at
+        FROM group_messages AS message
+        JOIN users ON users.id = message.user_id
+        WHERE message.group_id = $1 AND message.deleted_at IS NULL
+          AND NOT EXISTS (SELECT 1 FROM user_blocks WHERE
+            (blocker_id = $2 AND blocked_id = message.user_id)
+            OR (blocker_id = message.user_id AND blocked_id = $2))
+          AND ($3::timestamptz IS NULL OR message.created_at < $3
+            OR (message.created_at = $3 AND message.id < $4))
+        ORDER BY message.created_at DESC, message.id DESC LIMIT $5
+    "#,
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .bind(before_time)
+    .bind(before_id)
+    .bind(limit + 1)
+    .fetch_all(pool)
+    .await?;
+    let has_more = stored.len() > limit as usize;
+    if has_more {
+        stored.truncate(limit as usize);
+    }
+    let next_cursor = has_more
+        .then(|| {
+            stored
+                .last()
+                .map(|message| encode_message_cursor(message.created_at, message.id))
+        })
+        .flatten();
+    let mut items = Vec::with_capacity(stored.len());
+    for message in stored.into_iter().rev() {
+        items.push(hydrate_group_message(pool, media, user_id, message).await?);
+    }
+    sqlx::query(
+        r#"INSERT INTO group_conversation_reads (group_id, user_id, last_read_at)
+        VALUES ($1, $2, now()) ON CONFLICT (group_id, user_id)
+        DO UPDATE SET last_read_at = EXCLUDED.last_read_at"#,
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .execute(pool)
+    .await?;
+    Ok(GroupMessagePage {
+        items,
+        next_cursor,
+        unread_count,
+    })
+}
+
+pub async fn create_group_message(
+    pool: &Pool<Postgres>,
+    media: &MediaStorage,
+    group_id: Uuid,
+    user_id: Uuid,
+    payload: CreateGroupMessage,
+) -> Result<GroupMessage, AppError> {
+    require_group_member(pool, group_id, user_id).await?;
+    let body = payload.body.trim();
+    if body.is_empty() || body.chars().count() > GROUP_MESSAGE_MAX_CHARS {
+        return Err(AppError::BadRequest(format!(
+            "message must be between 1 and {GROUP_MESSAGE_MAX_CHARS} characters"
+        )));
+    }
+    sqlx::query(
+        r#"INSERT INTO group_messages (group_id, user_id, client_message_id, body)
+        VALUES ($1, $2, $3, $4) ON CONFLICT (group_id, user_id, client_message_id) DO NOTHING"#,
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .bind(payload.client_message_id)
+    .bind(body)
+    .execute(pool)
+    .await?;
+    let stored = sqlx::query_as::<_, StoredGroupMessage>(
+        r#"
+        SELECT message.id, message.group_id, message.user_id, users.display_name,
+            users.avatar_key, message.body, message.created_at
+        FROM group_messages AS message JOIN users ON users.id = message.user_id
+        WHERE message.group_id = $1 AND message.user_id = $2 AND message.client_message_id = $3
+    "#,
+    )
+    .bind(group_id)
+    .bind(user_id)
+    .bind(payload.client_message_id)
+    .fetch_one(pool)
+    .await?;
+    hydrate_group_message(pool, media, user_id, stored).await
+}
+
+pub async fn set_group_message_reaction(
+    pool: &Pool<Postgres>,
+    media: &MediaStorage,
+    group_id: Uuid,
+    message_id: Uuid,
+    user_id: Uuid,
+    payload: SetGroupMessageReaction,
+) -> Result<GroupMessage, AppError> {
+    require_group_member(pool, group_id, user_id).await?;
+    if !matches!(payload.emoji.as_str(), "👍" | "❤️" | "🔥" | "👏" | "😂") {
+        return Err(AppError::BadRequest("unsupported reaction".to_owned()));
+    }
+    let stored = load_group_message(pool, group_id, message_id).await?;
+    if payload.active {
+        sqlx::query("INSERT INTO group_message_reactions (message_id, user_id, emoji) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING")
+            .bind(message_id).bind(user_id).bind(&payload.emoji).execute(pool).await?;
+    } else {
+        sqlx::query("DELETE FROM group_message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3")
+            .bind(message_id).bind(user_id).bind(&payload.emoji).execute(pool).await?;
+    }
+    hydrate_group_message(pool, media, user_id, stored).await
+}
+
+async fn load_group_message(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    message_id: Uuid,
+) -> Result<StoredGroupMessage, AppError> {
+    Ok(sqlx::query_as::<_, StoredGroupMessage>(
+        r#"
+        SELECT message.id, message.group_id, message.user_id, users.display_name,
+            users.avatar_key, message.body, message.created_at
+        FROM group_messages AS message JOIN users ON users.id = message.user_id
+        WHERE message.id = $1 AND message.group_id = $2 AND message.deleted_at IS NULL
+    "#,
+    )
+    .bind(message_id)
+    .bind(group_id)
+    .fetch_one(pool)
+    .await?)
+}
+
+async fn hydrate_group_message(
+    pool: &Pool<Postgres>,
+    media: &MediaStorage,
+    viewer_id: Uuid,
+    stored: StoredGroupMessage,
+) -> Result<GroupMessage, AppError> {
+    let reactions = sqlx::query_as::<_, StoredReaction>(
+        r#"
+        SELECT emoji, count(*) AS count, bool_or(user_id = $2) AS reacted_by_viewer
+        FROM group_message_reactions WHERE message_id = $1 GROUP BY emoji ORDER BY min(created_at)
+    "#,
+    )
+    .bind(stored.id)
+    .bind(viewer_id)
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|reaction| GroupMessageReaction {
+        emoji: reaction.emoji,
+        count: reaction.count,
+        reacted_by_viewer: reaction.reacted_by_viewer,
+    })
+    .collect();
+    let avatar_url = match &stored.avatar_key {
+        Some(key) => media
+            .read_urls(std::slice::from_ref(key))
+            .await?
+            .into_iter()
+            .next(),
+        None => None,
+    };
+    Ok(GroupMessage {
+        id: stored.id,
+        group_id: stored.group_id,
+        user_id: stored.user_id,
+        display_name: stored.display_name,
+        avatar_url,
+        body: stored.body,
+        reactions,
+        created_at: stored.created_at,
+    })
+}
+
+async fn require_group_member(
+    pool: &Pool<Postgres>,
+    group_id: Uuid,
+    user_id: Uuid,
+) -> Result<(), AppError> {
+    let eligible = sqlx::query_scalar::<_, bool>(r#"SELECT EXISTS(
+        SELECT 1 FROM badminton_group_members WHERE group_id = $1 AND user_id = $2 AND status = 'member')"#)
+        .bind(group_id).bind(user_id).fetch_one(pool).await?;
+    if !eligible {
+        return Err(AppError::Forbidden(
+            "join this group to participate in its discussion".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn encode_message_cursor(created_at: OffsetDateTime, id: Uuid) -> String {
+    format!("{}:{id}", created_at.unix_timestamp_nanos())
+}
+
+fn decode_message_cursor(value: &str) -> Result<(OffsetDateTime, Uuid), AppError> {
+    let invalid = || AppError::BadRequest("invalid message cursor".to_owned());
+    let (timestamp, id) = value.split_once(':').ok_or_else(invalid)?;
+    let timestamp = timestamp.parse::<i128>().map_err(|_| invalid())?;
+    Ok((
+        OffsetDateTime::from_unix_timestamp_nanos(timestamp).map_err(|_| invalid())?,
+        Uuid::parse_str(id).map_err(|_| invalid())?,
+    ))
 }
 
 pub async fn get_group(

@@ -1,6 +1,6 @@
 use aide::axum::{
     ApiRouter,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use axum::{
     Json,
@@ -16,8 +16,9 @@ use crate::{
     auth::CurrentUser,
     error::AppError,
     groups::{
-        self, BadmintonGroup, CreateBadmintonGroup, GroupMember, GroupMembership, GroupSearch,
-        GroupViewerState, InviteGroupMember,
+        self, BadmintonGroup, CreateBadmintonGroup, CreateGroupMessage, GroupMember,
+        GroupMembership, GroupMessage, GroupMessagePage, GroupMessageQuery, GroupSearch,
+        GroupViewerState, InviteGroupMember, SetGroupMessageReaction,
     },
 };
 
@@ -28,6 +29,14 @@ pub fn routes() -> ApiRouter<AppState> {
         .api_route("/{group_id}", get(get_group))
         .api_route("/{group_id}/me", get(get_group_viewer_state))
         .api_route("/{group_id}/members", get(get_group_members))
+        .api_route(
+            "/{group_id}/messages",
+            get(get_group_messages).post(create_group_message),
+        )
+        .api_route(
+            "/{group_id}/messages/{message_id}/reaction",
+            put(set_group_message_reaction),
+        )
         .api_route("/{group_id}/join", post(join_group))
         .api_route("/{group_id}/leave", post(leave_group))
         .api_route("/{group_id}/invite", post(invite_group_member))
@@ -63,6 +72,54 @@ pub(crate) struct GroupPath {
 pub(crate) struct GroupMemberPath {
     group_id: Uuid,
     user_id: Uuid,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub(crate) struct GroupMessagePath {
+    group_id: Uuid,
+    message_id: Uuid,
+}
+
+async fn get_group_messages(
+    State(state): State<AppState>,
+    CurrentUser { id: user_id }: CurrentUser,
+    Path(path): Path<GroupPath>,
+    Query(query): Query<GroupMessageQuery>,
+) -> Result<Json<GroupMessagePage>, AppError> {
+    Ok(Json(
+        groups::group_messages(&state.pool, &state.media, path.group_id, user_id, query).await?,
+    ))
+}
+
+async fn create_group_message(
+    State(state): State<AppState>,
+    CurrentUser { id: user_id }: CurrentUser,
+    Path(path): Path<GroupPath>,
+    Json(payload): Json<CreateGroupMessage>,
+) -> Result<Json<GroupMessage>, AppError> {
+    Ok(Json(
+        groups::create_group_message(&state.pool, &state.media, path.group_id, user_id, payload)
+            .await?,
+    ))
+}
+
+async fn set_group_message_reaction(
+    State(state): State<AppState>,
+    CurrentUser { id: user_id }: CurrentUser,
+    Path(path): Path<GroupMessagePath>,
+    Json(payload): Json<SetGroupMessageReaction>,
+) -> Result<Json<GroupMessage>, AppError> {
+    Ok(Json(
+        groups::set_group_message_reaction(
+            &state.pool,
+            &state.media,
+            path.group_id,
+            path.message_id,
+            user_id,
+            payload,
+        )
+        .await?,
+    ))
 }
 
 pub(crate) async fn create_group(
@@ -179,6 +236,82 @@ mod tests {
     use serde_json::json;
 
     use crate::controller::test_support::{TestApi, response_uuid};
+
+    #[tokio::test]
+    async fn group_discussion_is_member_only_idempotent_and_supports_reactions() {
+        let api = TestApi::new().await;
+        let owner_id = api.insert_user("discussion-owner").await;
+        let member_id = api.insert_user("discussion-member").await;
+        let outsider_id = api.insert_user("discussion-outsider").await;
+        let group_id = sqlx::query_scalar::<_, uuid::Uuid>(r#"
+            INSERT INTO badminton_groups (owner_id, name, city) VALUES ($1, 'Birdie Talk', 'RouteTestOnly') RETURNING id
+        "#).bind(owner_id).fetch_one(&api.pool).await.unwrap();
+        for user_id in [owner_id, member_id] {
+            sqlx::query("INSERT INTO badminton_group_members (group_id, user_id, role, status) VALUES ($1, $2, 'member', 'member')")
+                .bind(group_id).bind(user_id).execute(&api.pool).await.unwrap();
+        }
+        let client_message_id = uuid::Uuid::new_v4();
+        let forbidden = api
+            .json(
+                Method::POST,
+                &format!("/api/groups/{group_id}/messages"),
+                Some(outsider_id),
+                Some(json!({
+                    "client_message_id": client_message_id, "body": "Let me in"
+                })),
+            )
+            .await;
+        assert_eq!(forbidden.status, StatusCode::FORBIDDEN);
+        let first = api
+            .json(
+                Method::POST,
+                &format!("/api/groups/{group_id}/messages"),
+                Some(owner_id),
+                Some(json!({
+                    "client_message_id": client_message_id, "body": "  Great games tonight!  "
+                })),
+            )
+            .await;
+        assert_eq!(first.status, StatusCode::OK, "{}", first.body);
+        assert_eq!(first.body["body"], "Great games tonight!");
+        let duplicate = api
+            .json(
+                Method::POST,
+                &format!("/api/groups/{group_id}/messages"),
+                Some(owner_id),
+                Some(json!({
+                    "client_message_id": client_message_id, "body": "Ignored retry body"
+                })),
+            )
+            .await;
+        assert_eq!(duplicate.body["id"], first.body["id"]);
+        let message_id = response_uuid(&first.body, "id");
+        let reacted = api
+            .json(
+                Method::PUT,
+                &format!("/api/groups/{group_id}/messages/{message_id}/reaction"),
+                Some(member_id),
+                Some(json!({
+                    "emoji": "🔥", "active": true
+                })),
+            )
+            .await;
+        assert_eq!(reacted.status, StatusCode::OK, "{}", reacted.body);
+        assert_eq!(reacted.body["reactions"][0]["count"], 1);
+        assert_eq!(reacted.body["reactions"][0]["reacted_by_viewer"], true);
+        let history = api
+            .json(
+                Method::GET,
+                &format!("/api/groups/{group_id}/messages"),
+                Some(member_id),
+                None,
+            )
+            .await;
+        assert_eq!(history.status, StatusCode::OK, "{}", history.body);
+        assert_eq!(history.body["items"][0]["id"], first.body["id"]);
+        assert_eq!(history.body["unread_count"], 1);
+        api.cleanup_users(&[owner_id, member_id, outsider_id]).await;
+    }
 
     #[tokio::test]
     async fn group_routes_create_discover_and_join() {

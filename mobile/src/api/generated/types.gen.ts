@@ -269,6 +269,11 @@ export type CreateGathering = {
     visibility?: GatheringVisibility;
 };
 
+export type CreateGroupMessage = {
+    body: string;
+    client_message_id: string;
+};
+
 export type CreatePost = {
     body: string;
     effort?: number | null;
@@ -636,6 +641,39 @@ export type GroupMembership = {
     role: GroupRole;
     status: GroupMemberStatus;
     user_id: string;
+};
+
+export type GroupMessage = {
+    avatar_url?: string | null;
+    body: string;
+    created_at: string;
+    display_name: string;
+    group_id: string;
+    id: string;
+    reactions: Array<GroupMessageReaction>;
+    user_id: string;
+};
+
+export type GroupMessagePage = {
+    items: Array<GroupMessage>;
+    next_cursor?: string | null;
+    unread_count: number;
+};
+
+export type GroupMessagePath = {
+    group_id: string;
+    message_id: string;
+};
+
+export type GroupMessageQuery = {
+    cursor?: string | null;
+    limit?: number | null;
+};
+
+export type GroupMessageReaction = {
+    count: number;
+    emoji: string;
+    reacted_by_viewer: boolean;
 };
 
 export type GroupPath = {
@@ -1692,7 +1730,7 @@ export type ReportReason = 'harassment' | 'spam' | 'hate' | 'sexual_content' | '
 
 export type ReportResolution = 'dismiss' | 'resolve' | 'remove_content';
 
-export type ReportTargetType = 'user' | 'post';
+export type ReportTargetType = 'user' | 'post' | 'group_message';
 
 export type RequestBody = {
     /**
@@ -1888,6 +1926,11 @@ export type ServerVariable = {
      */
     enum?: Array<string>;
     [key: string]: unknown;
+};
+
+export type SetGroupMessageReaction = {
+    active: boolean;
+    emoji: string;
 };
 
 export type SignInEmail = {
@@ -3383,6 +3426,97 @@ export type GetApiGroupsByGroupIdMembersResponses = {
 };
 
 export type GetApiGroupsByGroupIdMembersResponse = GetApiGroupsByGroupIdMembersResponses[keyof GetApiGroupsByGroupIdMembersResponses];
+
+export type GetApiGroupsByGroupIdMessagesData = {
+    body?: never;
+    path: {
+        group_id: string;
+    };
+    query?: {
+        cursor?: string | null;
+        limit?: number | null;
+    };
+    url: '/api/groups/{group_id}/messages';
+};
+
+export type GetApiGroupsByGroupIdMessagesErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type GetApiGroupsByGroupIdMessagesError = GetApiGroupsByGroupIdMessagesErrors[keyof GetApiGroupsByGroupIdMessagesErrors];
+
+export type GetApiGroupsByGroupIdMessagesResponses = {
+    200: GroupMessagePage;
+};
+
+export type GetApiGroupsByGroupIdMessagesResponse = GetApiGroupsByGroupIdMessagesResponses[keyof GetApiGroupsByGroupIdMessagesResponses];
+
+export type PostApiGroupsByGroupIdMessagesData = {
+    body: CreateGroupMessage;
+    path: {
+        group_id: string;
+    };
+    query?: never;
+    url: '/api/groups/{group_id}/messages';
+};
+
+export type PostApiGroupsByGroupIdMessagesErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PostApiGroupsByGroupIdMessagesError = PostApiGroupsByGroupIdMessagesErrors[keyof PostApiGroupsByGroupIdMessagesErrors];
+
+export type PostApiGroupsByGroupIdMessagesResponses = {
+    200: GroupMessage;
+};
+
+export type PostApiGroupsByGroupIdMessagesResponse = PostApiGroupsByGroupIdMessagesResponses[keyof PostApiGroupsByGroupIdMessagesResponses];
+
+export type PutApiGroupsByGroupIdMessagesByMessageIdReactionData = {
+    body: SetGroupMessageReaction;
+    path: {
+        group_id: string;
+        message_id: string;
+    };
+    query?: never;
+    url: '/api/groups/{group_id}/messages/{message_id}/reaction';
+};
+
+export type PutApiGroupsByGroupIdMessagesByMessageIdReactionErrors = {
+    400: ErrorBody;
+    401: ErrorBody;
+    403: ErrorBody;
+    404: ErrorBody;
+    409: ErrorBody;
+    429: ErrorBody;
+    500: ErrorBody;
+    502: ErrorBody;
+    503: ErrorBody;
+};
+
+export type PutApiGroupsByGroupIdMessagesByMessageIdReactionError = PutApiGroupsByGroupIdMessagesByMessageIdReactionErrors[keyof PutApiGroupsByGroupIdMessagesByMessageIdReactionErrors];
+
+export type PutApiGroupsByGroupIdMessagesByMessageIdReactionResponses = {
+    200: GroupMessage;
+};
+
+export type PutApiGroupsByGroupIdMessagesByMessageIdReactionResponse = PutApiGroupsByGroupIdMessagesByMessageIdReactionResponses[keyof PutApiGroupsByGroupIdMessagesByMessageIdReactionResponses];
 
 export type PostApiGroupsByGroupIdJoinData = {
     body?: never;

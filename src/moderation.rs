@@ -20,6 +20,7 @@ pub struct CreateReport {
 pub enum ReportTargetType {
     User,
     Post,
+    GroupMessage,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, JsonSchema, sqlx::Type)]
@@ -161,15 +162,29 @@ pub async fn resolve_report(
         ReportResolution::Dismiss => ("dismissed", "dismissed"),
         ReportResolution::Resolve => ("resolved", "resolved"),
         ReportResolution::RemoveContent => {
-            if !matches!(target_type, ReportTargetType::Post) {
+            if !matches!(
+                target_type,
+                ReportTargetType::Post | ReportTargetType::GroupMessage
+            ) {
                 return Err(AppError::BadRequest(
                     "only reported content can be removed".to_owned(),
                 ));
             }
-            sqlx::query("UPDATE posts SET moderated_at = now() WHERE id = $1")
-                .bind(target_id)
-                .execute(&mut *tx)
-                .await?;
+            match target_type {
+                ReportTargetType::Post => {
+                    sqlx::query("UPDATE posts SET moderated_at = now() WHERE id = $1")
+                        .bind(target_id)
+                        .execute(&mut *tx)
+                        .await?;
+                }
+                ReportTargetType::GroupMessage => {
+                    sqlx::query("UPDATE group_messages SET deleted_at = now() WHERE id = $1")
+                        .bind(target_id)
+                        .execute(&mut *tx)
+                        .await?;
+                }
+                ReportTargetType::User => unreachable!(),
+            }
             ("resolved", "content_removed")
         }
     };
@@ -214,13 +229,15 @@ fn report_select(suffix: &str) -> String {
         r#"SELECT report.id, report.reporter_id, reporter.display_name AS reporter_name,
         report.target_type, report.target_id,
         CASE report.target_type WHEN 'user' THEN COALESCE(target_user.display_name, 'Removed user')
-             ELSE COALESCE(left(target_post.body, 100), 'Removed post') END AS target_label,
+             WHEN 'post' THEN COALESCE(left(target_post.body, 100), 'Removed post')
+             ELSE COALESCE(left(target_message.body, 100), 'Removed message') END AS target_label,
         report.reason, report.details, report.status, report.resolution_note,
         report.reviewed_by, report.reviewed_at, report.created_at
         FROM moderation_reports AS report
         JOIN users AS reporter ON reporter.id = report.reporter_id
         LEFT JOIN users AS target_user ON report.target_type = 'user' AND target_user.id = report.target_id
         LEFT JOIN posts AS target_post ON report.target_type = 'post' AND target_post.id = report.target_id
+        LEFT JOIN group_messages AS target_message ON report.target_type = 'group_message' AND target_message.id = report.target_id
         {suffix}"#
     )
 }
@@ -244,6 +261,7 @@ async fn ensure_target_exists(
     let table = match target_type {
         ReportTargetType::User => "users",
         ReportTargetType::Post => "posts",
+        ReportTargetType::GroupMessage => "group_messages",
     };
     let exists = sqlx::query_scalar::<_, bool>(&format!(
         "SELECT EXISTS(SELECT 1 FROM {table} WHERE id = $1)"

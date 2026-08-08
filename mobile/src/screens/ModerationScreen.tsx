@@ -29,7 +29,7 @@ export function ModerationScreen() {
 
 function ReportCard({ report }: { report: ModerationReport }) {
   const action = useReportReview(report);
-  return <View style={styles.card}><View style={styles.cardHeader}><Text style={styles.reason}>{reasonLabel(report.reason)}</Text><Text style={styles.targetType}>{report.target_type.toUpperCase()}</Text></View><Text style={styles.target}>{report.target_label || 'Removed content'}</Text><Text style={styles.meta}>Reported by {report.reporter_name}</Text>{report.details ? <Text style={styles.details}>{report.details}</Text> : null}<View style={styles.actions}>{report.target_type === 'post' && <Button onPress={action.remove} variant="danger">Remove</Button>}<Button onPress={action.resolve} variant="secondary">Resolve</Button><Button onPress={action.dismiss} variant="secondary">Dismiss</Button></View></View>;
+  return <View style={styles.card}><View style={styles.cardHeader}><Text style={styles.reason}>{reasonLabel(report.reason)}</Text><Text style={styles.targetType}>{report.target_type.toUpperCase()}</Text></View><Text style={styles.target}>{report.target_label || 'Removed content'}</Text><Text style={styles.meta}>Reported by {report.reporter_name}</Text>{report.details ? <Text style={styles.details}>{report.details}</Text> : null}<View style={styles.actions}>{report.target_type !== 'user' && <Button onPress={action.remove} variant="danger">Remove</Button>}<Button onPress={action.resolve} variant="secondary">Resolve</Button><Button onPress={action.dismiss} variant="secondary">Dismiss</Button></View></View>;
 }
 
 function useReportReview(report: ModerationReport) {

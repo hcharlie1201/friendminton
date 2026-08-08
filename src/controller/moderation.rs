@@ -130,4 +130,48 @@ mod tests {
         assert_eq!(hidden.status, StatusCode::NOT_FOUND);
         api.cleanup_users(&[reporter, author, admin]).await;
     }
+
+    #[tokio::test]
+    async fn moderator_can_remove_a_reported_group_message() {
+        let api = TestApi::new().await;
+        let reporter = api.insert_user("message-reporter").await;
+        let author = api.insert_user("message-author").await;
+        let admin = api.insert_user("message-moderator").await;
+        sqlx::query("UPDATE users SET is_admin = TRUE WHERE id = $1")
+            .bind(admin)
+            .execute(&api.pool)
+            .await
+            .unwrap();
+        let group_id = sqlx::query_scalar::<_, uuid::Uuid>(
+            "INSERT INTO badminton_groups (owner_id, name, city) VALUES ($1, 'Reported Club', 'RouteTestOnly') RETURNING id"
+        ).bind(author).fetch_one(&api.pool).await.unwrap();
+        let message_id = sqlx::query_scalar::<_, uuid::Uuid>(
+            "INSERT INTO group_messages (group_id, user_id, client_message_id, body) VALUES ($1, $2, $3, 'bad message') RETURNING id"
+        ).bind(group_id).bind(author).bind(uuid::Uuid::new_v4()).fetch_one(&api.pool).await.unwrap();
+        let created = api.json(Method::POST, "/api/moderation/reports", Some(reporter), Some(json!({
+            "target_type": "group_message", "target_id": message_id, "reason": "harassment", "details": null
+        }))).await;
+        assert_eq!(created.status, StatusCode::OK, "{}", created.body);
+        let report_id = created.body["id"].as_str().unwrap();
+        let removed = api
+            .json(
+                Method::PATCH,
+                &format!("/api/moderation/reports/{report_id}"),
+                Some(admin),
+                Some(json!({
+                    "resolution": "remove_content", "note": "Removed from club discussion"
+                })),
+            )
+            .await;
+        assert_eq!(removed.status, StatusCode::OK, "{}", removed.body);
+        let deleted = sqlx::query_scalar::<_, bool>(
+            "SELECT deleted_at IS NOT NULL FROM group_messages WHERE id = $1",
+        )
+        .bind(message_id)
+        .fetch_one(&api.pool)
+        .await
+        .unwrap();
+        assert!(deleted);
+        api.cleanup_users(&[reporter, author, admin]).await;
+    }
 }

@@ -7,13 +7,14 @@ should be loaded before MVP work and updated as implementation lands.
 
 ## Current focus
 
-**Step 7 is complete.** Editable profiles and avatars, blocking and filtered
+**Step 5 has resumed for group discussions; Step 7 remains complete.** Editable profiles and avatars, blocking and filtered
 content, user/post reporting, support contact, administrator review/removal, an
 audit trail, and the consistency snapshot are implemented with backend route
-tests and mobile typechecking. Step 5 chat remains paused at the user's
-direction. Step 3's staging smoke test and Step 2's Apple-login staging
-prerequisites remain external validation tasks; the next implementation slice
-is Step 6 unless the user chooses Step 8 first.
+tests and mobile typechecking. The group half of Step 5 now has a full-width
+club discussion with persistent member posts, polling, pagination, unread state,
+idempotent sending, reactions, blocking, and reporting. Gathering conversations
+remain. Step 3's staging smoke test and Step 2's Apple-login staging
+prerequisites remain external validation tasks.
 
 ### Finish Step 1 runbook
 
@@ -77,7 +78,7 @@ Update the status table below and move current focus to Step 2.
 | 2 | Sign in with Apple and in-app account deletion | In progress; deletion shipped, Apple staging smoke pending |
 | 3 | Unified discovery and search | In progress; implementation complete, staging smoke pending |
 | 4 | Complete group and gathering membership flows | Complete |
-| 5 | Minimal gathering and group chat | Paused before implementation |
+| 5 | Minimal gathering and group chat | In progress; group discussion shipped, gathering chat pending |
 | 6 | Event-driven notifications, push, and transactional email | Not started; SES foundation ready |
 | 7 | Editable profiles, reporting, blocking, moderation, and consistency | Complete |
 | 8 | Standalone manual activities; explicitly decide phone tracking scope | Not started |
@@ -269,10 +270,19 @@ for deleted group covers are not swept in this step.
 - Conversation history, retries, duplicate-send protection, and unread state
   work across app restarts.
 
+### Implementation progress
+
+- [x] Add a member-only group discussion with cursor history, polling, persisted
+  unread state, idempotent sends, blocked-user filtering, message reporting, and
+  lightweight emoji reactions.
+- [x] Replace card-heavy group detail sections with a full-width club layout and
+  make the discussion a primary group surface.
+- [ ] Add the corresponding authorized gathering conversation.
+
 ### Deferred
 
-- Attachments, reactions, typing indicators, read receipts, WebSockets, and
-  unrestricted direct messages.
+- Attachments, gathering reactions, typing indicators, read receipts,
+  WebSockets, and unrestricted direct messages.
 
 ## Step 6 — notifications, push, and email
 
